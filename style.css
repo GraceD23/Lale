@@ -1,0 +1,216 @@
+
+/* =========================================================
+   STYLE.CSS
+   ---------------------------------------------------------
+   This is the BASE FOUNDATION stylesheet for the whole site.
+
+   Use this file for:
+   - browser reset styles
+   - general body defaults
+   - base font settings
+   - shared typography defaults
+   - universal box sizing
+
+   This file should stay general.
+   More specific visual styling belongs in:
+   - theme.css
+   - layout.css
+   - components.css
+   ========================================================= */
+
+
+/* =========================================================
+   UNIVERSAL BOX SIZING
+   ---------------------------------------------------------
+   This makes width/height calculations easier and more
+   predictable by including padding and border in element size.
+   ========================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box; /* Keeps padding and border inside an element's total width/height */
+}
+
+
+/* =========================================================
+   HTML + BODY RESET
+   ---------------------------------------------------------
+   Removes default browser spacing so the layout starts clean.
+   ========================================================= */
+
+html,
+body {
+  margin: 0; /* Removes default browser outer spacing */
+  padding: 0; /* Removes default browser inner spacing */
+  width: 100%; /* Makes the page use the full available screen width */
+  min-height: 100%; /* Helps the page fill the screen height */
+}
+
+
+/* =========================================================
+   BODY BASE SETTINGS
+   ---------------------------------------------------------
+   Sets the default font, line spacing, and text rendering
+   for the whole site.
+
+   Color and background come from theme.css.
+   ========================================================= */
+
+body {
+  font-family: Arial, sans-serif; /* Base site font; easy to replace later if you choose another font */
+  line-height: 1.4; /* Comfortable line spacing for readability */
+  -webkit-font-smoothing: antialiased; /* Smooths text rendering on Apple devices like iPhone */
+  text-rendering: optimizeLegibility; /* Improves text appearance for readability */
+}
+
+
+/* =========================================================
+   IMAGE DEFAULTS
+   ---------------------------------------------------------
+   Prevents images from overflowing their containers.
+   Useful later for icons, uploaded PNGs, and mascot assets.
+   ========================================================= */
+
+img {
+  display: block; /* Removes awkward inline image spacing */
+  max-width: 100%; /* Prevents images from overflowing their containers */
+  height: auto; /* Keeps image proportions correct when resized */
+}
+
+
+/* =========================================================
+   BUTTON FONT INHERITANCE
+   ---------------------------------------------------------
+   Makes buttons use the same font style as the rest of the page.
+   ========================================================= */
+
+button,
+input,
+textarea,
+select {
+  font: inherit; /* Makes form controls inherit the site's main font settings */
+}
+
+
+/* =========================================================
+   TEXTAREA DEFAULT BEHAVIOR
+   ---------------------------------------------------------
+   Gives textarea fields a cleaner default baseline.
+   More specific Brain Dump styling is in components.css/layout.css.
+   ========================================================= */
+
+textarea {
+  resize: vertical; /* Allows height resizing only, which is cleaner for mobile layouts */
+}
+
+
+/* =========================================================
+   LINK DEFAULTS
+   ---------------------------------------------------------
+   Sets a simple baseline for links.
+   Specific navigation link styling is handled in components.css.
+   ========================================================= */
+
+a {
+  color: inherit; /* Makes links inherit surrounding text color unless styled elsewhere */
+}
+
+
+/* =========================================================
+   LIST RESET
+   ---------------------------------------------------------
+   Removes default list spacing so custom navigation/list layouts
+   are easier to control.
+   ========================================================= */
+
+ul,
+ol {
+  margin: 0; /* Removes default browser top/bottom spacing */
+  padding: 0; /* Removes default browser left indentation */
+}
+
+
+/* =========================================================
+   HEADING DEFAULTS
+   ---------------------------------------------------------
+   Gives headings a cleaner baseline.
+   Specific title colors/styles are handled elsewhere.
+   ========================================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin-top: 0; /* Removes default extra space above headings */
+  font-weight: 600; /* Slightly bold heading weight for clearer section titles */
+}
+
+
+/* =========================================================
+   PARAGRAPH DEFAULTS
+   ---------------------------------------------------------
+   Keeps paragraph spacing consistent and easy to read.
+   ========================================================= */
+
+p {
+  margin-top: 0; /* Removes default extra space above paragraphs */
+  margin-bottom: 1em; /* Keeps readable spacing below paragraphs */
+}
+
+
+/* =========================================================
+   HIDDEN ATTRIBUTE SUPPORT
+   ---------------------------------------------------------
+   Ensures elements using the HTML hidden attribute truly do not
+   display when hidden. This is important for:
+   - dropdown content
+   - review panel
+   - mobile menu drawer
+   ========================================================= */
+
+[hidden] {
+  display: none !important; /* Forces hidden elements to stay invisible until JavaScript reveals them */
+}
+
+
+/* =========================================================
+   ACCESSIBILITY: FOCUS OUTLINE
+   ---------------------------------------------------------
+   Keeps keyboard/tap focus visible for accessibility.
+   You can style this more later if you want.
+   ========================================================= */
+
+:focus-visible {
+  outline: 2px solid #8B6B52; /* muted brown - visible focus outline for accessibility */
+  outline-offset: 2px; /* Adds space between the element edge and the outline */
+}
+
+
+/* =========================================================
+   PAGE TITLE / SECTION TEXT BASELINES
+   ---------------------------------------------------------
+   General text defaults for titles and smaller labels.
+   Specific colors are handled in theme.css.
+   ========================================================= */
+
+.card-title,
+.dropdown-title,
+.review-panel-title,
+.mobile-navigation-title {
+  line-height: 1.2; /* Keeps titles compact and tidy */
+}
+
+
+/* =========================================================
+   FUTURE CUSTOMIZATION NOTE
+   ---------------------------------------------------------
+   If you later want:
+   - a custom font
+   - larger overall text
+   - tighter or roomier reading spacing
+
+   this file is the safest place to change those defaults.
+   ========================================================= */
