@@ -243,7 +243,7 @@
   height: 100vh; /* Makes the drawer span the full device height */
   padding: 18px 16px; /* Adds inner spacing around menu content */
   box-sizing: border-box; /* Includes padding within the drawer width */
-  z-index: 1100; /* Keeps the menu above cards and above the review panel */
+  z-index: 950; /* Keeps the menu above cards and above the review panel */
 }
 
 .mobile-navigation-list {
