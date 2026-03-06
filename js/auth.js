@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", function () {
    ========================================================= */
 
 const DEMO_PASSCODE = "123456"; /* Demo numeric code for testing the starter lock screen UI */
+const SESSION_UNLOCK_KEY = "productivitySiteUnlocked"; /* session-only unlock flag */
 
 
 /* =========================================================
@@ -55,6 +56,14 @@ const DEMO_PASSCODE = "123456"; /* Demo numeric code for testing the starter loc
 
 function initializeAuthLockScreen() {
   const appShell = document.getElementById("app-shell"); /* Main visible homepage wrapper */
+
+   const rememberSession = window.getConfig && window.getConfig("rememberSession"); /* checks whether session unlock is enabled */
+const sessionAlreadyUnlocked = sessionStorage.getItem(SESSION_UNLOCK_KEY) === "true"; /* checks whether this tab session already unlocked the site */
+
+if (rememberSession && sessionAlreadyUnlocked) {
+  unlockAppContent(); /* skips the lock screen if this session already entered the correct code */
+  return;
+}
 
   if (!appShell) {
     return; /* Stops safely if the expected main app wrapper is not present */
