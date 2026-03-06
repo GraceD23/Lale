@@ -277,3 +277,17 @@
     padding: 10px; /* Slightly tighter card padding for extra room on small screens */
   }
 }
+
+/* =========================================================
+   PANEL LAYER ORDER
+   Ensures popup panels appear above the overlay
+   ========================================================= */
+
+.review-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+
+  z-index: 1000; /* above overlay */
+}
