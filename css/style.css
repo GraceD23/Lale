@@ -232,3 +232,7 @@ p {
   letter-spacing: 0.03em;
 
 }
+
+body.auth-locked {
+  overflow: hidden; /* prevents background page scroll while passcode screen is active */
+}
