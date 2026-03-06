@@ -53,41 +53,61 @@ function initializeBrainDump() {
   });
 }
 
-
 /* =========================================================
-   HANDLE SUBMIT
-   ---------------------------------------------------------
-   This runs when the user presses the Submit button.
-
-   Current starter behavior:
-   - gets the typed Brain Dump text
-   - checks whether it is empty
-   - opens the review panel
-   - shows starter "detected" content
-
-   Later this function will send the text to AI instead.
+   HANDLE BRAIN DUMP SUBMIT
    ========================================================= */
 
 function handleBrainDumpSubmit() {
-  const brainDumpInput = document.getElementById("brain-dump-input"); /* Finds the Brain Dump textarea */
 
-  if (!brainDumpInput) {
-    return; /* Stops safely if the textarea does not exist */
-  }
+  const input = document.getElementById("brain-dump-input");
+  if (!input) return;
 
-  const rawText = brainDumpInput.value; /* Reads the exact current typed Brain Dump text */
-  const cleanedText = rawText.trim(); /* Removes extra empty spaces from the start/end */
+  const text = input.value.trim();
+  if (!text) return;
 
-  if (cleanedText === "") {
-    showEmptyBrainDumpMessage(); /* Shows a helpful message if the user pressed Submit with nothing typed */
-    return; /* Stops the submit flow so an empty note is not processed */
-  }
+  const parsed = parseBrainDump(text); /* uses brain-parser.js */
 
-  const reviewHtml = buildStarterReviewHtml(cleanedText); /* Creates temporary review content using the typed text */
-  setReviewPanelContent(reviewHtml, true); /* Sends the starter review content into the slide-up review panel */
-  openReviewPanel(); /* Makes the review panel visible */
+  openBrainReview(parsed, text);
+
 }
 
+ function openBrainReview(parsed, originalText) {
+
+ const panel = document.getElementById("review-panel");
+ const content = document.getElementById("review-panel-content");
+ const overlay = document.getElementById("global-overlay");
+
+   if (!panel || !content) return;
+
+  let html = "";
+
+   if (parsed.type === "task") {
+     html += "<p><strong>Detected Task</strong></p>";
+    html += "<p>" + parsed.data.name + "</p>";
+   }
+
+   else if (parsed.type === "streak") {
+     html += "<p><strong>Detected Streak Action</strong></p>";
+    html += "<p>" + parsed.data.name + "</p>";
+ }
+
+  else if (parsed.type === "health") {
+  html += "<p><strong>Detected Health Entry</strong></p>";
+html += "<p>Severity: " + (parsed.data.severity || "unknown") + "</p>";
+   html += "<p>Note: " + originalText + "</p>";
+  }
+
+  else {
+   html += "<p><strong>Saved as Note</strong></p>";
+   html += "<p>" + originalText + "</p>";
+  }
+   
+  content.innerHTML = html;
+
+  panel.removeAttribute("hidden");
+  if (overlay) overlay.removeAttribute("hidden");
+
+ }
 
 /* =========================================================
    SHOW EMPTY MESSAGE
