@@ -305,3 +305,15 @@
   color: var(--text-main); /* Uses main text color */
 
 }
+
+/* =========================================================
+   MOBILE MENU PANEL
+   This makes the hamburger menu appear as its own solid panel
+   instead of letting homepage content visually mix underneath.
+   ========================================================= */
+
+.mobile-navigation-drawer {
+  background-color: #F3EADF; /* soft warm beige - menu panel background */
+  box-shadow: -6px 0 16px rgba(0, 0, 0, 0.12); /* soft shadow - separates menu from page */
+  overflow-y: auto; /* allows menu to scroll if it gets taller later */
+}
