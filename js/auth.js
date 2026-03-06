@@ -61,10 +61,12 @@ function initializeAuthLockScreen() {
 const sessionAlreadyUnlocked = sessionStorage.getItem(SESSION_UNLOCK_KEY) === "true"; /* checks whether this tab session already unlocked the site */
 
 if (rememberSession && sessionAlreadyUnlocked) {
-  unlockAppContent(); /* skips the lock screen if this session already entered the correct code */
-  return;
-}
 
+  unlockAppContent(); /* skips the lock screen if this session already entered the correct code */
+
+  return;
+
+}
   if (!appShell) {
     return; /* Stops safely if the expected main app wrapper is not present */
   }
@@ -74,6 +76,7 @@ if (rememberSession && sessionAlreadyUnlocked) {
   attachKeypadHandlers(); /* Connects click behavior for keypad buttons */
   attachKeyboardHandlers(); /* Allows number entry from a physical keyboard too */
   lockAppContent(appShell); /* Hides interaction with the dashboard until the correct passcode is entered */
+   document.body.classList.add("auth-locked"); /* prevents scrolling while lock screen is active */
 }
 
 
