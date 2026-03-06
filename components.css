@@ -1,0 +1,307 @@
+
+/* =========================================================
+   COMPONENTS.CSS
+   ---------------------------------------------------------
+   This file styles reusable interface components across the
+   entire site. Edit this file when you want to change how
+   shared UI elements look, such as:
+
+   - cards
+   - buttons
+   - dropdown toggles
+   - task rows
+   - textarea fields
+   - hamburger menu icon
+   - review panel content
+
+   This keeps visual tweaks separate from page structure.
+   Colors mostly come from theme.css variables.
+   ========================================================= */
+
+
+/* =========================================================
+   BASE CARD COMPONENT
+   ---------------------------------------------------------
+   All main content boxes (Daily Focus, Weekly Tasks,
+   Streaks dropdown, Brain Dump) use this shared card style.
+   ========================================================= */
+
+.dashboard-card {
+
+  display: block; /* Ensures card behaves as a block container */
+
+  border-radius: var(--card-radius); /* Rounded corners defined in theme.css */
+
+  border: 1px solid var(--border-soft); /* Soft border color defined in theme.css */
+
+  box-shadow: 0 4px 10px var(--card-shadow); /* Subtle depth shadow */
+
+}
+
+
+/* =========================================================
+   TASK ROW COMPONENT
+   ---------------------------------------------------------
+   Used for each task inside Daily Focus and Weekly Tasks.
+   ========================================================= */
+
+.task-row {
+
+  display: flex; /* Aligns checkbox and task text horizontally */
+
+  align-items: center; /* Vertically centers task text and button */
+
+  gap: 8px; /* Space between the check button and task text */
+
+  font-size: 15px; /* Comfortable readable task text size */
+
+}
+
+
+/* =========================================================
+   TASK CHECK BUTTON
+   ---------------------------------------------------------
+   Circular button used to mark tasks complete.
+   ========================================================= */
+
+.task-check-button {
+
+  width: 22px; /* Small tap-friendly button width */
+
+  height: 22px; /* Keeps the button square */
+
+  border-radius: 50%; /* Makes the button circular */
+
+  border: 1px solid var(--border-soft); /* Soft border */
+
+  background-color: white; /* Neutral background */
+
+  font-size: 14px; /* Controls size of the ○ icon */
+
+  cursor: pointer; /* Indicates the button is clickable */
+
+}
+
+
+/* =========================================================
+   DROPDOWN TOGGLE BUTTON
+   ---------------------------------------------------------
+   Used for the Streaks dropdown header and future dropdowns.
+   Clicking the title toggles the dropdown open/closed.
+   ========================================================= */
+
+.dropdown-toggle-button {
+
+  width: 100%; /* Makes the button stretch across the card */
+
+  display: flex; /* Places title and arrow on the same row */
+
+  justify-content: space-between; /* Title on left, arrow on right */
+
+  align-items: center; /* Vertical alignment */
+
+  background: transparent; /* Removes default button background */
+
+  border: none; /* Removes default button border */
+
+  font-size: 16px; /* Clear readable dropdown title size */
+
+  cursor: pointer; /* Indicates the element is interactive */
+
+}
+
+
+/* =========================================================
+   DROPDOWN ARROW
+   ---------------------------------------------------------
+   Small arrow indicator showing dropdown state.
+   ========================================================= */
+
+.dropdown-arrow {
+
+  font-size: 16px; /* Size of arrow icon */
+
+  transition: transform 0.2s ease; /* Smooth rotation when opened */
+
+}
+
+
+/* =========================================================
+   STREAK ROW
+   ---------------------------------------------------------
+   Displays a single streak entry:
+   - streak name
+   - star icons or placeholder stars
+   ========================================================= */
+
+.streak-row {
+
+  display: flex; /* Aligns name and stars on one row */
+
+  justify-content: space-between; /* Name left, stars right */
+
+  align-items: center; /* Vertical alignment */
+
+  font-size: 15px; /* Consistent readable size */
+
+}
+
+
+/* =========================================================
+   BRAIN DUMP TEXTAREA
+   ---------------------------------------------------------
+   Multi-line text input where users type freeform entries.
+   ========================================================= */
+
+.brain-dump-input {
+
+  width: 100%; /* Full card width */
+
+  padding: 10px; /* Inner spacing so text doesn't touch edges */
+
+  border-radius: var(--card-radius); /* Matches card roundness */
+
+  border: 1px solid var(--border-soft); /* Soft border color */
+
+  font-size: 15px; /* Comfortable typing size */
+
+  font-family: inherit; /* Uses site font */
+
+}
+
+
+/* =========================================================
+   PRIMARY ACTION BUTTON
+   ---------------------------------------------------------
+   Used for main actions like the Brain Dump Submit button.
+   ========================================================= */
+
+.primary-action-button {
+
+  padding: 8px 14px; /* Button interior spacing */
+
+  background-color: var(--button-primary); /* Color defined in theme.css */
+
+  color: white; /* High contrast button text */
+
+  border: none; /* Removes default border */
+
+  border-radius: var(--card-radius); /* Rounded edges */
+
+  cursor: pointer; /* Shows pointer cursor on hover */
+
+  font-size: 14px; /* Button text size */
+
+}
+
+
+/* =========================================================
+   SECONDARY ACTION BUTTON
+   ---------------------------------------------------------
+   Used for less important actions like Edit and Cancel.
+   ========================================================= */
+
+.secondary-action-button {
+
+  padding: 7px 12px; /* Slightly smaller button padding */
+
+  border-radius: var(--card-radius); /* Rounded edges */
+
+  border: 1px solid var(--border-soft); /* Soft outline */
+
+  background-color: white; /* Neutral background */
+
+  cursor: pointer; /* Indicates clickability */
+
+  font-size: 14px; /* Button text size */
+
+}
+
+
+/* =========================================================
+   REVIEW PANEL CONTENT
+   ---------------------------------------------------------
+   Styles the confirmation panel shown after Brain Dump submit.
+   ========================================================= */
+
+.review-panel-content {
+
+  font-size: 15px; /* Readable content size */
+
+  margin-bottom: 12px; /* Spacing before action buttons */
+
+}
+
+
+/* =========================================================
+   REVIEW PANEL BUTTON ROW
+   ---------------------------------------------------------
+   Aligns Confirm/Edit/Cancel buttons nicely.
+   ========================================================= */
+
+.review-panel-actions {
+
+  display: flex; /* Horizontal button row */
+
+  justify-content: flex-end; /* Buttons align to right */
+
+  gap: 8px; /* Space between buttons */
+
+}
+
+
+/* =========================================================
+   HAMBURGER MENU ICON
+   ---------------------------------------------------------
+   Styles the three horizontal lines used for the hamburger icon.
+   ========================================================= */
+
+.hamburger-menu-button {
+
+  width: 34px; /* Clickable tap area width */
+
+  height: 28px; /* Clickable tap area height */
+
+  display: flex; /* Allows vertical stacking of lines */
+
+  flex-direction: column; /* Lines stack vertically */
+
+  justify-content: space-between; /* Even spacing between lines */
+
+  background: none; /* Removes default button background */
+
+  border: none; /* Removes default border */
+
+  cursor: pointer; /* Shows pointer cursor */
+
+}
+
+
+.hamburger-line {
+
+  width: 100%; /* Makes each line span the button width */
+
+  height: 3px; /* Thickness of each line */
+
+  background-color: var(--text-main); /* Uses main text color */
+
+  border-radius: 2px; /* Slight rounding on line ends */
+
+}
+
+
+/* =========================================================
+   MOBILE NAVIGATION LINKS
+   ---------------------------------------------------------
+   Styles links inside the hamburger menu drawer.
+   ========================================================= */
+
+.mobile-navigation-list a {
+
+  text-decoration: none; /* Removes underline */
+
+  font-size: 16px; /* Readable navigation size */
+
+  color: var(--text-main); /* Uses main text color */
+
+}
