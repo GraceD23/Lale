@@ -214,3 +214,21 @@ p {
 
    this file is the safest place to change those defaults.
    ========================================================= */
+
+/* =========================================================
+   SMALL UI TEXT FONT
+   Uses Josefin Sans for smaller interface elements
+   ========================================================= */
+
+.task-text,
+.streak-name,
+.dropdown-title,
+.mobile-navigation-list a,
+.history-task-name,
+.history-task-count {
+
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 400; /* Regular weight */
+  letter-spacing: 0.03em;
+
+}
