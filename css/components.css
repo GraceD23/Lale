@@ -317,3 +317,68 @@
   box-shadow: -6px 0 16px rgba(0, 0, 0, 0.12); /* soft shadow - separates menu from page */
   overflow-y: auto; /* allows menu to scroll if it gets taller later */
 }
+
+/* =========================================================
+   REVIEW PANEL VISUAL STYLE
+   This gives the slide-up review panel its own solid box so
+   the homepage does not visually show through underneath.
+   ========================================================= */
+
+.review-panel {
+
+  background-color: #F3EADF; /* soft warm beige - review panel background */
+
+  border: 1px solid var(--border-soft); /* dusty beige - panel border */
+
+  border-radius: 20px 20px 0 0; /* rounded top corners - panel feels like it slides up */
+
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.12); /* soft shadow - separates panel from page */
+
+}
+
+
+/* =========================================================
+   REVIEW PANEL HEADER
+   Controls spacing for the "Review" title area
+   ========================================================= */
+
+.review-panel-header {
+  margin-bottom: 10px; /* space below the Review title */
+}
+
+
+/* =========================================================
+   REVIEW PANEL TITLE
+   Keeps the title from crowding the content below it
+   ========================================================= */
+
+.review-panel-title {
+  margin: 0; /* removes default extra spacing around the title */
+}
+
+
+/* =========================================================
+   REVIEW PANEL CONTENT BOX
+   Gives the detected text area its own readable spacing
+   ========================================================= */
+
+.review-panel-content {
+  margin-bottom: 14px; /* space between content and action buttons */
+}
+
+/* =========================================================
+   DETAIL / POPUP CONTENT AREA
+   Gives popup content a readable solid surface
+   ========================================================= */
+
+.review-panel-content {
+
+  background-color: #F8F2EA; /* very light warm cream - inner content area */
+
+  border: 1px solid var(--border-soft); /* dusty beige - subtle content border */
+
+  border-radius: 16px; /* soft rounded corners inside panel */
+
+  padding: 12px; /* inner spacing so text does not touch edges */
+
+}
