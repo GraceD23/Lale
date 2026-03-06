@@ -86,6 +86,9 @@ function openReviewPanel() {
   }
 
   reviewPanel.removeAttribute("hidden"); /* Makes the panel visible */
+   
+   const overlay = document.getElementById("global-overlay");
+if (overlay) overlay.removeAttribute("hidden");
 }
 
 
@@ -103,6 +106,9 @@ function closeReviewPanel() {
   }
 
   reviewPanel.setAttribute("hidden", ""); /* Hides the panel */
+
+   const overlay = document.getElementById("global-overlay");
+if (overlay) overlay.setAttribute("hidden", "");
 }
 
 
