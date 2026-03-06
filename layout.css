@@ -1,0 +1,279 @@
+
+/* =========================================================
+   LAYOUT.CSS
+   ---------------------------------------------------------
+   This file controls PAGE PLACEMENT ONLY.
+   Edit this file when you want to change:
+   - spacing between sections
+   - side-by-side box layout
+   - page padding
+   - mobile sizing
+   - Brain Dump height/width
+   - hamburger menu placement
+
+   This file should NOT control colors.
+   Colors belong in theme.css.
+   ========================================================= */
+
+
+/* =========================================================
+   PAGE WRAPPER
+   ---------------------------------------------------------
+   This controls the main outer spacing of the entire page.
+   If you want more or less breathing room around the edges
+   of the iPhone screen, adjust the padding here.
+   ========================================================= */
+
+.app-shell {
+  width: 100%; /* Makes the main app wrapper span the full available width */
+  max-width: 480px; /* Keeps layout comfortable for iPhone/mobile-sized screens */
+  margin: 0 auto; /* Centers the app wrapper horizontally on larger screens */
+  padding: 12px; /* Main page padding so content does not touch screen edges */
+  box-sizing: border-box; /* Includes padding inside the element's total width */
+}
+
+
+/* =========================================================
+   TOP BAR LAYOUT
+   ---------------------------------------------------------
+   This positions the top bar content:
+   - left side reserved area
+   - right side hamburger button
+   ========================================================= */
+
+.top-bar {
+  display: flex; /* Places left and right areas in one horizontal row */
+  justify-content: space-between; /* Pushes left side to left and hamburger to right */
+  align-items: center; /* Vertically centers items in the top bar */
+  width: 100%; /* Makes top bar span the width of the app shell */
+  min-height: 48px; /* Gives the top bar enough tap-friendly vertical space */
+  margin-bottom: 10px; /* Adds spacing below the top bar */
+}
+
+.top-bar-left {
+  flex: 1; /* Allows the left side to take remaining space and help push menu right */
+}
+
+.top-bar-right {
+  display: flex; /* Keeps the hamburger button aligned cleanly */
+  justify-content: flex-end; /* Pushes the hamburger button fully to the right */
+  align-items: center; /* Vertically aligns the hamburger button */
+}
+
+
+/* =========================================================
+   FUTURE MASCOT AREA
+   ---------------------------------------------------------
+   Reserved space for the mascot plugin later.
+   Since you want the mascot across the top of the page,
+   this area is already built into the structure.
+
+   If you later want more or less room for the mascot,
+   change the min-height here.
+   ========================================================= */
+
+.mascot-plugin-area {
+  width: 100%; /* Makes mascot area span the full card width */
+  min-height: 70px; /* Reserves visible vertical room for future mascot content */
+  margin-bottom: 12px; /* Adds spacing below the mascot area before main content */
+}
+
+
+/* =========================================================
+   MAIN CONTENT WRAPPER
+   ---------------------------------------------------------
+   This holds all homepage sections below the top bar:
+   - top row cards
+   - streaks dropdown
+   - brain dump
+   ========================================================= */
+
+.home-page-main-content {
+  display: flex; /* Lets homepage sections stack vertically */
+  flex-direction: column; /* Stacks homepage sections one under another */
+  gap: 12px; /* Controls spacing between major homepage sections */
+}
+
+
+/* =========================================================
+   TOP ROW CARDS
+   ---------------------------------------------------------
+   This creates the side-by-side layout for:
+   - Daily Focus (left)
+   - Weekly Tasks (right)
+
+   You asked for these to fit side by side on iPhone.
+   Each card is allowed to grow naturally in height.
+   ========================================================= */
+
+.top-row-cards {
+  display: flex; /* Places Daily Focus and Weekly Tasks next to each other */
+  flex-direction: row; /* Keeps the two top cards in one horizontal row */
+  align-items: flex-start; /* Lets each card grow naturally instead of forcing equal height */
+  gap: 10px; /* Space between the left and right top cards */
+  width: 100%; /* Makes the full row span the app width */
+}
+
+.daily-focus-card,
+.weekly-tasks-card {
+  flex: 1; /* Makes both top cards share the available width evenly */
+  min-width: 0; /* Prevents content from forcing the cards wider than the screen */
+}
+
+
+/* =========================================================
+   SHARED CARD SPACING
+   ---------------------------------------------------------
+   This section controls the inside spacing of each card.
+   Edit padding here if you want cards to feel roomier or tighter.
+   ========================================================= */
+
+.dashboard-card {
+  padding: 12px; /* Inner spacing so titles/text/buttons are not against the edges */
+  box-sizing: border-box; /* Keeps padding inside the card width/height */
+}
+
+
+/* =========================================================
+   CARD TITLE SPACING
+   ---------------------------------------------------------
+   Controls spacing for section titles like:
+   - Daily Focus
+   - Weekly Tasks
+   - Streaks
+   - Brain Dump
+   ========================================================= */
+
+.card-title {
+  margin: 0 0 10px 0; /* Removes top margin and adds space below each section title */
+}
+
+
+/* =========================================================
+   TASK LIST LAYOUT
+   ---------------------------------------------------------
+   Used inside Daily Focus and Weekly Tasks for task rows.
+   ========================================================= */
+
+.task-list {
+  display: flex; /* Lets task rows stack in a clean vertical list */
+  flex-direction: column; /* Stacks task rows one underneath another */
+  gap: 8px; /* Adds spacing between each task row */
+}
+
+
+/* =========================================================
+   STREAKS DROPDOWN LAYOUT
+   ---------------------------------------------------------
+   Controls the spacing of the streaks card and its content area.
+   ========================================================= */
+
+.streaks-dropdown-card {
+  width: 100%; /* Makes the streaks section span the available width */
+}
+
+.dropdown-content {
+  margin-top: 10px; /* Adds spacing between the toggle button and opened content */
+}
+
+
+/* =========================================================
+   BRAIN DUMP LAYOUT
+   ---------------------------------------------------------
+   This section controls the size and spacing of the Brain Dump area.
+   You asked for a long horizontal rectangle at the bottom of the page.
+   ========================================================= */
+
+.brain-dump-card {
+  width: 100%; /* Makes Brain Dump span the full available width */
+}
+
+.brain-dump-input {
+  width: 100%; /* Makes the textarea stretch across the card width */
+  min-height: 130px; /* Gives the Brain Dump box a roomy multi-line height */
+  box-sizing: border-box; /* Keeps padding/border inside the total textarea width */
+  margin-bottom: 10px; /* Adds spacing between the textarea and Submit button */
+  resize: vertical; /* Allows height adjustment only vertically if you want to expand it */
+}
+
+.brain-dump-actions {
+  display: flex; /* Lets the action area line up the submit button cleanly */
+  justify-content: flex-end; /* Places the Submit button on the right side of the card */
+  align-items: center; /* Vertically centers the button within the action area */
+}
+
+
+/* =========================================================
+   REVIEW PANEL LAYOUT
+   ---------------------------------------------------------
+   This panel is hidden at first and will later slide up from
+   the bottom of the screen after Brain Dump submission.
+
+   Position fixed makes it stay attached to the screen rather
+   than scroll with the page.
+   ========================================================= */
+
+.review-panel {
+  position: fixed; /* Pins the review panel to the viewport instead of page flow */
+  left: 0; /* Aligns the panel to the left edge of the screen */
+  right: 0; /* Aligns the panel to the right edge of the screen */
+  bottom: 0; /* Anchors the panel to the bottom of the screen */
+  width: 100%; /* Makes the panel span the screen width */
+  max-width: 480px; /* Keeps it visually matched to the mobile app width */
+  margin: 0 auto; /* Centers the fixed panel horizontally on larger screens */
+  padding: 14px; /* Adds inner spacing around review content and buttons */
+  box-sizing: border-box; /* Includes padding within total panel size */
+  z-index: 1000; /* Keeps the review panel above the main page content */
+}
+
+
+/* =========================================================
+   MOBILE NAVIGATION DRAWER LAYOUT
+   ---------------------------------------------------------
+   This positions the hamburger menu drawer.
+   It is designed to slide in from the right later using JS/CSS.
+   ========================================================= */
+
+.mobile-navigation-drawer {
+  position: fixed; /* Keeps the drawer attached to the screen */
+  top: 0; /* Starts at the top of the viewport */
+  right: 0; /* Anchors the drawer to the right side */
+  width: 78%; /* Makes the drawer wide enough for mobile without covering everything */
+  max-width: 320px; /* Prevents the drawer from becoming too wide on larger screens */
+  height: 100vh; /* Makes the drawer span the full device height */
+  padding: 18px 16px; /* Adds inner spacing around menu content */
+  box-sizing: border-box; /* Includes padding within the drawer width */
+  z-index: 1100; /* Keeps the menu above cards and above the review panel */
+}
+
+.mobile-navigation-list {
+  list-style: none; /* Removes default bullet points from menu links */
+  padding: 0; /* Removes default browser list padding */
+  margin: 16px 0 0 0; /* Adds space above the first navigation link */
+  display: flex; /* Lets links stack vertically in a controlled way */
+  flex-direction: column; /* Stacks each navigation link on its own line */
+  gap: 14px; /* Adds spacing between each menu item */
+}
+
+
+/* =========================================================
+   SMALL SCREEN SAFETY
+   ---------------------------------------------------------
+   This keeps spacing comfortable on narrower phones.
+   You can tweak these values later if you want an even tighter
+   or roomier mobile layout.
+   ========================================================= */
+
+@media (max-width: 360px) {
+  .app-shell {
+    padding: 10px; /* Slightly reduces page padding on very narrow phones */
+  }
+
+  .top-row-cards {
+    gap: 8px; /* Slightly reduces space between Daily and Weekly cards on smaller screens */
+  }
+
+  .dashboard-card {
+    padding: 10px; /* Slightly tighter card padding for extra room on small screens */
+  }
+}
