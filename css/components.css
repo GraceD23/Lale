@@ -405,17 +405,17 @@
 
 /* =========================================================
    AUTH LOCK SCREEN
-   Full-screen iPhone-style passcode screen
+   Full-screen iPhone-style passcode screen for mobile
    ========================================================= */
 
 .auth-lock-overlay {
 
-  position: fixed; /* covers the full screen */
-  top: 0;
-  left: 0;
+  position: fixed; /* covers the whole screen instead of sitting in normal page flow */
+  top: 0; /* starts at top of screen */
+  left: 0; /* starts at left edge */
 
   width: 100%;
-  height: 100vh;
+  height: 100vh; /* full mobile screen height */
 
   background-color: #F7F1E8; /* warm cream - full passcode screen background */
 
@@ -423,75 +423,80 @@
   align-items: center; /* vertical centering */
   justify-content: center; /* horizontal centering */
 
-  z-index: 2000; /* sits above the entire site */
+  z-index: 3000; /* sits above everything else on the site */
 
-  padding: 24px; /* breathing room on mobile edges */
+  padding: 24px; /* mobile breathing room around the inner passcode card */
 
 }
 
 .auth-lock-card {
 
-  width: 100%; /* allows card to scale for mobile */
-  max-width: 340px; /* keeps the passcode area compact like iPhone */
-  text-align: center; /* centers title, circles, and keypad */
+  width: 100%; /* lets the inner passcode card size properly on mobile */
+  max-width: 360px; /* keeps the passcode area from becoming too wide */
+  min-height: 100vh; /* helps the passcode experience feel like a full-screen iPhone lock page */
+
+  display: flex; /* lets inner lock content stack cleanly */
+  flex-direction: column; /* stacks title, circles, keypad vertically */
+  justify-content: center; /* centers content vertically within the screen */
+
+  text-align: center; /* centers visible text and circles */
 
 }
 
 .auth-lock-title {
-  margin: 0 0 8px 0; /* space under main title */
+  margin: 0 0 8px 0; /* spacing below title */
   font-size: 28px; /* larger passcode heading */
 }
 
 .auth-lock-subtitle {
-  margin: 0 0 20px 0; /* space under subtitle */
-  font-size: 16px; /* readable helper text */
+  margin: 0 0 24px 0; /* spacing below subtitle */
+  font-size: 16px; /* readable helper text size */
 }
 
 .auth-passcode-circles {
 
-  display: flex; /* places circles in one row */
-  justify-content: center; /* centers the circle row */
+  display: flex; /* puts circles in one row */
+  justify-content: center; /* centers the row */
   gap: 10px; /* spacing between circles */
 
-  margin-bottom: 24px; /* space below circles */
+  margin-bottom: 24px; /* spacing below circles */
 
-  font-size: 22px; /* size of filled/unfilled circles */
+  font-size: 22px; /* circle size */
 
 }
 
 .auth-error-message {
   margin: 0 0 16px 0; /* spacing below error */
-  color: #A94442; /* muted red - error text */
-  font-size: 14px; /* smaller error text */
+  color: #A94442; /* muted red - incorrect passcode text */
+  font-size: 14px; /* smaller error size */
 }
 
 .auth-keypad {
 
-  display: grid; /* creates keypad grid */
-  grid-template-columns: repeat(3, 1fr); /* 3 buttons per row */
-  gap: 14px; /* spacing between keypad buttons */
+  display: grid; /* keypad grid layout */
+  grid-template-columns: repeat(3, 1fr); /* 3 columns like phone keypad */
+  gap: 14px; /* space between buttons */
+
+  justify-items: center; /* centers each keypad button in its cell */
 
 }
 
 .auth-keypad-button {
 
-  width: 72px; /* button width */
-  height: 72px; /* button height */
+  width: 76px; /* circular keypad width */
+  height: 76px; /* circular keypad height */
 
-  margin: 0 auto; /* centers each button in its grid cell */
-
-  border-radius: 50%; /* circular buttons like iPhone */
-  border: 1px solid var(--border-soft); /* dusty beige - soft border */
+  border-radius: 50%; /* makes buttons round */
+  border: 1px solid var(--border-soft); /* dusty beige - soft button border */
 
   background-color: #EFE4D9; /* pale oatmeal - keypad button background */
 
-  font-size: 26px; /* large button number text */
-  font-weight: 400; /* regular weight */
+  font-size: 28px; /* large readable number size */
+  font-weight: 400; /* regular font weight */
 
 }
 
 .auth-keypad-spacer {
-  width: 72px; /* keeps 0 centered in bottom row */
-  height: 72px; /* matches keypad button size */
-  margin: 0 auto; /* centers spacer */
+  width: 76px; /* keeps 0 centered in bottom row */
+  height: 76px; /* matches keypad button size */
 }
