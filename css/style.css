@@ -58,7 +58,7 @@ body {
    ========================================================= */
 
 body {
-  font-family: Arial, sans-serif; /* Base site font; easy to replace later if you choose another font */
+  font-family: Ubuntu Bold 700, sans-serif; /* Base site font; easy to replace later if you choose another font */
   line-height: 1.4; /* Comfortable line spacing for readability */
   -webkit-font-smoothing: antialiased; /* Smooths text rendering on Apple devices like iPhone */
   text-rendering: optimizeLegibility; /* Improves text appearance for readability */
