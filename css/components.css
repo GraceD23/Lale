@@ -402,3 +402,96 @@
   z-index: 900; /* below panels but above page */
 
 }
+
+/* =========================================================
+   AUTH LOCK SCREEN
+   Full-screen iPhone-style passcode screen
+   ========================================================= */
+
+.auth-lock-overlay {
+
+  position: fixed; /* covers the full screen */
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 100vh;
+
+  background-color: #F7F1E8; /* warm cream - full passcode screen background */
+
+  display: flex; /* centers the passcode card */
+  align-items: center; /* vertical centering */
+  justify-content: center; /* horizontal centering */
+
+  z-index: 2000; /* sits above the entire site */
+
+  padding: 24px; /* breathing room on mobile edges */
+
+}
+
+.auth-lock-card {
+
+  width: 100%; /* allows card to scale for mobile */
+  max-width: 340px; /* keeps the passcode area compact like iPhone */
+  text-align: center; /* centers title, circles, and keypad */
+
+}
+
+.auth-lock-title {
+  margin: 0 0 8px 0; /* space under main title */
+  font-size: 28px; /* larger passcode heading */
+}
+
+.auth-lock-subtitle {
+  margin: 0 0 20px 0; /* space under subtitle */
+  font-size: 16px; /* readable helper text */
+}
+
+.auth-passcode-circles {
+
+  display: flex; /* places circles in one row */
+  justify-content: center; /* centers the circle row */
+  gap: 10px; /* spacing between circles */
+
+  margin-bottom: 24px; /* space below circles */
+
+  font-size: 22px; /* size of filled/unfilled circles */
+
+}
+
+.auth-error-message {
+  margin: 0 0 16px 0; /* spacing below error */
+  color: #A94442; /* muted red - error text */
+  font-size: 14px; /* smaller error text */
+}
+
+.auth-keypad {
+
+  display: grid; /* creates keypad grid */
+  grid-template-columns: repeat(3, 1fr); /* 3 buttons per row */
+  gap: 14px; /* spacing between keypad buttons */
+
+}
+
+.auth-keypad-button {
+
+  width: 72px; /* button width */
+  height: 72px; /* button height */
+
+  margin: 0 auto; /* centers each button in its grid cell */
+
+  border-radius: 50%; /* circular buttons like iPhone */
+  border: 1px solid var(--border-soft); /* dusty beige - soft border */
+
+  background-color: #EFE4D9; /* pale oatmeal - keypad button background */
+
+  font-size: 26px; /* large button number text */
+  font-weight: 400; /* regular weight */
+
+}
+
+.auth-keypad-spacer {
+  width: 72px; /* keeps 0 centered in bottom row */
+  height: 72px; /* matches keypad button size */
+  margin: 0 auto; /* centers spacer */
+}
