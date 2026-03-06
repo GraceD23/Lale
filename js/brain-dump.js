@@ -101,7 +101,7 @@ html += "<p>Severity: " + (parsed.data.severity || "unknown") + "</p>";
    html += "<p><strong>Saved as Note</strong></p>";
    html += "<p>" + originalText + "</p>";
   }
-   
+   window.currentBrainDumpReview = { parsed: parsed, originalText: originalText }; /* Stores the current review data for Confirm */
   content.innerHTML = html;
 
   panel.removeAttribute("hidden");
