@@ -32,7 +32,38 @@ function parseBrainDump(text) {
      "wash my car"
      ===================================================== */
 
-  if (lower.includes("wash") || lower.includes("clean")) {
+  if (
+  lower.includes("wash") ||
+  lower.includes("clean") ||
+  lower.includes("pick up") ||
+  lower.includes("buy") ||
+  lower.includes("call") ||
+  lower.includes("email") ||
+  lower.includes("text") ||
+  lower.includes("go to") ||
+  lower.includes("schedule") ||
+  lower.includes("make") ||
+  lower.includes("finish") ||
+  lower.includes("do ") ||
+  lower.includes("drop off") ||
+  lower.includes("grab") ||
+  lower.includes("get ") ||
+  lower.includes("bring") ||
+  lower.includes("pay") ||
+  lower.includes("send") ||
+  lower.includes("check") ||
+  lower.includes("organize") ||
+  lower.includes("plan") ||
+  lower.includes("pack") ||
+  lower.includes("fill") ||
+  lower.includes("order") ||
+  lower.includes("print") ||
+  lower.includes("write") ||
+  lower.includes("update") ||
+  lower.includes("fix") ||
+  lower.includes("book") ||
+  lower.includes("shop for")
+) {
 
     result.type = "task";
     result.data = {
