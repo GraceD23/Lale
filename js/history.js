@@ -87,14 +87,14 @@ function initializeHistoryPage() {
 
 function getHistoryData() {
   if (typeof loadHistory === "function") {
-    const storedHistory = loadHistory(); /* Attempts to load saved history from storage.js */
+    const storedHistory = loadHistory();
 
-    if (storedHistory && typeof storedHistory === "object") {
-      return storedHistory; /* Uses real saved history if present */
+    if (storedHistory && typeof storedHistory === "object" && Object.keys(storedHistory).length > 0) {
+      return storedHistory;
     }
   }
 
-  return HISTORY_STARTER_DATA; /* Falls back to starter data if saved history is unavailable */
+  return HISTORY_STARTER_DATA;
 }
 
 
