@@ -127,7 +127,7 @@ function buildTaskRow(task) {
 
   const button = document.createElement("button");
   button.className = "task-complete-button";
-  button.textContent = "✓";
+  button.textContent = "";
 
   button.addEventListener("click", function () {
 
