@@ -66,7 +66,7 @@ function setTasks(tasks) {
 
 function renderDailyTasks() {
 
-  const container = document.getElementById("daily-task-list");
+  const container = document.getElementById("daily-focus-list");
   if (!container) return;
 
   const tasks = getTasks();
@@ -93,7 +93,7 @@ function renderDailyTasks() {
 
 function renderWeeklyTasks() {
 
-  const container = document.getElementById("weekly-task-list");
+  const container = document.getElementById("weekly-tasks-list")
   if (!container) return;
 
   const tasks = getTasks();
