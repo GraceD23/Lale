@@ -1,18 +1,16 @@
 /* =========================================================
    BRAIN-CONFIRM.JS
    ---------------------------------------------------------
-   Handles what happens when the user presses Confirm
-   in the Brain Dump review panel.
+   Final confirm handler for Brain Dump review.
 
-   Current behavior:
-   - task → adds task to task storage
-   - streak → updates streak storage
-   - health → saves health entry
-   - note → saves note into history-style note storage placeholder
-
-   IMPORTANT:
-   This file expects brain-dump.js to store the latest parsed
-   Brain Dump result on window.currentBrainDumpReview.
+   What this file does:
+   - task → saves into task storage
+   - streak → saves/updates streak storage
+   - health → saves health entries
+   - note → saves notes into history note bucket
+   - refreshes visible UI after save
+   - clears Brain Dump input
+   - closes review panel + overlay
    ========================================================= */
 
 
@@ -21,7 +19,7 @@
    ========================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
-  initializeBrainConfirm();
+  initializeBrainConfirm(); /* Starts confirm-button wiring after page HTML is ready */
 });
 
 
@@ -30,14 +28,14 @@ document.addEventListener("DOMContentLoaded", function () {
    ========================================================= */
 
 function initializeBrainConfirm() {
-  const confirmButton = document.getElementById("review-confirm-button"); /* Confirm button inside Brain Dump review panel */
+  const confirmButton = document.getElementById("review-confirm-button"); /* Confirm button inside the Brain Dump review panel */
 
   if (!confirmButton) {
-    return; /* Stops safely if this page does not contain the review confirm button */
+    return; /* Stops safely if the page does not contain the Brain Dump confirm button */
   }
 
   confirmButton.addEventListener("click", function () {
-    handleBrainDumpConfirm(); /* Runs the save logic when Confirm is tapped */
+    handleBrainDumpConfirm(); /* Runs save logic when Confirm is tapped */
   });
 }
 
@@ -47,151 +45,240 @@ function initializeBrainConfirm() {
    ========================================================= */
 
 function handleBrainDumpConfirm() {
-  const reviewData = window.currentBrainDumpReview; /* Most recent parsed Brain Dump result */
+  const reviewData = window.currentBrainDumpReview; /* Most recent parsed Brain Dump result stored by brain-dump.js */
 
-  if (!reviewData) {
-    return; /* Stops if there is no parsed review data to save */
+  if (!reviewData || !reviewData.parsed) {
+    return; /* Stops safely if there is no current review data to save */
   }
 
-  const parsed = reviewData.parsed; /* Parsed object from brain-parser.js */
-  const originalText = reviewData.originalText; /* Original typed Brain Dump text */
-
-  if (!parsed || !parsed.type) {
-    return; /* Stops safely if parsed data is missing */
-  }
+  const parsed = reviewData.parsed; /* Parsed result from brain-parser.js */
+  const originalText = reviewData.originalText || ""; /* Original typed Brain Dump text */
 
   if (parsed.type === "task") {
-    saveBrainDumpTask(parsed.data);
+    saveConfirmedTask(parsed.data, originalText); /* Saves detected task */
   }
 
   else if (parsed.type === "streak") {
-    saveBrainDumpStreak(parsed.data);
+    saveConfirmedStreak(parsed.data, originalText); /* Saves detected streak action */
   }
 
   else if (parsed.type === "health") {
-    saveBrainDumpHealth(parsed.data, originalText);
+    saveConfirmedHealth(parsed.data, originalText); /* Saves detected health entry */
   }
 
   else {
-    saveBrainDumpNote(originalText);
+    saveConfirmedNote(originalText); /* Saves fallback note */
   }
 
-  clearBrainDumpInputAfterConfirm(); /* Clears the Brain Dump textarea after successful confirm */
-  closeBrainDumpReviewPanel(); /* Closes the review panel and overlay after saving */
-  rerenderAfterBrainDumpSave(); /* Refreshes visible UI if relevant systems are loaded */
+  clearBrainDumpInput(); /* Clears the Brain Dump textarea after successful confirm */
+  clearBrainDumpReviewMemory(); /* Removes temporary review memory so stale data is not reused */
+  closeBrainDumpReviewPanel(); /* Hides the review panel and overlay */
+  rerenderConnectedSystems(); /* Refreshes any visible UI using the saved data */
 }
 
 
 /* =========================================================
-   SAVE TASK
+   SAVE CONFIRMED TASK
+   ---------------------------------------------------------
+   Saves a new task into task storage.
+
+   Default behavior:
+   - new tasks start incomplete
+   - default schedule = weekly unless parser provided one
+   - default streak flag = false
    ========================================================= */
 
-function saveBrainDumpTask(taskData) {
-  const tasks = typeof loadTasks === "function" ? loadTasks() : []; /* Loads existing tasks from storage.js */
+function saveConfirmedTask(taskData, originalText) {
+  const tasks = typeof loadTasks === "function" ? loadTasks() : []; /* Loads current tasks from storage.js */
+
+  const taskName = getSafeTaskName(taskData, originalText); /* Uses parsed task name if available, otherwise falls back to original text */
 
   const newTask = {
-    id: buildSimpleId(taskData.name), /* Creates a simple reusable task ID */
-    name: taskData.name, /* Visible task name */
-    schedule: taskData.schedule || "weekly", /* Defaults to weekly if parser did not specify */
+    id: buildUniqueId(taskName), /* Unique ID for this task */
+    name: taskName, /* Visible task name */
+    schedule: taskData && taskData.schedule ? taskData.schedule : "weekly", /* Uses parser schedule or defaults to weekly */
+    day: taskData && taskData.day ? taskData.day : null, /* Optional day-of-week field for future recurring task support */
     completed: false, /* New tasks start incomplete */
-    streak: false /* Brain Dump starter task defaults to non-streak unless expanded later */
+    streak: Boolean(taskData && taskData.streak) /* Uses parsed streak setting if later added */
   };
 
-  tasks.push(newTask); /* Adds the new task to the task list */
+  tasks.push(newTask); /* Adds the new task into the task array */
 
   if (typeof saveTasks === "function") {
-    saveTasks(tasks); /* Saves updated tasks back to storage */
+    saveTasks(tasks); /* Saves updated task list into storage */
   }
 }
 
 
 /* =========================================================
-   SAVE STREAK
+   SAVE CONFIRMED STREAK
+   ---------------------------------------------------------
+   Adds one completion to a streak action.
+
+   If the streak does not exist yet:
+   - creates it
+   Then:
+   - increments count by 1
    ========================================================= */
 
-function saveBrainDumpStreak(streakData) {
-  const streaks = typeof loadStreaks === "function" ? loadStreaks() : []; /* Loads existing streaks from storage.js */
+function saveConfirmedStreak(streakData, originalText) {
+  const streaks = typeof loadStreaks === "function" ? loadStreaks() : []; /* Loads current streaks from storage.js */
+
+  const streakName = getSafeStreakName(streakData, originalText); /* Uses parsed streak name if available */
 
   let matchingStreak = streaks.find(function (streak) {
-    return streak.name === streakData.name; /* Checks whether this streak already exists */
+    return streak.name === streakName; /* Looks for an existing streak with the same name */
   });
 
   if (!matchingStreak) {
     matchingStreak = {
-      name: streakData.name, /* Visible streak name */
-      count: 0 /* New streak starts at zero then increments below */
+      id: buildUniqueId(streakName), /* Unique ID for new streak */
+      name: streakName, /* Visible streak name */
+      count: 0, /* Running total count */
+      weeklyCount: 0, /* Weekly count used for homepage dropdown */
+      history: [] /* Running history pattern for future full streak page */
     };
 
-    streaks.push(matchingStreak); /* Adds the new streak if it did not already exist */
+    streaks.push(matchingStreak); /* Adds new streak if it did not already exist */
   }
 
-  matchingStreak.count += 1; /* Adds one star/count for the confirmed streak action */
+  matchingStreak.count += 1; /* Increments total count */
+  matchingStreak.weeklyCount += 1; /* Increments weekly count */
+  matchingStreak.history.push({
+    date: new Date().toISOString(), /* Stores completion date/time */
+    filled: true /* Starter history marker for a completed day */
+  });
 
   if (typeof saveStreaks === "function") {
-    saveStreaks(streaks); /* Saves updated streak data back to storage */
+    saveStreaks(streaks); /* Saves updated streak list into storage */
   }
 }
 
 
 /* =========================================================
-   SAVE HEALTH ENTRY
+   SAVE CONFIRMED HEALTH ENTRY
+   ---------------------------------------------------------
+   Saves health entries into monthly buckets.
+
+   Current supported category:
+   - headache
+
+   Structure:
+   health[monthKey].headaches[]
    ========================================================= */
 
-function saveBrainDumpHealth(healthData, originalText) {
-  const health = typeof loadHealth === "function" ? loadHealth() : {}; /* Loads existing health storage */
+function saveConfirmedHealth(healthData, originalText) {
+  const health = typeof loadHealth === "function" ? loadHealth() : {}; /* Loads current health storage */
 
-  const monthKey = getCurrentMonthKey(); /* Current month bucket for storage */
+  const monthKey = getCurrentMonthKey(); /* Example: 2026-03 */
 
   if (!health[monthKey]) {
     health[monthKey] = {
-      headaches: [],
-      weight: []
-    }; /* Creates the current month structure if it does not exist yet */
+      headaches: [], /* Symptom entries bucket */
+      weight: [] /* Weight entries bucket */
+    };
   }
 
-  if (healthData.category === "headache") {
+  if (healthData && healthData.category === "headache") {
     health[monthKey].headaches.push({
-      day: getTodayShortName(), /* Stores weekday like Mon/Tue */
-      severity: healthData.severity || null, /* Stores parsed severity if available */
-      location: healthData.location || "", /* Location support for future parser expansion */
-      note: originalText /* Stores the full original text as the note */
+      day: getTodayShortName(), /* Stores weekday like Mon/Tue/Wed */
+      date: new Date().toISOString(), /* Stores full timestamp */
+      severity: healthData.severity || null, /* Parsed severity if available */
+      location: healthData.location || "", /* Parsed location if available */
+      note: originalText /* Full original text saved as note */
     });
   }
 
   if (typeof saveHealth === "function") {
-    saveHealth(health); /* Saves updated health data back to storage */
+    saveHealth(health); /* Saves updated health data into storage */
   }
 }
 
 
 /* =========================================================
-   SAVE NOTE
+   SAVE CONFIRMED NOTE
    ---------------------------------------------------------
-   Starter placeholder for note saving.
-   For now this stores notes inside history storage under a
-   dedicated "__notes" bucket so they are not lost.
+   Saves general notes into a dedicated note bucket inside
+   history storage for now.
+
+   This prevents notes from being lost before a dedicated
+   notes system exists.
    ========================================================= */
 
-function saveBrainDumpNote(originalText) {
-  const history = typeof loadHistory === "function" ? loadHistory() : {}; /* Loads existing history storage */
+function saveConfirmedNote(originalText) {
+  const history = typeof loadHistory === "function" ? loadHistory() : {}; /* Loads history storage */
 
-  const monthKey = getCurrentMonthKey(); /* Current month bucket */
+  const monthKey = getCurrentMonthKey(); /* Current month key */
 
   if (!history.__notes) {
     history.__notes = {}; /* Creates notes bucket if it does not exist */
   }
 
   if (!history.__notes[monthKey]) {
-    history.__notes[monthKey] = []; /* Creates current month notes list */
+    history.__notes[monthKey] = []; /* Creates month-specific note array */
   }
 
   history.__notes[monthKey].push({
-    text: originalText, /* Stores original Brain Dump note text */
-    date: new Date().toISOString() /* Stores creation timestamp */
+    text: originalText, /* Stores note text */
+    date: new Date().toISOString() /* Stores timestamp */
   });
 
   if (typeof saveHistory === "function") {
-    saveHistory(history); /* Saves note bucket using existing history storage */
+    saveHistory(history); /* Saves updated history/note data */
+  }
+}
+
+
+/* =========================================================
+   UI REFRESH
+   ---------------------------------------------------------
+   Re-renders connected systems only if their functions exist.
+   This avoids errors on pages that do not load those systems.
+   ========================================================= */
+
+function rerenderConnectedSystems() {
+  if (typeof renderDailyTasks === "function") {
+    renderDailyTasks(); /* Refreshes Daily Focus if task system is loaded */
+  }
+
+  if (typeof renderWeeklyTasks === "function") {
+    renderWeeklyTasks(); /* Refreshes Weekly Tasks if task system is loaded */
+  }
+
+  if (typeof renderHomepageStreaks === "function") {
+    renderHomepageStreaks(); /* Refreshes homepage streak display if streaks.js is loaded */
+  }
+
+  if (typeof renderWeeklyHealth === "function") {
+    renderWeeklyHealth(); /* Refreshes weekly health boxes if health system is loaded */
+  }
+
+  if (typeof renderWeightLog === "function") {
+    renderWeightLog(); /* Refreshes weight area if health system is loaded */
+  }
+
+  if (typeof renderHistorySummaryList === "function") {
+    renderHistorySummaryList(); /* Refreshes History page if open and loaded */
+  }
+}
+
+
+/* =========================================================
+   CLOSE REVIEW PANEL
+   ---------------------------------------------------------
+   Hides the review panel and the global dim overlay.
+   ========================================================= */
+
+function closeBrainDumpReviewPanel() {
+  const panel = document.getElementById("review-panel"); /* Brain Dump review panel */
+  const overlay = document.getElementById("global-overlay"); /* Page dim overlay */
+
+  if (panel) {
+    panel.setAttribute("hidden", ""); /* Hides review panel */
+  }
+
+  if (overlay) {
+    overlay.setAttribute("hidden", ""); /* Hides dim overlay */
   }
 }
 
@@ -200,74 +287,59 @@ function saveBrainDumpNote(originalText) {
    CLEAR BRAIN DUMP INPUT
    ========================================================= */
 
-function clearBrainDumpInputAfterConfirm() {
+function clearBrainDumpInput() {
   const input = document.getElementById("brain-dump-input"); /* Brain Dump textarea */
 
   if (!input) {
-    return; /* Stops safely if input is missing */
+    return; /* Stops safely if textarea does not exist */
   }
 
-  input.value = ""; /* Clears the Brain Dump textarea after successful confirm */
+  input.value = ""; /* Clears typed Brain Dump text */
 }
 
 
 /* =========================================================
-   CLOSE REVIEW PANEL
-   ========================================================= */
-
-function closeBrainDumpReviewPanel() {
-  const panel = document.getElementById("review-panel"); /* Brain Dump review panel */
-  const overlay = document.getElementById("global-overlay"); /* Global dim overlay */
-
-  if (panel) {
-    panel.setAttribute("hidden", ""); /* Hides the review panel */
-  }
-
-  if (overlay) {
-    overlay.setAttribute("hidden", ""); /* Hides the dim background overlay */
-  }
-}
-
-
-/* =========================================================
-   REFRESH VISIBLE UI
+   CLEAR TEMP REVIEW MEMORY
    ---------------------------------------------------------
-   Re-renders task/streak/health UI if those page systems are
-   loaded on the current page.
+   Removes temporary parsed review data after saving so old
+   data cannot be accidentally reused.
    ========================================================= */
 
-function rerenderAfterBrainDumpSave() {
-  if (typeof renderDailyTasks === "function") {
-    renderDailyTasks(); /* Refreshes Daily Focus if tasks-system.js is loaded */
-  }
-
-  if (typeof renderWeeklyTasks === "function") {
-    renderWeeklyTasks(); /* Refreshes Weekly Tasks if tasks-system.js is loaded */
-  }
-
-  if (typeof renderHomepageStreaks === "function") {
-    renderHomepageStreaks(); /* Refreshes homepage streak display if streaks.js is loaded */
-  }
-
-  if (typeof renderWeeklyHealth === "function") {
-    renderWeeklyHealth(); /* Refreshes Health page weekly view if health-system.js is loaded */
-  }
-
-  if (typeof renderWeightLog === "function") {
-    renderWeightLog(); /* Refreshes Health page weight view if health-system.js is loaded */
-  }
+function clearBrainDumpReviewMemory() {
+  window.currentBrainDumpReview = null; /* Clears temporary review memory */
 }
 
 
 /* =========================================================
-   HELPERS
+   SAFE NAME HELPERS
    ========================================================= */
 
-function buildSimpleId(text) {
+function getSafeTaskName(taskData, originalText) {
+  if (taskData && typeof taskData.name === "string" && taskData.name.trim() !== "") {
+    return taskData.name.trim(); /* Uses parsed task name if valid */
+  }
+
+  return originalText.trim(); /* Falls back to original text if parser did not provide a name */
+}
+
+function getSafeStreakName(streakData, originalText) {
+  if (streakData && typeof streakData.name === "string" && streakData.name.trim() !== "") {
+    return streakData.name.trim(); /* Uses parsed streak name if valid */
+  }
+
+  return originalText.trim(); /* Falls back to original text if parser did not provide a name */
+}
+
+
+/* =========================================================
+   DATE / ID HELPERS
+   ========================================================= */
+
+function buildUniqueId(text) {
   return String(text)
     .toLowerCase() /* Makes ID lowercase */
     .replace(/[^a-z0-9]+/g, "-") /* Replaces spaces/symbols with dashes */
-    .replace(/^-+|-+$/g, "") + "-" + Date.now(); /* Trims edge dashes and adds timestamp for uniqueness */
+    .replace(/^-+|-+$/g, "") + "-" + Date.now(); /* Trims edge dashes and adds timestamp */
 }
 
 function getCurrentMonthKey() {
