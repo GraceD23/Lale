@@ -1,371 +1,356 @@
-
 /* =========================================================
    STREAKS.JS
    ---------------------------------------------------------
-   This file controls STARTER streak behavior for:
-   - the homepage Streaks dropdown
-   - future support for the full Streaks page
+   Uses real stored streak data instead of starter demo data.
 
-   Current starter responsibilities:
-   - build streak rows using starter data
-   - support text-star display for now
-   - make it easy to replace stars with your own PNG later
-   - separate homepage weekly streak display behavior from the
-     future full Streaks page logic
-
-   FUTURE responsibilities:
-   - track real streak completions by day
-   - reset homepage streak display weekly on Sunday at midnight
-   - keep full streak history without deleting old streaks
-   - show filled / unfilled stars on the full Streaks page
-   - sync streak-enabled task completions into streak history
-
-   IMPORTANT:
-   This file handles STREAK DISPLAY behavior only.
-   It does NOT create the full Streaks page yet.
+   What this file does:
+   - renders homepage Streaks dropdown from storage
+   - renders full Streaks page from storage
+   - supports text stars now
+   - supports custom PNG stars later
+   - keeps weekly homepage view separate from full streak history
    ========================================================= */
 
 
 /* =========================================================
-   START AFTER PAGE LOAD
-   ---------------------------------------------------------
-   Waits until the page HTML is fully loaded before trying
-   to build or update streak rows.
+   PAGE STARTUP
    ========================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
-  initializeStreaks(); /* Starts homepage streak setup after page HTML is ready */
+  initializeStreaks(); /* Starts streak rendering when the page is ready */
 });
 
 
 /* =========================================================
-   STARTER STREAK DATA
-   ---------------------------------------------------------
-   This is temporary demo data so the homepage Streaks dropdown
-   can show something useful right now.
-
-   LATER:
-   Replace this with real saved streak data from storage.
-   ========================================================= */
-
-const STARTER_STREAK_DATA = [
-  {
-    id: "vitamin", /* Unique starter ID for this streak */
-    name: "Vitamin", /* Visible streak name shown in the UI */
-    weeklyEarnedCount: 3, /* Number of filled stars shown in the weekly homepage view */
-    lifetimePattern: "★★★☆☆☆☆", /* Placeholder future full-page pattern example */
-    isActive: true /* Starter flag showing this streak currently exists */
-  },
-  {
-    id: "wash-car", /* Unique starter ID for the wash car streak */
-    name: "Wash car", /* Visible task/streak name */
-    weeklyEarnedCount: 1, /* One completed streak day in the current weekly starter view */
-    lifetimePattern: "★☆☆", /* Placeholder future full-page running visual example */
-    isActive: true /* Starter active flag */
-  }
-];
-
-
-/* =========================================================
    MAIN INITIALIZER
-   ---------------------------------------------------------
-   Builds the homepage streak rows and exposes helper functions
-   so later scripts can update streaks without rewriting code.
    ========================================================= */
 
 function initializeStreaks() {
-  exposeStreakHelpers(); /* Makes helper functions available to other JS files later */
-  renderHomepageStreaks(); /* Builds the homepage streak rows */
-  logStreakStartupSummary(); /* Prints a simple debug summary in the browser console */
+  exposeStreakHelpers(); /* Makes helper functions available to other scripts */
+  renderHomepageStreaks(); /* Renders homepage dropdown if present */
+  renderFullStreaksPage(); /* Renders full Streaks page if present */
 }
 
 
 /* =========================================================
-   EXPOSE HELPERS
-   ---------------------------------------------------------
-   These functions are attached to window so future files like:
-   - tasks.js
-   - brain-dump.js
-   - add-system.js
-
-   can update streak displays without duplicating logic.
+   HELPERS EXPOSED GLOBALLY
    ========================================================= */
 
 function exposeStreakHelpers() {
-  window.renderHomepageStreaks = renderHomepageStreaks; /* Lets other files rebuild the homepage streak list */
-  window.addStarterStreak = addStarterStreak; /* Lets future files add a new starter streak row */
-  window.incrementStarterStreak = incrementStarterStreak; /* Lets future files increase the weekly count for a streak */
-  window.buildStarDisplay = buildStarDisplay; /* Lets future files reuse the star rendering logic */
+  window.renderHomepageStreaks = renderHomepageStreaks; /* Lets other scripts refresh homepage streaks */
+  window.renderFullStreaksPage = renderFullStreaksPage; /* Lets other scripts refresh full streaks page */
+  window.incrementStoredStreak = incrementStoredStreak; /* Lets other scripts add one streak completion */
+  window.ensureStoredStreakExists = ensureStoredStreakExists; /* Lets other scripts create streak if missing */
+  window.buildStarDisplay = buildStarDisplay; /* Reuses star rendering in other scripts */
 }
 
 
 /* =========================================================
-   RENDER HOMEPAGE STREAKS
+   STORAGE ACCESS
+   ========================================================= */
+
+function getStoredStreaks() {
+  if (typeof loadStreaks === "function") {
+    const stored = loadStreaks(); /* Loads streaks from storage.js */
+
+    if (Array.isArray(stored)) {
+      return stored; /* Uses real stored streak data */
+    }
+  }
+
+  return []; /* Safe fallback if storage.js is missing */
+}
+
+function saveStoredStreaks(streaks) {
+  if (typeof saveStreaks === "function") {
+    saveStreaks(streaks); /* Saves updated streak list into storage */
+  }
+}
+
+
+/* =========================================================
+   HOMEPAGE STREAKS
    ---------------------------------------------------------
-   Builds all homepage streak rows inside the Streaks dropdown
-   using the current starter streak data.
+   Renders tracker name + weekly stars on the homepage.
    ========================================================= */
 
 function renderHomepageStreaks() {
-  const streaksContainer = document.getElementById("streaks-dropdown-content"); /* Finds the homepage dropdown content area */
+  const container = document.getElementById("streaks-dropdown-content"); /* Homepage dropdown container */
 
-  if (!streaksContainer) {
-    return; /* Stops safely if the dropdown content area is missing */
+  if (!container) {
+    return; /* Stops safely if not on homepage */
   }
 
-  streaksContainer.innerHTML = ""; /* Clears old streak rows before rebuilding them */
+  const streaks = getStoredStreaks()
+    .filter(function (streak) {
+      return streak && streak.name; /* Keeps only valid streak objects */
+    })
+    .sort(function (a, b) {
+      return (b.weeklyCount || 0) - (a.weeklyCount || 0); /* Highest weekly count first */
+    });
 
-  const activeStreaks = STARTER_STREAK_DATA.filter(function (streak) {
-    return streak.isActive; /* Keeps only currently active starter streaks */
-  });
+  container.innerHTML = ""; /* Clears old rows before rebuilding */
 
-  if (activeStreaks.length === 0) {
-    renderEmptyStreakState(streaksContainer); /* Shows a helpful message if no streaks exist yet */
+  if (streaks.length === 0) {
+    const emptyMessage = document.createElement("p"); /* Empty-state text */
+    emptyMessage.textContent = "No streaks yet.";
+    container.appendChild(emptyMessage);
     return;
   }
 
-  activeStreaks.forEach(function (streak) {
-    const streakRow = buildHomepageStreakRow(streak); /* Builds one homepage streak row */
-    streaksContainer.appendChild(streakRow); /* Inserts that row into the dropdown content */
+  streaks.forEach(function (streak) {
+    const row = document.createElement("div"); /* One homepage streak row */
+    row.className = "streak-row";
+
+    const nameSpan = document.createElement("span"); /* Streak name */
+    nameSpan.className = "streak-name";
+    nameSpan.textContent = streak.name;
+
+    const starsSpan = document.createElement("span"); /* Weekly stars */
+    starsSpan.className = "streak-stars";
+    starsSpan.innerHTML = buildStarDisplay(streak.weeklyCount || 0); /* Weekly homepage view */
+
+    row.appendChild(nameSpan);
+    row.appendChild(starsSpan);
+
+    container.appendChild(row);
   });
 }
 
 
 /* =========================================================
-   BUILD HOMEPAGE STREAK ROW
+   FULL STREAKS PAGE
    ---------------------------------------------------------
-   Creates one reusable streak row element containing:
-   - streak name on the left
-   - stars on the right
+   Renders all streaks on streaks.html.
 
-   This matches your homepage rule:
-   - show tracker name + stars
+   Filled star = completed
+   Unfilled star = missed / not completed in running history
    ========================================================= */
 
-function buildHomepageStreakRow(streak) {
-  const row = document.createElement("div"); /* Creates the outer row wrapper */
-  row.className = "streak-row"; /* Applies shared streak row styling */
-  row.setAttribute("data-streak-id", streak.id); /* Stores the streak ID on the row for future updates */
+function renderFullStreaksPage() {
+  const container = document.getElementById("full-streaks-container"); /* Full Streaks page container */
 
-  const nameSpan = document.createElement("span"); /* Creates the visible streak name */
-  nameSpan.className = "streak-name"; /* Shared class for streak name styling */
-  nameSpan.textContent = streak.name; /* Shows the streak name text */
+  if (!container) {
+    return; /* Stops safely if not on streaks.html */
+  }
 
-  const starsSpan = document.createElement("span"); /* Creates the star display area */
-  starsSpan.className = "streak-stars"; /* Shared class for the streak star area */
-  starsSpan.setAttribute("aria-label", streak.name + " weekly stars"); /* Accessibility label describing the star display */
-  starsSpan.innerHTML = buildStarDisplay(streak.weeklyEarnedCount); /* Builds the current weekly star display */
+  const streaks = getStoredStreaks()
+    .filter(function (streak) {
+      return streak && streak.name; /* Keeps only valid streak objects */
+    })
+    .sort(function (a, b) {
+      return (b.count || 0) - (a.count || 0); /* Highest total count first */
+    });
 
-  row.appendChild(nameSpan); /* Adds the name to the row */
-  row.appendChild(starsSpan); /* Adds the stars to the row */
+  container.innerHTML = ""; /* Clears old rows before rebuilding */
 
-  return row; /* Returns the finished streak row element */
+  if (streaks.length === 0) {
+    const emptyMessage = document.createElement("p"); /* Empty-state text */
+    emptyMessage.textContent = "No streaks yet.";
+    container.appendChild(emptyMessage);
+    return;
+  }
+
+  streaks.forEach(function (streak) {
+    const row = document.createElement("div"); /* One full streak row */
+    row.className = "streak-row";
+
+    const nameSpan = document.createElement("span"); /* Streak name */
+    nameSpan.className = "streak-name";
+    nameSpan.textContent = streak.name;
+
+    const starsSpan = document.createElement("span"); /* Full history stars */
+    starsSpan.className = "streak-stars";
+    starsSpan.innerHTML = buildHistoryStarDisplay(streak.history || [], streak.count || 0);
+
+    row.appendChild(nameSpan);
+    row.appendChild(starsSpan);
+
+    container.appendChild(row);
+  });
 }
 
 
 /* =========================================================
-   BUILD STAR DISPLAY
+   STAR DISPLAY
    ---------------------------------------------------------
-   Builds the visible stars for a streak row.
-
-   Current behavior:
-   - if custom star images are NOT enabled, use text stars
-   - if custom star images ARE enabled, build img tags using
-     the configured star asset path
-
-   This is written to make your later PNG replacement easy.
+   Homepage weekly star display.
    ========================================================= */
 
 function buildStarDisplay(starCount) {
-  const count = Number.isFinite(starCount) ? Math.max(0, starCount) : 0; /* Safely converts the provided count into a usable non-negative number */
+  const count = Number.isFinite(starCount) ? Math.max(0, starCount) : 0; /* Safe non-negative count */
 
   if (shouldUseCustomStarImage()) {
-    return buildImageStarDisplay(count); /* Uses image-based stars if enabled in config.js */
+    return buildImageStarDisplay(count); /* Uses image stars if enabled */
   }
 
-  return buildTextStarDisplay(count); /* Uses text-based stars in the starter version */
+  return buildTextStarDisplay(count); /* Uses text stars otherwise */
 }
-
-
-/* =========================================================
-   BUILD TEXT STAR DISPLAY
-   ---------------------------------------------------------
-   Creates simple text stars for the starter version.
-   Example for count 3:
-   ★★★
-   ========================================================= */
 
 function buildTextStarDisplay(starCount) {
-  const textStar = getConfiguredTextStar(); /* Reads the configured fallback text star */
-  return textStar.repeat(starCount); /* Repeats the star character the requested number of times */
+  const textStar = getConfiguredTextStar(); /* Reads fallback text star */
+  return textStar.repeat(starCount); /* Repeats filled star count times */
 }
-
-
-/* =========================================================
-   BUILD IMAGE STAR DISPLAY
-   ---------------------------------------------------------
-   Creates HTML using image tags so later you can replace the
-   star PNG in one place and the site can reuse it.
-
-   This only runs when config.js says image stars are enabled.
-   ========================================================= */
 
 function buildImageStarDisplay(starCount) {
-  const starPath = getConfiguredStarPath(); /* Reads the configured star image file path */
-
-  let html = ""; /* Will collect the repeated star image tags */
+  const starPath = getConfiguredStarPath(); /* Reads configured image path */
+  let html = "";
 
   for (let index = 0; index < starCount; index += 1) {
-    html += `
-      <img
-        class="streak-star-image"
-        src="${escapeAttribute(starPath)}"
-        alt="Star"
-      />
-    `; /* Adds one star image tag per earned star */
+    html += '<img class="streak-star-image" src="' + escapeAttribute(starPath) + '" alt="Star" />'; /* One image per star */
   }
 
-  return html; /* Returns the completed HTML string */
+  return html;
 }
 
 
 /* =========================================================
-   EMPTY STREAK STATE
+   FULL HISTORY STAR DISPLAY
    ---------------------------------------------------------
-   Shows a helpful message if there are no active streaks yet.
+   Full streak page visual:
+   - filled stars for completed entries
+   - unfilled stars for missed entries
+   - if no history exists yet, falls back to total count
    ========================================================= */
 
-function renderEmptyStreakState(streaksContainer) {
-  const emptyMessage = document.createElement("p"); /* Creates a short fallback message */
-  emptyMessage.className = "streak-empty-message"; /* Class reserved for future empty-state styling */
-  emptyMessage.textContent = "No streaks yet."; /* Simple starter empty-state text */
+function buildHistoryStarDisplay(historyArray, totalCount) {
+  const history = Array.isArray(historyArray) ? historyArray : []; /* Safe history array */
 
-  streaksContainer.appendChild(emptyMessage); /* Inserts the empty-state message into the dropdown */
+  if (history.length === 0) {
+    return buildTextStarDisplay(totalCount || 0); /* Fallback if no running history exists yet */
+  }
+
+  let output = "";
+
+  history.forEach(function (item) {
+    if (item && item.filled === true) {
+      output += getConfiguredTextStar(); /* Filled star */
+    } else {
+      output += "☆"; /* Unfilled star */
+    }
+  });
+
+  return output;
 }
 
 
 /* =========================================================
-   ADD STARTER STREAK
+   CREATE / UPDATE STREAKS
    ---------------------------------------------------------
-   Adds a new streak into the temporary starter data array and
-   rebuilds the homepage dropdown display.
-
-   This helper prepares for future Add page and Brain Dump use.
+   Used by other systems like:
+   - Brain Dump confirm
+   - future task completion logic
    ========================================================= */
 
-function addStarterStreak(streakName, weeklyEarnedCount = 0) {
-  const cleanedName = typeof streakName === "string" ? streakName.trim() : ""; /* Cleans the provided streak name */
+function ensureStoredStreakExists(streakName) {
+  const cleanedName = String(streakName || "").trim(); /* Safe streak name */
 
   if (cleanedName === "") {
-    return; /* Stops if no usable name was provided */
+    return null; /* Stops if no valid streak name */
   }
 
-  const newStreak = {
-    id: buildStarterStreakId(cleanedName), /* Creates a simple ID from the provided name */
-    name: cleanedName, /* Stores the visible streak name */
-    weeklyEarnedCount: Math.max(0, Number(weeklyEarnedCount) || 0), /* Stores the starting weekly star count */
-    lifetimePattern: "", /* Placeholder for future lifetime star history */
-    isActive: true /* Marks the new starter streak as active */
-  };
+  const streaks = getStoredStreaks(); /* Current stored streaks */
 
-  STARTER_STREAK_DATA.push(newStreak); /* Adds the new streak into the temporary starter data */
-  renderHomepageStreaks(); /* Rebuilds the homepage streak rows so the new streak appears */
-}
-
-
-/* =========================================================
-   INCREMENT STARTER STREAK
-   ---------------------------------------------------------
-   Increases the weekly earned star count for one starter streak
-   and rebuilds the homepage dropdown display.
-
-   This will be useful later when a streak-enabled task is
-   completed.
-   ========================================================= */
-
-function incrementStarterStreak(streakId) {
-  const matchingStreak = STARTER_STREAK_DATA.find(function (streak) {
-    return streak.id === streakId; /* Finds the streak that matches the provided ID */
+  let matchingStreak = streaks.find(function (streak) {
+    return streak.name === cleanedName; /* Looks for existing streak */
   });
 
   if (!matchingStreak) {
-    return; /* Stops safely if no matching streak exists */
+    matchingStreak = {
+      id: buildSimpleStreakId(cleanedName), /* Unique streak ID */
+      name: cleanedName, /* Visible streak name */
+      count: 0, /* Total completions */
+      weeklyCount: 0, /* Homepage weekly stars */
+      history: [] /* Full streak history array */
+    };
+
+    streaks.push(matchingStreak); /* Adds new streak */
+    saveStoredStreaks(streaks); /* Saves updated streak list */
   }
 
-  matchingStreak.weeklyEarnedCount += 1; /* Adds one earned weekly star to the matched streak */
-  renderHomepageStreaks(); /* Rebuilds the homepage streak display so the new count appears */
+  return matchingStreak;
 }
 
+function incrementStoredStreak(streakName) {
+  const cleanedName = String(streakName || "").trim(); /* Safe streak name */
 
-/* =========================================================
-   BUILD STARTER STREAK ID
-   ---------------------------------------------------------
-   Converts a visible name into a simple ID string.
-   Example:
-   "Wash car" -> "wash-car"
-   ========================================================= */
+  if (cleanedName === "") {
+    return; /* Stops if no valid name */
+  }
 
-function buildStarterStreakId(streakName) {
-  return streakName
-    .toLowerCase() /* Makes the ID lowercase for consistency */
-    .replace(/[^a-z0-9]+/g, "-") /* Replaces spaces/symbols with dashes */
-    .replace(/^-+|-+$/g, ""); /* Trims extra dashes from the start/end */
+  const streaks = getStoredStreaks(); /* Current stored streaks */
+
+  let matchingStreak = streaks.find(function (streak) {
+    return streak.name === cleanedName; /* Finds existing streak */
+  });
+
+  if (!matchingStreak) {
+    matchingStreak = {
+      id: buildSimpleStreakId(cleanedName), /* Unique streak ID */
+      name: cleanedName,
+      count: 0,
+      weeklyCount: 0,
+      history: []
+    };
+
+    streaks.push(matchingStreak); /* Creates streak if missing */
+  }
+
+  matchingStreak.count += 1; /* Total count */
+  matchingStreak.weeklyCount += 1; /* Homepage weekly count */
+  matchingStreak.history.push({
+    date: new Date().toISOString(), /* Stores completion timestamp */
+    filled: true /* Completed streak day */
+  });
+
+  saveStoredStreaks(streaks); /* Saves updated streak list */
+  renderHomepageStreaks(); /* Refreshes homepage dropdown if present */
+  renderFullStreaksPage(); /* Refreshes full streaks page if present */
 }
 
 
 /* =========================================================
    CONFIG HELPERS
-   ---------------------------------------------------------
-   Safely read streak-related settings from config.js.
    ========================================================= */
 
 function shouldUseCustomStarImage() {
   if (window.getConfig) {
-    return Boolean(window.getConfig("useCustomStarImage")); /* Reads whether image stars should be used */
+    return Boolean(window.getConfig("useCustomStarImage")); /* Reads image-star setting */
   }
 
-  return false; /* Safe fallback: use text stars if config.js is unavailable */
+  return false;
 }
 
 function getConfiguredStarPath() {
   if (window.getConfig) {
-    return window.getConfig("starIconPath") || "assets/icons/star-default.png"; /* Reads the configured star image path */
+    return window.getConfig("starIconPath") || "assets/icons/star-default.png"; /* Reads star image path */
   }
 
-  return "assets/icons/star-default.png"; /* Safe fallback star image path */
+  return "assets/icons/star-default.png";
 }
 
 function getConfiguredTextStar() {
   if (window.getConfig) {
-    return window.getConfig("starFallbackText") || "★"; /* Reads the configured text star character */
+    return window.getConfig("starFallbackText") || "★"; /* Reads text star */
   }
 
-  return "★"; /* Safe fallback text star */
+  return "★";
 }
 
 
 /* =========================================================
-   SAFE ATTRIBUTE ESCAPE
-   ---------------------------------------------------------
-   Escapes attribute values used inside generated HTML.
+   SMALL HELPERS
    ========================================================= */
+
+function buildSimpleStreakId(streakName) {
+  return String(streakName)
+    .toLowerCase() /* Lowercase ID */
+    .replace(/[^a-z0-9]+/g, "-") /* Replaces spaces/symbols with dashes */
+    .replace(/^-+|-+$/g, "") + "-" + Date.now(); /* Trims edge dashes and adds timestamp */
+}
 
 function escapeAttribute(value) {
-  const temporaryElement = document.createElement("div"); /* Creates a temporary safe element */
-  temporaryElement.textContent = value; /* Stores the raw attribute text safely */
-  return temporaryElement.innerHTML.replace(/"/g, "&quot;"); /* Returns an attribute-safe string */
-}
-
-
-/* =========================================================
-   STARTUP DEBUG SUMMARY
-   ---------------------------------------------------------
-   Prints a simple streak summary in the browser console
-   during the starter build phase.
-   ========================================================= */
-
-function logStreakStartupSummary() {
-  console.log("Streaks initialized."); /* Confirms the streak script ran */
-  console.log("Using image stars:", shouldUseCustomStarImage()); /* Shows whether stars are currently text or image based */
-  console.log("Starter streak count:", STARTER_STREAK_DATA.length); /* Shows how many starter streaks are loaded */
+  const temporaryElement = document.createElement("div"); /* Safe temp element */
+  temporaryElement.textContent = value;
+  return temporaryElement.innerHTML.replace(/"/g, "&quot;"); /* Safe attribute string */
 }
