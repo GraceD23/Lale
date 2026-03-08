@@ -32,7 +32,7 @@ window.APP_CONFIG = {
      ========================= */
   passcodeLength: 6, /* Number of circles/digits shown on the iPhone-style passcode screen */
   passcodeInputType: "numeric", /* Tells the login system to expect number-only input */
-  rememberSession: true, /* keeps unlock active until tab/session ends */
+ rememberSession: true, /* keeps site unlocked temporarily after correct passcode */
   lockScreenStyle: "iphone-keypad", /* Visual style for login screen: iPhone-style keypad with filled circles */
 
   /* =========================
