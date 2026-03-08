@@ -333,9 +333,16 @@ function updatePasscodeCircles() {
 
 function validatePasscode() {
   if (currentPasscodeInput === DEMO_PASSCODE) {
-    unlockAppContent(); /* Unlocks the dashboard when the correct passcode is entered */
-    return;
+  const rememberSession = window.getConfig && window.getConfig("rememberSession"); /* checks whether temporary unlock is enabled */
+
+  if (rememberSession) {
+    localStorage.setItem(SESSION_UNLOCK_KEY, "true"); /* saves unlocked state */
+    localStorage.setItem(SESSION_UNLOCK_EXPIRES_KEY, String(Date.now() + (60 * 60 * 1000))); /* keeps unlock active for 1 hour */
   }
+
+  unlockAppContent(); /* unlocks the dashboard when the correct passcode is entered */
+  return;
+}
 
   showAuthError(); /* Shows the incorrect-passcode message */
   resetPasscodeInput(); /* Clears the circles so the user can try again */
