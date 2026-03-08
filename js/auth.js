@@ -44,7 +44,8 @@ document.addEventListener("DOMContentLoaded", function () {
    ========================================================= */
 
 const DEMO_PASSCODE = "123456"; /* Demo numeric code for testing the starter lock screen UI */
-const SESSION_UNLOCK_KEY = "productivitySiteUnlocked"; /* session-only unlock flag */
+const SESSION_UNLOCK_KEY = "productivitySiteUnlocked"; /* temporary unlock storage key */
+const SESSION_UNLOCK_EXPIRES_KEY = "productivitySiteUnlockExpires"; /* unlock expiration timestamp key */
 
 
 /* =========================================================
@@ -57,16 +58,17 @@ const SESSION_UNLOCK_KEY = "productivitySiteUnlocked"; /* session-only unlock fl
 function initializeAuthLockScreen() {
   const appShell = document.getElementById("app-shell"); /* Main visible homepage wrapper */
 
-   const rememberSession = window.getConfig && window.getConfig("rememberSession"); /* checks whether session unlock is enabled */
-const sessionAlreadyUnlocked = sessionStorage.getItem(SESSION_UNLOCK_KEY) === "true"; /* checks whether this tab session already unlocked the site */
+   const rememberSession = window.getConfig && window.getConfig("rememberSession"); /* checks whether temporary unlock is enabled */
+const unlockFlag = localStorage.getItem(SESSION_UNLOCK_KEY) === "true"; /* reads prior unlock state */
+const unlockExpires = Number(localStorage.getItem(SESSION_UNLOCK_EXPIRES_KEY) || "0"); /* reads unlock expiration timestamp */
+const sessionStillValid = unlockFlag && Date.now() < unlockExpires; /* checks whether unlock window is still active */
 
-if (rememberSession && sessionAlreadyUnlocked) {
-
-  unlockAppContent(); /* skips the lock screen if this session already entered the correct code */
-
+if (rememberSession && sessionStillValid) {
+  unlockAppContent(); /* skips passcode if unlock window is still valid */
   return;
-
 }
+
+
   if (!appShell) {
     return; /* Stops safely if the expected main app wrapper is not present */
   }
