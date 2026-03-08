@@ -1,1 +1,169 @@
-<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><title>Streaks</title><link rel='stylesheet' href='css/style.css'><link rel='stylesheet' href='css/theme.css'><link rel='stylesheet' href='css/layout.css'><link rel='stylesheet' href='css/components.css'></head><body><div id='app-shell' class='app-shell'><header class='top-bar'><div class='top-bar-left'></div><div class='top-bar-right'><button id='hamburger-menu-button' class='hamburger-menu-button' type='button' aria-label='Open navigation menu' aria-expanded='false' aria-controls='mobile-navigation-drawer'><span class='hamburger-line'></span><span class='hamburger-line'></span><span class='hamburger-line'></span></button></div></header><nav id='mobile-navigation-drawer' class='mobile-navigation-drawer' aria-label='Main navigation' hidden><div class='mobile-navigation-header'><h2 class='mobile-navigation-title'>Menu</h2></div><ul class='mobile-navigation-list'><li><a href='index.html'>Home</a></li><li><a href='streaks.html'>Streaks</a></li><li><a href='health.html'>Health</a></li><li><a href='history.html'>History</a></li><li><a href='add.html'>Add</a></li></ul></nav><main class='home-page-main-content'><section class='dashboard-card'><h2 class='card-title'>Streaks</h2><div id='full-streaks-container'><div class='streak-row'><span class='streak-name'>Vitamin</span><span class='streak-stars'>★★★☆☆☆☆</span></div><div class='streak-row'><span class='streak-name'>Wash car</span><span class='streak-stars'>★☆☆</span></div></div></section></main></div><script src='js/auth.js'></script><script src='js/labels.js'></script><script src='js/config.js'></script><script src='js/app.js'></script><script src='js/menu.js'></script><script src='js/dropdowns.js'></script><script src='js/review-panel.js'></script><script src='js/tasks.js'></script><script src='js/brain-dump.js'></script><script src='js/streaks.js'></script></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /> <!-- Defines the character set so text and symbols display correctly -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- Makes the layout scale correctly on mobile/iPhone -->
+
+  <title>Streaks</title> <!-- Browser tab title -->
+
+  <!-- Google Font: Josefin Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <!-- Base stylesheet: resets, font defaults, and shared baseline styles -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Theme stylesheet: colors, borders, shadows, and visual design -->
+  <link rel="stylesheet" href="css/theme.css" />
+
+  <!-- Layout stylesheet: spacing, placement, and mobile layout rules -->
+  <link rel="stylesheet" href="css/layout.css" />
+
+  <!-- Components stylesheet: cards, buttons, menus, panels, and reusable UI pieces -->
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+
+<body>
+  <!-- =========================================================
+       GLOBAL OVERLAY
+       Darkens the page when menus or panels are open.
+       ========================================================= -->
+  <div id="global-overlay" class="global-overlay" hidden></div>
+
+  <!-- =========================================================
+       APP SHELL
+       Main wrapper for the full Streaks page.
+       ========================================================= -->
+  <div id="app-shell" class="app-shell">
+
+    <!-- =======================================================
+         TOP BAR
+         Contains the top-right hamburger menu button.
+         ======================================================= -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <!-- Left side intentionally empty for future title/greeting space -->
+      </div>
+
+      <div class="top-bar-right">
+        <button
+          id="hamburger-menu-button"
+          class="hamburger-menu-button"
+          type="button"
+          aria-label="Open navigation menu"
+          aria-expanded="false"
+          aria-controls="mobile-navigation-drawer"
+        >
+          <span class="hamburger-line"></span> <!-- Top hamburger line -->
+          <span class="hamburger-line"></span> <!-- Middle hamburger line -->
+          <span class="hamburger-line"></span> <!-- Bottom hamburger line -->
+        </button>
+      </div>
+    </header>
+
+    <!-- =======================================================
+         MOBILE NAVIGATION DRAWER
+         Hidden side menu opened by the hamburger button.
+         ======================================================= -->
+    <nav
+      id="mobile-navigation-drawer"
+      class="mobile-navigation-drawer"
+      aria-label="Main navigation"
+      hidden
+    >
+      <div class="mobile-navigation-header">
+        <h2 class="mobile-navigation-title">Menu</h2> <!-- Menu title inside drawer -->
+      </div>
+
+      <ul class="mobile-navigation-list">
+        <li><a href="index.html">Home</a></li> <!-- Link back to homepage -->
+        <li><a href="streaks.html">Streaks</a></li> <!-- Link to current Streaks page -->
+        <li><a href="health.html">Health</a></li> <!-- Link to Health page -->
+        <li><a href="history.html">History</a></li> <!-- Link to History page -->
+        <li><a href="add.html">Add</a></li> <!-- Link to Add page -->
+      </ul>
+    </nav>
+
+    <!-- =======================================================
+         MAIN PAGE CONTENT
+         Holds the Streaks page cards in vertical order.
+         ======================================================= -->
+    <main class="home-page-main-content">
+
+      <!-- =====================================================
+           PAGE TITLE CARD
+           Main title for the Streaks page.
+           ===================================================== -->
+      <section class="dashboard-card">
+        <h1 class="card-title">Streaks</h1> <!-- Main page heading -->
+      </section>
+
+      <!-- =====================================================
+           PAGE DESCRIPTION CARD
+           Small helper note explaining this page.
+           ===================================================== -->
+      <section class="dashboard-card">
+        <p class="add-helper-text">
+          This page shows all streaks, old and new. Filled stars show completed streak entries. Unfilled stars can represent missed entries later as the streak system grows.
+        </p>
+      </section>
+
+      <!-- =====================================================
+           FULL STREAKS CARD
+           JavaScript will inject all real stored streak rows here.
+           ===================================================== -->
+      <section class="dashboard-card" aria-labelledby="full-streaks-title">
+        <h2 id="full-streaks-title" class="card-title">All Streaks</h2> <!-- Section title for streak list -->
+
+        <!-- Main streak list container
+             streaks.js will fill this area using real stored streak data -->
+        <div id="full-streaks-container">
+          <!-- Starts empty so JavaScript can build the real rows -->
+        </div>
+      </section>
+
+      <!-- =====================================================
+           FUTURE DETAIL PANEL
+           Reserved for later if you want to tap a streak and see:
+           - total count
+           - weekly count
+           - full date history
+           ===================================================== -->
+      <section
+        id="streak-detail-panel"
+        class="review-panel"
+        aria-labelledby="streak-detail-title"
+        hidden
+      >
+        <div class="review-panel-header">
+          <h3 id="streak-detail-title" class="review-panel-title">Streak Details</h3> <!-- Future streak detail panel title -->
+        </div>
+
+        <div id="streak-detail-content" class="review-panel-content">
+          <p>Streak details will appear here later.</p> <!-- Placeholder content -->
+        </div>
+
+        <div class="review-panel-actions">
+          <button id="streak-detail-close-button" class="primary-action-button" type="button">Close</button> <!-- Future close button -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- =========================================================
+       JAVASCRIPT FILES
+       Order matters:
+       - auth first
+       - shared setup next
+       - storage before streaks system
+       ========================================================= -->
+  <script src="js/auth.js"></script> <!-- iPhone-style passcode screen -->
+  <script src="js/labels.js"></script> <!-- Shared visible text labels -->
+  <script src="js/config.js"></script> <!-- Shared editable site settings -->
+  <script src="js/app.js"></script> <!-- Shared startup logic -->
+  <script src="js/menu.js"></script> <!-- Hamburger menu behavior -->
+  <script src="js/dropdowns.js"></script> <!-- Reusable dropdown behavior -->
+  <script src="js/review-panel.js"></script> <!-- Shared slide-up panel behavior -->
+  <script src="js/storage.js"></script> <!-- Central saved-data system -->
+  <script src="js/streaks.js"></script> <!-- Real stored streak rendering -->
+</body>
+</html>
