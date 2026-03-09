@@ -62,23 +62,55 @@ function createLockScreenOverlay() {
   `;
 
   overlay.innerHTML = `
-    <div class="auth-lock-card">
-      <h1 class="auth-lock-title">Enter Passcode</h1>
-      <div id="auth-passcode-circles" class="auth-passcode-circles" aria-label="Passcode entry status"></div>
-      <p id="auth-error-message" class="auth-error-message" hidden>Incorrect passcode. Try again.</p>
-      <div class="auth-keypad" aria-label="Numeric keypad">
-        <button class="auth-keypad-button" type="button" data-auth-digit="1">1</button>
-        <button class="auth-keypad-button" type="button" data-auth-digit="2">2</button>
-        <button class="auth-keypad-button" type="button" data-auth-digit="3">3</button>
-        <button class="auth-keypad-button" type="button" data-auth-digit="4">4</button>
-        <button class="auth-keypad-button" type="button" data-auth-digit="5">5</button>
-        <button class="auth-keypad-button" type="button" data-auth-digit="6">6</button>
-        <button class="auth-keypad-button" type="button" data-auth-digit="7">7</button>
-        <button class="auth-keypad-button" type="button" data-auth-digit="8">8</button>
-        <button class="auth-keypad-button" type="button" data-auth-digit="9">9</button>
-        <div class="auth-keypad-spacer" aria-hidden="true"></div>
-        <button class="auth-keypad-button" type="button" data-auth-digit="0">0</button>
-        <button class="auth-keypad-button auth-keypad-delete-button" type="button" data-auth-delete="true">⌫</button>
+    <div style="
+      width:100%;max-width:340px;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:40px 20px;box-sizing:border-box;
+    ">
+      <h1 style="
+        font-family:'Josefin Sans',sans-serif;font-size:22px;font-weight:600;
+        color:#3a2e28;margin:0 0 32px 0;letter-spacing:0.02em;
+      ">Enter Passcode</h1>
+
+      <div id="auth-passcode-circles" style="
+        display:flex;justify-content:center;gap:20px;margin-bottom:40px;
+      "></div>
+
+      <p id="auth-error-message" style="
+        color:#a94442;font-size:14px;font-family:'Josefin Sans',sans-serif;
+        margin:0 0 20px 0;display:none;
+      ">Incorrect passcode. Try again.</p>
+
+      <div style="
+        display:grid;grid-template-columns:repeat(3,80px);
+        gap:16px;justify-content:center;
+      ">
+        ${[1,2,3,4,5,6,7,8,9].map(n => `
+          <button type="button" data-auth-digit="${n}" style="
+            width:80px;height:80px;border-radius:50%;
+            border:1.5px solid #c9b49a;background:#EFE4D9;
+            font-size:28px;font-weight:400;font-family:'Josefin Sans',sans-serif;
+            color:#3a2e28;cursor:pointer;display:flex;align-items:center;
+            justify-content:center;-webkit-tap-highlight-color:transparent;
+            box-shadow:0 2px 6px rgba(0,0,0,0.08);
+          ">${n}</button>
+        `).join("")}
+        <div style="width:80px;height:80px;"></div>
+        <button type="button" data-auth-digit="0" style="
+          width:80px;height:80px;border-radius:50%;
+          border:1.5px solid #c9b49a;background:#EFE4D9;
+          font-size:28px;font-weight:400;font-family:'Josefin Sans',sans-serif;
+          color:#3a2e28;cursor:pointer;display:flex;align-items:center;
+          justify-content:center;-webkit-tap-highlight-color:transparent;
+          box-shadow:0 2px 6px rgba(0,0,0,0.08);
+        ">0</button>
+        <button type="button" data-auth-delete="true" style="
+          width:80px;height:80px;border-radius:50%;
+          border:1.5px solid #c9b49a;background:transparent;
+          font-size:22px;color:#3a2e28;cursor:pointer;display:flex;
+          align-items:center;justify-content:center;
+          -webkit-tap-highlight-color:transparent;
+        ">⌫</button>
       </div>
     </div>
   `;
@@ -156,14 +188,19 @@ function removeLastPasscodeDigit() {
 }
 
 function updatePasscodeCircles() {
-  const circlesContainer = document.getElementById("auth-passcode-circles");
-  const totalCircles = getPasscodeLength();
-  if (!circlesContainer) { return; }
-  circlesContainer.innerHTML = "";
-  for (let index = 0; index < totalCircles; index += 1) {
-    const circle = document.createElement("span");
-    circle.className = "auth-passcode-circle" + (index < currentPasscodeInput.length ? " filled" : "");
-    circlesContainer.appendChild(circle);
+  const container = document.getElementById("auth-passcode-circles");
+  if (!container) return;
+  container.innerHTML = "";
+  for (let i = 0; i < 4; i++) {
+    const dot = document.createElement("div");
+    const filled = i < currentPasscodeInput.length;
+    dot.style.cssText = `
+      width:18px;height:18px;border-radius:50%;
+      border:2px solid #b0977a;
+      background:${filled ? "#b0977a" : "transparent"};
+      transition:background 0.15s ease;
+    `;
+    container.appendChild(dot);
   }
 }
 
@@ -180,15 +217,13 @@ function validatePasscode() {
 }
 
 function showAuthError() {
-  const errorMessage = document.getElementById("auth-error-message");
-  if (!errorMessage) { return; }
-  errorMessage.removeAttribute("hidden");
+  const el = document.getElementById("auth-error-message");
+  if (el) el.style.display = "block";
 }
 
 function clearAuthError() {
-  const errorMessage = document.getElementById("auth-error-message");
-  if (!errorMessage) { return; }
-  errorMessage.setAttribute("hidden", "");
+  const el = document.getElementById("auth-error-message");
+  if (el) el.style.display = "none";
 }
 
 function resetPasscodeInput() {
