@@ -56,30 +56,22 @@ function saveConfirmedHealth(item) {
   const cat = (item.data && item.data.category) || "general";
   if (!health[mk][cat]) health[mk][cat] = [];
 
-  const today = new Date();
-  const dayKey = today.getFullYear() + "-" +
-    String(today.getMonth()+1).padStart(2,"0") + "-" +
-    String(today.getDate()).padStart(2,"0");
+  const now = new Date();
+  const dayKey = now.getFullYear() + "-" +
+    String(now.getMonth()+1).padStart(2,"0") + "-" +
+    String(now.getDate()).padStart(2,"0");
 
   const entry = {
     day: dayKey,
-    date: new Date().toISOString(),
+    date: now.toISOString(), /* full ISO timestamp — used for HH:MM display */
     note: item.name
   };
 
-  /* Weight — store the actual value text */
-  if (cat === "weight" && item.data && item.data.value) {
-    entry.value = item.data.value;
-  }
-  /* Headaches / calendar — store severity */
-  if (item.data && item.data.severity) {
-    entry.severity = item.data.severity;
-  }
-  /* Energy — store level */
-  if (item.data && item.data.level) {
-    entry.level = item.data.level;
-  }
+  if (cat === "weight" && item.data && item.data.value) entry.value = item.data.value;
+  if (item.data && item.data.severity) entry.severity = item.data.severity;
+  if (item.data && item.data.level) entry.level = item.data.level;
 
+  /* Always push — multiple entries per day are allowed (e.g. two headaches, two weight logs) */
   health[mk][cat].push(entry);
   if (typeof saveHealth === "function") saveHealth(health);
 }
