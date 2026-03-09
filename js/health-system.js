@@ -1,203 +1,505 @@
 /* =========================================================
    HEALTH-SYSTEM.JS
    ---------------------------------------------------------
-   Controls the Health page.
+   Fully dynamic Health Page controller.
 
    Features:
-   - Weekly health tracker (Mon–Sun)
-   - Headache entries with severity + location
-   - Weight logging
-   - Month selector
-   - Tap day → view entry notes
-   ========================================================= */
-
-
-/* =========================================================
-   PAGE STARTUP
+   - Renders all trackers from storage (default + custom)
+   - Headache / Burnout: calendar-style circle grid
+   - Weight: line chart + written log (no Mon-Sun row)
+   - Energy Level: 1-5 daily scale
+   - Month selector per tracker
+   - Tap circle to add/view entry
    ========================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
-  initializeHealthPage();
+  initializeHealthSystem();
 });
 
-
-/* =========================================================
-   INITIALIZE HEALTH PAGE
-   ========================================================= */
-
-function initializeHealthPage() {
-
-  buildMonthDropdown();
-  renderWeeklyHealth();
-  renderWeightLog();
-
+function initializeHealthSystem() {
+  buildHealthPage();
 }
 
-
 /* =========================================================
-   SAMPLE DATA
-   Starter demo data until real storage is connected
+   BUILD HEALTH PAGE DYNAMICALLY
    ========================================================= */
 
-const healthData = {
+function buildHealthPage() {
+  const main = document.querySelector(".home-page-main-content");
+  if (!main) return;
 
-  "2026-03": {
-    headaches: [
-      { day: "Mon", severity: 3, location: "Back of neck", note: "Possible sugar crash" },
-      { day: "Thu", severity: 1, location: "Forehead", note: "Short headache" }
-    ],
+  /* Remove old hardcoded health sections */
+  const oldSections = main.querySelectorAll(".health-category-card");
+  oldSections.forEach(s => s.remove());
 
-    weight: [
-      { date: "2026-03-02", value: "120lb 3oz" },
-      { date: "2026-03-09", value: "119lb 14oz" }
-    ]
-  }
+  const trackers = loadHealthTrackers();
 
-};
-
-
-/* =========================================================
-   BUILD MONTH DROPDOWN
-   ========================================================= */
-
-function buildMonthDropdown() {
-
-  const dropdown = document.getElementById("health-month-select");
-  if (!dropdown) return;
-
-  const months = Object.keys(healthData);
-
-  months.forEach(function (month) {
-
-    const option = document.createElement("option");
-    option.value = month;
-    option.textContent = formatMonthLabel(month);
-
-    dropdown.appendChild(option);
-
+  trackers.forEach(function (tracker) {
+    const section = buildTrackerSection(tracker);
+    if (section) {
+      /* Insert before the detail panel */
+      const detailPanel = document.getElementById("health-detail-panel");
+      if (detailPanel) {
+        main.insertBefore(section, detailPanel);
+      } else {
+        main.appendChild(section);
+      }
+    }
   });
-
-  dropdown.addEventListener("change", function () {
-    renderWeeklyHealth();
-    renderWeightLog();
-  });
-
 }
 
-
 /* =========================================================
-   FORMAT MONTH LABEL
+   BUILD ONE TRACKER SECTION
    ========================================================= */
 
-function formatMonthLabel(monthString) {
-
-  const parts = monthString.split("-");
-  const year = parts[0];
-  const month = parseInt(parts[1], 10) - 1;
-
-  const date = new Date(year, month);
-
-  return date.toLocaleString("default", {
-    month: "long",
-    year: "numeric"
-  });
-
+function buildTrackerSection(tracker) {
+  if (tracker.type === "weight")   return buildWeightSection(tracker);
+  if (tracker.type === "calendar") return buildCalendarSection(tracker);
+  if (tracker.type === "scale")    return buildScaleSection(tracker);
+  if (tracker.type === "yesno")    return buildYesNoSection(tracker);
+  return buildCalendarSection(tracker); /* Default */
 }
 
-
 /* =========================================================
-   RENDER WEEKLY HEALTH GRID
+   CALENDAR SECTION (Headaches, Burnout, etc.)
+   Shows a monthly grid of circles — filled = entry logged
    ========================================================= */
 
-function renderWeeklyHealth() {
+function buildCalendarSection(tracker) {
+  const section = document.createElement("section");
+  section.className = "dashboard-card health-category-card";
+  section.id = "tracker-" + tracker.id;
+  section.setAttribute("aria-labelledby", tracker.id + "-title");
 
-  const dropdown = document.getElementById("health-month-select");
-  const grid = document.getElementById("health-week-grid");
+  const monthKey = getCurrentMonthKey();
 
-  if (!dropdown || !grid) return;
+  section.innerHTML = `
+    <h2 id="${tracker.id}-title" class="card-title" style="color:${tracker.color || '#b0977a'}">${escH(tracker.name)}</h2>
+    <div class="health-month-nav" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <button type="button" class="secondary-action-button" style="padding:2px 8px;font-size:12px;" data-tracker="${tracker.id}" data-dir="-1">◀</button>
+      <span class="health-month-label" data-tracker="${tracker.id}" style="font-size:13px;flex:1;text-align:center;">${formatMonthLabel(monthKey)}</span>
+      <button type="button" class="secondary-action-button" style="padding:2px 8px;font-size:12px;" data-tracker="${tracker.id}" data-dir="1">▶</button>
+    </div>
+    <div class="health-calendar-grid" id="calendar-${tracker.id}" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+    <div class="health-entry-form" id="entry-form-${tracker.id}" style="display:none;margin-top:10px;padding:10px;background:rgba(255,255,255,0.5);border-radius:10px;">
+      <p id="entry-form-title-${tracker.id}" style="margin:0 0 6px 0;font-size:13px;font-weight:600;"></p>
+      <label style="font-size:12px;">Severity (1-5):
+        <input type="number" min="1" max="5" id="entry-severity-${tracker.id}" style="width:50px;margin-left:6px;padding:2px 4px;border-radius:4px;border:1px solid #b0977a;">
+      </label>
+      <br><br>
+      <label style="font-size:12px;">Note:
+        <input type="text" id="entry-note-${tracker.id}" placeholder="Optional note..." style="width:100%;margin-top:4px;padding:4px 6px;border-radius:4px;border:1px solid #b0977a;box-sizing:border-box;">
+      </label>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button type="button" class="primary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="save-entry">Save</button>
+        <button type="button" class="secondary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="cancel-entry">Cancel</button>
+      </div>
+    </div>
+  `;
 
-  const month = dropdown.value;
-  const entries = healthData[month]?.headaches || [];
+  /* Store current month per tracker */
+  section.dataset.currentMonth = monthKey;
+
+  /* Attach month nav */
+  section.querySelectorAll("[data-dir]").forEach(btn => {
+    btn.addEventListener("click", function () {
+      const dir = parseInt(btn.dataset.dir);
+      const current = section.dataset.currentMonth;
+      const newMonth = shiftMonth(current, dir);
+      section.dataset.currentMonth = newMonth;
+      section.querySelector("[data-tracker='" + tracker.id + "'].health-month-label").textContent = formatMonthLabel(newMonth);
+      renderCalendarGrid(tracker, newMonth, section);
+    });
+  });
+
+  /* Save entry button */
+  section.querySelector("[data-action='save-entry']").addEventListener("click", function () {
+    saveCalendarEntry(tracker, section);
+  });
+
+  /* Cancel entry button */
+  section.querySelector("[data-action='cancel-entry']").addEventListener("click", function () {
+    document.getElementById("entry-form-" + tracker.id).style.display = "none";
+    section.dataset.selectedDay = "";
+  });
+
+  renderCalendarGrid(tracker, monthKey, section);
+  return section;
+}
+
+function renderCalendarGrid(tracker, monthKey, section) {
+  const grid = document.getElementById("calendar-" + tracker.id);
+  if (!grid) return;
+
+  const health = loadHealth();
+  const monthData = (health[monthKey] && health[monthKey][tracker.id]) || [];
+  const filledDays = new Set(monthData.map(e => e.day));
+
+  const [year, month] = monthKey.split("-").map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstDay = new Date(year, month - 1, 1).getDay(); /* 0=Sun */
+  const startOffset = (firstDay + 6) % 7; /* Mon=0 offset */
 
   grid.innerHTML = "";
 
-  const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  /* Day labels */
+  ["M","T","W","T","F","S","S"].forEach(d => {
+    const label = document.createElement("div");
+    label.style.cssText = "text-align:center;font-size:10px;opacity:0.5;padding-bottom:2px;";
+    label.textContent = d;
+    grid.appendChild(label);
+  });
 
-  days.forEach(function (day) {
+  /* Empty cells for offset */
+  for (let i = 0; i < startOffset; i++) {
+    grid.appendChild(document.createElement("div"));
+  }
 
-    const box = document.createElement("div");
-    box.className = "health-day-box";
+  /* Day circles */
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayStr = String(day).padStart(2, "0");
+    const dateKey = monthKey + "-" + dayStr;
+    const isFilled = filledDays.has(dateKey);
+    const isToday = dateKey === getTodayKey();
 
-    const entry = entries.find(e => e.day === day);
+    const circle = document.createElement("button");
+    circle.type = "button";
+    circle.style.cssText = `
+      width:100%;aspect-ratio:1;border-radius:50%;border:1.5px solid ${tracker.color || '#b0977a'};
+      background:${isFilled ? (tracker.color || '#b0977a') : 'transparent'};
+      color:${isFilled ? 'white' : (tracker.color || '#b0977a')};
+      font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+      ${isToday ? 'box-shadow:0 0 0 2px ' + (tracker.color || '#b0977a') + '44;' : ''}
+    `;
+    circle.textContent = isFilled ? "✓" : String(day);
+    circle.title = "Day " + day;
 
-    if (entry) {
-      box.classList.add("health-day-filled");
+    circle.addEventListener("click", function () {
+      openDayEntryForm(tracker, dateKey, day, section, isFilled, monthData.filter(e => e.day === dateKey));
+    });
 
-      box.addEventListener("click", function () {
-        showHealthEntry(entry);
+    grid.appendChild(circle);
+  }
+}
+
+function openDayEntryForm(tracker, dateKey, day, section, isFilled, existingEntries) {
+  const form = document.getElementById("entry-form-" + tracker.id);
+  const titleEl = document.getElementById("entry-form-title-" + tracker.id);
+  if (!form || !titleEl) return;
+
+  section.dataset.selectedDay = dateKey;
+
+  if (isFilled && existingEntries.length > 0) {
+    const entry = existingEntries[0];
+    titleEl.textContent = "Day " + day + (entry.severity ? " — Severity: " + entry.severity : "") + (entry.note ? " — " + entry.note : "");
+  } else {
+    titleEl.textContent = "Add entry for Day " + day;
+    const sevInput = document.getElementById("entry-severity-" + tracker.id);
+    const noteInput = document.getElementById("entry-note-" + tracker.id);
+    if (sevInput) sevInput.value = "";
+    if (noteInput) noteInput.value = "";
+  }
+
+  form.style.display = "block";
+}
+
+function saveCalendarEntry(tracker, section) {
+  const dateKey = section.dataset.selectedDay;
+  if (!dateKey) return;
+
+  const sevInput = document.getElementById("entry-severity-" + tracker.id);
+  const noteInput = document.getElementById("entry-note-" + tracker.id);
+
+  const health = loadHealth();
+  const monthKey = section.dataset.currentMonth;
+
+  if (!health[monthKey]) health[monthKey] = {};
+  if (!health[monthKey][tracker.id]) health[monthKey][tracker.id] = [];
+
+  health[monthKey][tracker.id].push({
+    day: dateKey,
+    date: new Date().toISOString(),
+    severity: sevInput ? sevInput.value : null,
+    note: noteInput ? noteInput.value : ""
+  });
+
+  saveHealth(health);
+
+  document.getElementById("entry-form-" + tracker.id).style.display = "none";
+  renderCalendarGrid(tracker, monthKey, section);
+}
+
+/* =========================================================
+   WEIGHT SECTION
+   Line chart + written log, no Mon-Sun row
+   ========================================================= */
+
+function buildWeightSection(tracker) {
+  const section = document.createElement("section");
+  section.className = "dashboard-card health-category-card";
+  section.id = "tracker-" + tracker.id;
+
+  const monthKey = getCurrentMonthKey();
+  section.dataset.currentMonth = monthKey;
+
+  section.innerHTML = `
+    <h2 class="card-title" style="color:${tracker.color || '#8fa98f'}">${escH(tracker.name)}</h2>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <button type="button" class="secondary-action-button" style="padding:2px 8px;font-size:12px;" data-tracker="${tracker.id}" data-dir="-1">◀</button>
+      <span class="health-month-label" data-tracker="${tracker.id}" style="font-size:13px;flex:1;text-align:center;">${formatMonthLabel(monthKey)}</span>
+      <button type="button" class="secondary-action-button" style="padding:2px 8px;font-size:12px;" data-tracker="${tracker.id}" data-dir="1">▶</button>
+    </div>
+    <canvas id="weight-chart-${tracker.id}" height="120" style="width:100%;margin-bottom:10px;"></canvas>
+    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
+      <input type="text" id="weight-input-${tracker.id}" placeholder="e.g. 120lb 3oz" style="flex:1;padding:6px 8px;border-radius:8px;border:1px solid #b0977a;font-size:13px;">
+      <button type="button" class="primary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="log-weight">Log</button>
+    </div>
+    <div id="weight-log-${tracker.id}" style="font-size:13px;"></div>
+  `;
+
+  /* Month nav */
+  section.querySelectorAll("[data-dir]").forEach(btn => {
+    btn.addEventListener("click", function () {
+      const dir = parseInt(btn.dataset.dir);
+      const newMonth = shiftMonth(section.dataset.currentMonth, dir);
+      section.dataset.currentMonth = newMonth;
+      section.querySelector(".health-month-label[data-tracker='" + tracker.id + "']").textContent = formatMonthLabel(newMonth);
+      renderWeightSection(tracker, newMonth, section);
+    });
+  });
+
+  /* Log weight */
+  section.querySelector("[data-action='log-weight']").addEventListener("click", function () {
+    const input = document.getElementById("weight-input-" + tracker.id);
+    const val = input ? input.value.trim() : "";
+    if (!val) return;
+    logWeightEntry(tracker, val);
+    if (input) input.value = "";
+    renderWeightSection(tracker, section.dataset.currentMonth, section);
+  });
+
+  renderWeightSection(tracker, monthKey, section);
+  return section;
+}
+
+function logWeightEntry(tracker, value) {
+  const health = loadHealth();
+  const monthKey = getCurrentMonthKey();
+  if (!health[monthKey]) health[monthKey] = {};
+  if (!health[monthKey][tracker.id]) health[monthKey][tracker.id] = [];
+  health[monthKey][tracker.id].push({ date: new Date().toISOString(), value: value });
+  saveHealth(health);
+}
+
+function renderWeightSection(tracker, monthKey, section) {
+  const health = loadHealth();
+  const entries = (health[monthKey] && health[monthKey][tracker.id]) || [];
+  const log = document.getElementById("weight-log-" + tracker.id);
+
+  if (log) {
+    log.innerHTML = entries.length === 0
+      ? "<p style='opacity:0.5;font-size:12px;'>No entries yet.</p>"
+      : entries.map(e => `<p style="margin:0 0 4px 0;">${formatShortDate(e.date)} — ${escH(e.value)}</p>`).join("");
+  }
+
+  drawWeightChart(tracker, entries);
+}
+
+function drawWeightChart(tracker, entries) {
+  const canvas = document.getElementById("weight-chart-" + tracker.id);
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const w = canvas.offsetWidth || 300;
+  const h = 120;
+  canvas.width = w;
+  canvas.height = h;
+
+  ctx.clearRect(0, 0, w, h);
+
+  /* Parse weight values to numbers */
+  const points = entries.map(e => {
+    const lbMatch = String(e.value).match(/(\d+)\s*lb/i);
+    const ozMatch = String(e.value).match(/(\d+)\s*oz/i);
+    const lb = lbMatch ? parseFloat(lbMatch[1]) : 0;
+    const oz = ozMatch ? parseFloat(ozMatch[1]) : 0;
+    return lb + oz / 16;
+  }).filter(v => v > 0);
+
+  if (points.length < 2) {
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.font = "12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Add more entries to see trend", w / 2, h / 2);
+    return;
+  }
+
+  const min = Math.min(...points) - 1;
+  const max = Math.max(...points) + 1;
+  const range = max - min || 1;
+  const padX = 10;
+  const padY = 10;
+  const chartW = w - padX * 2;
+  const chartH = h - padY * 2;
+
+  /* Draw line */
+  ctx.beginPath();
+  ctx.strokeStyle = tracker.color || "#8fa98f";
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+
+  points.forEach((val, i) => {
+    const x = padX + (i / (points.length - 1)) * chartW;
+    const y = padY + (1 - (val - min) / range) * chartH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  ctx.stroke();
+
+  /* Draw dots */
+  points.forEach((val, i) => {
+    const x = padX + (i / (points.length - 1)) * chartW;
+    const y = padY + (1 - (val - min) / range) * chartH;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = tracker.color || "#8fa98f";
+    ctx.fill();
+  });
+}
+
+/* =========================================================
+   SCALE SECTION (Energy Level 1-5)
+   ========================================================= */
+
+function buildScaleSection(tracker) {
+  const section = document.createElement("section");
+  section.className = "dashboard-card health-category-card";
+  section.id = "tracker-" + tracker.id;
+
+  const monthKey = getCurrentMonthKey();
+  section.dataset.currentMonth = monthKey;
+
+  section.innerHTML = `
+    <h2 class="card-title" style="color:${tracker.color || '#a09fc0'}">${escH(tracker.name)}</h2>
+    <div style="margin-bottom:10px;">
+      <p style="font-size:13px;margin:0 0 6px 0;">Today's level:</p>
+      <div style="display:flex;gap:8px;" id="scale-buttons-${tracker.id}">
+        ${[1,2,3,4,5].map(n => `<button type="button" data-level="${n}" data-tracker="${tracker.id}" style="width:36px;height:36px;border-radius:50%;border:1.5px solid ${tracker.color || '#a09fc0'};background:transparent;color:${tracker.color || '#a09fc0'};font-size:14px;cursor:pointer;">${n}</button>`).join("")}
+      </div>
+    </div>
+    <div id="scale-log-${tracker.id}" style="font-size:13px;"></div>
+  `;
+
+  section.querySelectorAll("[data-level]").forEach(btn => {
+    btn.addEventListener("click", function () {
+      const level = btn.dataset.level;
+      logScaleEntry(tracker, level);
+      /* Highlight selected */
+      section.querySelectorAll("[data-level]").forEach(b => {
+        b.style.background = b.dataset.level === level ? (tracker.color || "#a09fc0") : "transparent";
+        b.style.color = b.dataset.level === level ? "white" : (tracker.color || "#a09fc0");
       });
-    }
-
-    const label = document.createElement("span");
-    label.textContent = day;
-
-    box.appendChild(label);
-    grid.appendChild(box);
-
+      renderScaleLog(tracker, section);
+    });
   });
 
+  renderScaleLog(tracker, section);
+  return section;
 }
 
-
-/* =========================================================
-   SHOW ENTRY DETAILS
-   ========================================================= */
-
-function showHealthEntry(entry) {
-
-  const message =
-    "Headache\n\n" +
-    "Severity: " + entry.severity + "\n" +
-    "Location: " + entry.location + "\n" +
-    "Note: " + entry.note;
-
-  alert(message);
-
+function logScaleEntry(tracker, level) {
+  const health = loadHealth();
+  const monthKey = getCurrentMonthKey();
+  if (!health[monthKey]) health[monthKey] = {};
+  if (!health[monthKey][tracker.id]) health[monthKey][tracker.id] = [];
+  health[monthKey][tracker.id].push({ date: new Date().toISOString(), level: level, day: getTodayKey() });
+  saveHealth(health);
 }
 
+function renderScaleLog(tracker, section) {
+  const health = loadHealth();
+  const monthKey = getCurrentMonthKey();
+  const entries = (health[monthKey] && health[monthKey][tracker.id]) || [];
+  const log = document.getElementById("scale-log-" + tracker.id);
+  if (!log) return;
+  log.innerHTML = entries.slice(-7).reverse().map(e =>
+    `<p style="margin:0 0 3px 0;font-size:12px;">${formatShortDate(e.date)}: Level ${e.level}</p>`
+  ).join("") || "<p style='opacity:0.5;font-size:12px;'>No entries yet.</p>";
+}
 
 /* =========================================================
-   RENDER WEIGHT LOG
+   YES/NO SECTION
    ========================================================= */
 
-function renderWeightLog() {
+function buildYesNoSection(tracker) {
+  const section = document.createElement("section");
+  section.className = "dashboard-card health-category-card";
+  section.id = "tracker-" + tracker.id;
 
-  const dropdown = document.getElementById("health-month-select");
-  const container = document.getElementById("weight-log");
+  section.innerHTML = `
+    <h2 class="card-title" style="color:${tracker.color || '#b0977a'}">${escH(tracker.name)}</h2>
+    <div style="display:flex;gap:10px;margin-bottom:10px;">
+      <button type="button" class="primary-action-button" data-tracker="${tracker.id}" data-val="yes">✓ Yes</button>
+      <button type="button" class="secondary-action-button" data-tracker="${tracker.id}" data-val="no">✗ No</button>
+    </div>
+    <div id="yesno-log-${tracker.id}" style="font-size:13px;"></div>
+  `;
 
-  if (!dropdown || !container) return;
-
-  const month = dropdown.value;
-  const entries = healthData[month]?.weight || [];
-
-  container.innerHTML = "";
-
-  entries.forEach(function (entry) {
-
-    const row = document.createElement("div");
-    row.className = "weight-row";
-
-    const date = document.createElement("span");
-    date.textContent = new Date(entry.date).toLocaleDateString();
-
-    const value = document.createElement("span");
-    value.textContent = entry.value;
-
-    row.appendChild(date);
-    row.appendChild(value);
-
-    container.appendChild(row);
-
+  section.querySelectorAll("[data-val]").forEach(btn => {
+    btn.addEventListener("click", function () {
+      const val = btn.dataset.val;
+      const health = loadHealth();
+      const mk = getCurrentMonthKey();
+      if (!health[mk]) health[mk] = {};
+      if (!health[mk][tracker.id]) health[mk][tracker.id] = [];
+      health[mk][tracker.id].push({ date: new Date().toISOString(), value: val });
+      saveHealth(health);
+      const log = document.getElementById("yesno-log-" + tracker.id);
+      if (log) {
+        const entries = health[mk][tracker.id].slice(-7).reverse();
+        log.innerHTML = entries.map(e => `<p style="margin:0 0 3px 0;font-size:12px;">${formatShortDate(e.date)}: ${e.value === "yes" ? "✓" : "✗"}</p>`).join("");
+      }
+    });
   });
 
+  return section;
+}
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+
+function renderWeeklyHealth() { buildHealthPage(); } /* Exposed for brain-confirm.js */
+
+function getCurrentMonthKey() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+}
+
+function getTodayKey() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+function shiftMonth(monthKey, dir) {
+  const [y, m] = monthKey.split("-").map(Number);
+  const d = new Date(y, m - 1 + dir, 1);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
+}
+
+function formatMonthLabel(monthKey) {
+  const [y, m] = monthKey.split("-").map(Number);
+  return new Date(y, m-1, 1).toLocaleString("default", { month:"long", year:"numeric" });
+}
+
+function formatShortDate(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("default", { month:"short", day:"numeric" });
+}
+
+function escH(text) {
+  const d = document.createElement("div");
+  d.textContent = String(text||"");
+  return d.innerHTML;
 }
