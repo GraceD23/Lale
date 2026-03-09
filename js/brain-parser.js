@@ -1,20 +1,24 @@
 /* =========================================================
    BRAIN-PARSER.JS
    ---------------------------------------------------------
-   AI-powered Brain Dump parser using Claude API.
-   Falls back to rule-based parsing if API unavailable.
+   AI-powered Brain Dump parser.
+   Calls Cloudflare Worker proxy instead of Anthropic directly
+   so the API key is never exposed in the code.
+
+   Worker URL: https://holy-wind-9442.doeppg.workers.dev
    ========================================================= */
 
-const ANTHROPIC_API_KEY = "Auth code"
+const WORKER_URL = "https://holy-wind-9442.doeppg.workers.dev";
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 async function parseBrainDump(text) {
   if (!text || text.trim() === "") return [];
-  if (ANTHROPIC_API_KEY && ANTHROPIC_API_KEY !== "YOUR_API_KEY_HERE") {
-    try { return await parseWithClaudeAPI(text); }
-    catch (e) { console.warn("API fallback:", e.message); return parseWithRules(text); }
+  try {
+    return await parseWithClaudeAPI(text);
+  } catch (e) {
+    console.warn("API fallback to rules:", e.message);
+    return parseWithRules(text);
   }
-  return parseWithRules(text);
 }
 
 async function parseWithClaudeAPI(text) {
@@ -25,7 +29,7 @@ Split input into individual items, categorize each, return ONLY valid JSON array
 SPLITTING RULES:
 - Split on commas and new lines
 - Split mid-sentence when a new action word starts a new task: pick up, get, call, email, text, buy, wash, clean, make, finish, do, drop off, grab, bring, pay, send, check, organize, plan, pack, fill, order, print, write, update, fix, book, schedule, go to, shop for
-- Remove "and" ONLY when connecting two separate tasks. Keep "and" if part of one task name.
+- Remove "and" ONLY when connecting two separate tasks. Keep "and" if part of one task name (e.g. "pick up salt and pepper" = 1 task).
 
 CATEGORIES:
 - "task" = actionable to-do
@@ -35,17 +39,12 @@ CATEGORIES:
 
 DESTINATION (tasks only): "daily"=urgent/today, "weekly"=general, null=unclear
 
-Return ONLY JSON array:
+Return ONLY a JSON array — no explanation, no markdown:
 [{"type":"task","name":"Get dinner","destination":"daily","data":{}},{"type":"note","name":"Remember to call mom","destination":null,"data":{}}]`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch(WORKER_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: ANTHROPIC_MODEL,
       max_tokens: 1024,
@@ -54,11 +53,14 @@ Return ONLY JSON array:
     })
   });
 
-  if (!response.ok) throw new Error("API " + response.status);
+  if (!response.ok) throw new Error("Worker request failed: " + response.status);
   const d = await response.json();
+  if (d.error) throw new Error("Worker error: " + d.error);
+
   const clean = d.content[0].text.trim().replace(/```json|```/g, "").trim();
   const parsed = JSON.parse(clean);
-  if (!Array.isArray(parsed)) throw new Error("Not array");
+  if (!Array.isArray(parsed)) throw new Error("Not an array");
+
   return parsed.map(item => ({
     type: item.type || "note",
     name: String(item.name || "").trim(),
