@@ -211,7 +211,11 @@ function buildAddReviewHTML(parsed, originalText) {
   if (action === "create_task") {
     return `<p><strong>Add task:</strong></p>
 <p>"${escSafe(parsed.name || originalText)}"</p>
-<p>Destination: ${parsed.destination === "daily" ? "Daily Focus" : "Weekly Tasks"}</p>`;
+<p><strong>Destination:</strong></p>
+<div style="display:flex;gap:8px;margin-top:4px;">
+  <button type="button" onclick="setAddDestination('daily',this)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #b0977a;background:${(parsed.destination==='daily')?'#b0977a':'white'};color:${(parsed.destination==='daily')?'white':'#3a2e28'};font-size:13px;cursor:pointer;">Daily Focus</button>
+  <button type="button" onclick="setAddDestination('weekly',this)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #b0977a;background:${(parsed.destination!=='daily')?'#b0977a':'white'};color:${(parsed.destination!=='daily')?'white':'#3a2e28'};font-size:13px;cursor:pointer;">Weekly Tasks</button>
+</div>`;
   }
   if (action === "create_note") {
     return `<p><strong>Save note:</strong></p><p>"${escSafe(parsed.text || originalText)}"</p>`;
@@ -230,6 +234,20 @@ function buildAddReviewHTML(parsed, originalText) {
 /* =========================================================
    CONFIRM HANDLER
    ========================================================= */
+
+function setAddDestination(dest, btn) {
+  if (window.currentAddReview && window.currentAddReview.parsed) {
+    window.currentAddReview.parsed.destination = dest;
+  }
+  /* Update button styles */
+  const parent = btn.parentElement;
+  parent.querySelectorAll("button").forEach(function(b) {
+    b.style.background = "white";
+    b.style.color = "#3a2e28";
+  });
+  btn.style.background = "#b0977a";
+  btn.style.color = "white";
+}
 
 function handleAddConfirm() {
   const review = window.currentAddReview;
