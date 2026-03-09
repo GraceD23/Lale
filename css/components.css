@@ -1,502 +1,191 @@
-
 /* =========================================================
-   COMPONENTS.CSS
+   COMPONENTS.CSS — ADDITIONS & FIXES
    ---------------------------------------------------------
-   This file styles reusable interface components across the
-   entire site. Edit this file when you want to change how
-   shared UI elements look, such as:
-
-   - cards
-   - buttons
-   - dropdown toggles
-   - task rows
-   - textarea fields
-   - hamburger menu icon
-   - review panel content
-
-   This keeps visual tweaks separate from page structure.
-   Colors mostly come from theme.css variables.
+   Add this to your existing components.css file.
+   Contains fixes for:
+   - Checkbox alignment across all task boxes
+   - Streaks/Brain Dump font and visual separation
+   - Notes preview card
+   - Review panel multi-item rows
    ========================================================= */
 
-
 /* =========================================================
-   BASE CARD COMPONENT
-   ---------------------------------------------------------
-   All main content boxes (Daily Focus, Weekly Tasks,
-   Streaks dropdown, Brain Dump) use this shared card style.
-   ========================================================= */
-
-.dashboard-card {
-
-  display: block; /* Ensures card behaves as a block container */
-
-  border-radius: var(--card-radius); /* Rounded corners defined in theme.css */
-
-  border: 1px solid var(--border-soft); /* Soft border color defined in theme.css */
-
-  box-shadow: 0 4px 10px var(--card-shadow); /* Subtle depth shadow */
-
-}
-
-
-/* =========================================================
-   TASK ROW COMPONENT
-   ---------------------------------------------------------
-   Used for each task inside Daily Focus and Weekly Tasks.
+   TASK ROW — CHECKBOX ALIGNMENT FIX
+   Ensures circle button and task text align perfectly
+   across Daily Focus, Weekly Tasks, and all custom boxes
    ========================================================= */
 
 .task-row {
-
-  display: flex; /* Aligns checkbox and task text horizontally */
-
-  align-items: center; /* Vertically centers task text and button */
-
-  gap: 8px; /* Space between the check button and task text */
-
-  font-size: 15px; /* Comfortable readable task text size */
-
+  display: flex;
+  align-items: center; /* vertically centers checkbox with text */
+  gap: 10px;
+  padding: 6px 0;
+  min-height: 36px; /* consistent row height */
 }
 
-
-/* =========================================================
-   TASK CHECK BUTTON
-   ---------------------------------------------------------
-   Circular button used to mark tasks complete.
-   ========================================================= */
-
-.task-check-button {
-
-  width: 22px; /* Small tap-friendly button width */
-
-  height: 22px; /* Keeps the button square */
-
-  border-radius: 50%; /* Makes the button circular */
-
-  border: 1px solid var(--border-soft); /* Soft border */
-
-  background-color: white; /* Neutral background */
-
-  font-size: 14px; /* Controls size of the ○ icon */
-
-  cursor: pointer; /* Indicates the button is clickable */
-
+.task-check-button,
+.task-complete-button {
+  flex-shrink: 0; /* prevents button from shrinking */
+  width: 26px;
+  height: 26px;
+  min-width: 26px; /* guarantees consistent size */
+  border-radius: 50%;
+  border: 1.5px solid var(--border-soft, #c9b49a);
+  background-color: white;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0; /* removes default button padding that causes misalignment */
 }
 
-
-/* =========================================================
-   DROPDOWN TOGGLE BUTTON
-   ---------------------------------------------------------
-   Used for the Streaks dropdown header and future dropdowns.
-   Clicking the title toggles the dropdown open/closed.
-   ========================================================= */
-
-.dropdown-toggle-button {
-
-  width: 100%; /* Makes the button stretch across the card */
-
-  display: flex; /* Places title and arrow on the same row */
-
-  justify-content: space-between; /* Title on left, arrow on right */
-
-  align-items: center; /* Vertical alignment */
-
-  background: transparent; /* Removes default button background */
-
-  border: none; /* Removes default button border */
-
-  font-size: 16px; /* Clear readable dropdown title size */
-
-  cursor: pointer; /* Indicates the element is interactive */
-
-}
-
-
-/* =========================================================
-   DROPDOWN ARROW
-   ---------------------------------------------------------
-   Small arrow indicator showing dropdown state.
-   ========================================================= */
-
-.dropdown-arrow {
-
-  font-size: 16px; /* Size of arrow icon */
-
-  transition: transform 0.2s ease; /* Smooth rotation when opened */
-
-}
-
-
-/* =========================================================
-   STREAK ROW
-   ---------------------------------------------------------
-   Displays a single streak entry:
-   - streak name
-   - star icons or placeholder stars
-   ========================================================= */
-
-.streak-row {
-
-  display: flex; /* Aligns name and stars on one row */
-
-  justify-content: space-between; /* Name left, stars right */
-
-  align-items: center; /* Vertical alignment */
-
-  font-size: 15px; /* Consistent readable size */
-
-}
-
-
-/* =========================================================
-   BRAIN DUMP TEXTAREA
-   ---------------------------------------------------------
-   Multi-line text input where users type freeform entries.
-   ========================================================= */
-
-.brain-dump-input {
-
-  width: 100%; /* Full card width */
-
-  padding: 10px; /* Inner spacing so text doesn't touch edges */
-
-  border-radius: var(--card-radius); /* Matches card roundness */
-
-  border: 1px solid var(--border-soft); /* Soft border color */
-
-  font-size: 15px; /* Comfortable typing size */
-
-  font-family: inherit; /* Uses site font */
-
-}
-
-
-/* =========================================================
-   PRIMARY ACTION BUTTON
-   ---------------------------------------------------------
-   Used for main actions like the Brain Dump Submit button.
-   ========================================================= */
-
-.primary-action-button {
-
-  padding: 8px 14px; /* Button interior spacing */
-
-  background-color: var(--button-primary); /* Color defined in theme.css */
-
-  color: white; /* High contrast button text */
-
-  border: none; /* Removes default border */
-
-  border-radius: var(--card-radius); /* Rounded edges */
-
-  cursor: pointer; /* Shows pointer cursor on hover */
-
-  font-size: 14px; /* Button text size */
-
-}
-
-
-/* =========================================================
-   SECONDARY ACTION BUTTON
-   ---------------------------------------------------------
-   Used for less important actions like Edit and Cancel.
-   ========================================================= */
-
-.secondary-action-button {
-
-  padding: 7px 12px; /* Slightly smaller button padding */
-
-  border-radius: var(--card-radius); /* Rounded edges */
-
-  border: 1px solid var(--border-soft); /* Soft outline */
-
-  background-color: white; /* Neutral background */
-
-  cursor: pointer; /* Indicates clickability */
-
-  font-size: 14px; /* Button text size */
-
-}
-
-
-/* =========================================================
-   REVIEW PANEL CONTENT
-   ---------------------------------------------------------
-   Styles the confirmation panel shown after Brain Dump submit.
-   ========================================================= */
-
-.review-panel-content {
-
-  font-size: 15px; /* Readable content size */
-
-  margin-bottom: 12px; /* Spacing before action buttons */
-
-}
-
-
-/* =========================================================
-   REVIEW PANEL BUTTON ROW
-   ---------------------------------------------------------
-   Aligns Confirm/Edit/Cancel buttons nicely.
-   ========================================================= */
-
-.review-panel-actions {
-
-  display: flex; /* Horizontal button row */
-
-  justify-content: flex-end; /* Buttons align to right */
-
-  gap: 8px; /* Space between buttons */
-
-}
-
-
-/* =========================================================
-   HAMBURGER MENU ICON
-   ---------------------------------------------------------
-   Styles the three horizontal lines used for the hamburger icon.
-   ========================================================= */
-
-.hamburger-menu-button {
-
-  width: 34px; /* Clickable tap area width */
-
-  height: 28px; /* Clickable tap area height */
-
-  display: flex; /* Allows vertical stacking of lines */
-
-  flex-direction: column; /* Lines stack vertically */
-
-  justify-content: space-between; /* Even spacing between lines */
-
-  background: none; /* Removes default button background */
-
-  border: none; /* Removes default border */
-
-  cursor: pointer; /* Shows pointer cursor */
-
-}
-
-
-.hamburger-line {
-
-  width: 100%; /* Makes each line span the button width */
-
-  height: 3px; /* Thickness of each line */
-
-  background-color: var(--text-main); /* Uses main text color */
-
-  border-radius: 2px; /* Slight rounding on line ends */
-
-}
-
-
-/* =========================================================
-   MOBILE NAVIGATION LINKS
-   ---------------------------------------------------------
-   Styles links inside the hamburger menu drawer.
-   ========================================================= */
-
-.mobile-navigation-list a {
-
-  text-decoration: none; /* Removes underline */
-
-  font-size: 16px; /* Readable navigation size */
-
-  color: var(--text-main); /* Uses main text color */
-
+.task-text {
+  flex: 1;
+  font-family: "Josefin Sans", sans-serif;
+  font-size: 14px;
+  line-height: 1.3;
+  word-break: break-word;
 }
 
 /* =========================================================
-   MOBILE MENU PANEL
-   This makes the hamburger menu appear as its own solid panel
-   instead of letting homepage content visually mix underneath.
+   CARD TITLE — SHARED FONT + COLOR
+   Makes all card titles consistent (Streaks = Brain Dump)
    ========================================================= */
 
-.mobile-navigation-drawer {
-  background-color: #F3EADF; /* soft warm beige - menu panel background */
-  box-shadow: -6px 0 16px rgba(0, 0, 0, 0.12); /* soft shadow - separates menu from page */
-  overflow-y: auto; /* allows menu to scroll if it gets taller later */
+.card-title,
+.dropdown-title {
+  font-family: "Josefin Sans", sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-main, #3a2e28);
+  letter-spacing: 0.02em;
 }
 
 /* =========================================================
-   REVIEW PANEL VISUAL STYLE
-   This gives the slide-up review panel its own solid box so
-   the homepage does not visually show through underneath.
+   VISUAL SEPARATOR
+   Adds a clear line between Streaks dropdown and Brain Dump
    ========================================================= */
 
-.review-panel {
-
-  background-color: #F3EADF; /* soft warm beige - review panel background */
-
-  border: 1px solid var(--border-soft); /* dusty beige - panel border */
-
-  border-radius: 20px 20px 0 0; /* rounded top corners - panel feels like it slides up */
-
-  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.12); /* soft shadow - separates panel from page */
-
-}
-
-
-/* =========================================================
-   REVIEW PANEL HEADER
-   Controls spacing for the "Review" title area
-   ========================================================= */
-
-.review-panel-header {
-  margin-bottom: 10px; /* space below the Review title */
-}
-
-
-/* =========================================================
-   REVIEW PANEL TITLE
-   Keeps the title from crowding the content below it
-   ========================================================= */
-
-.review-panel-title {
-  margin: 0; /* removes default extra spacing around the title */
-}
-
-
-/* =========================================================
-   REVIEW PANEL CONTENT BOX
-   Gives the detected text area its own readable spacing
-   ========================================================= */
-
-.review-panel-content {
-  margin-bottom: 14px; /* space between content and action buttons */
+.brain-dump-card {
+  border-top: 2px solid var(--border-soft, #c9b49a);
+  margin-top: 4px;
 }
 
 /* =========================================================
-   DETAIL / POPUP CONTENT AREA
-   Gives popup content a readable solid surface
+   NOTES PREVIEW CARD
+   Compact recent notes shown on homepage above Brain Dump
    ========================================================= */
 
-.review-panel-content {
-
-  background-color: #F8F2EA; /* very light warm cream - inner content area */
-
-  border: 1px solid var(--border-soft); /* dusty beige - subtle content border */
-
-  border-radius: 16px; /* soft rounded corners inside panel */
-
-  padding: 12px; /* inner spacing so text does not touch edges */
-
-}
-
-/* =========================================================
-   GLOBAL DIM OVERLAY
-   Darkens the page behind menus and popup panels
-   ========================================================= */
-
-.global-overlay {
-
-  position: fixed; /* covers entire screen */
-  top: 0;
-  left: 0;
-
+.notes-preview-card {
   width: 100%;
-  height: 100vh;
+}
 
-  background-color: rgba(0,0,0,0.35); /* soft dim background */
+.notes-preview-card .card-title {
+  margin-bottom: 8px;
+}
 
-  z-index: 900; /* below panels but above page */
+#recent-notes-list ul {
+  list-style: disc;
+  padding-left: 16px;
+  margin: 0;
+}
 
+#recent-notes-list li {
+  font-size: 13px;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  font-family: "Josefin Sans", sans-serif;
+}
+
+.notes-preview-link {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-main, #3a2e28);
+  opacity: 0.6;
+  margin-top: 6px;
+  text-decoration: none;
 }
 
 /* =========================================================
-   AUTH LOCK SCREEN
-   Full-screen iPhone-style passcode screen for mobile
+   REVIEW PANEL — MULTI ITEM ROWS
+   Styles for Brain Dump multi-task review
    ========================================================= */
 
-.auth-lock-overlay {
+.review-item-row {
+  margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+}
 
-  position: fixed; /* covers the whole screen instead of sitting in normal page flow */
-  top: 0; /* starts at top of screen */
-  left: 0; /* starts at left edge */
+/* =========================================================
+   HEALTH CALENDAR GRID
+   ========================================================= */
 
+.health-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.health-day-circle {
   width: 100%;
-  height: 100vh; /* full mobile screen height */
-
-  background-color: #F7F1E8; /* warm cream - full passcode screen background */
-
-  display: flex; /* centers the passcode card */
-  align-items: center; /* vertical centering */
-  justify-content: center; /* horizontal centering */
-
-  z-index: 3000; /* sits above everything else on the site */
-
-  padding: 24px; /* mobile breathing room around the inner passcode card */
-
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-soft, #c9b49a);
+  background: transparent;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.auth-lock-card {
-
-  width: 100%; /* lets the inner passcode card size properly on mobile */
-  max-width: 360px; /* keeps the passcode area from becoming too wide */
-  min-height: 100vh; /* helps the passcode experience feel like a full-screen iPhone lock page */
-
-  display: flex; /* lets inner lock content stack cleanly */
-  flex-direction: column; /* stacks title, circles, keypad vertically */
-  justify-content: center; /* centers content vertically within the screen */
-
-  text-align: center; /* centers visible text and circles */
-
+.health-day-circle.filled {
+  background: #b0977a;
+  color: white;
+  border-color: #b0977a;
 }
 
-.auth-lock-title {
-  margin: 0 0 8px 0; /* spacing below title */
-  font-size: 28px; /* larger passcode heading */
+/* =========================================================
+   WEIGHT CHART CANVAS
+   ========================================================= */
+
+#weight-chart-weight {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.3);
 }
 
-.auth-lock-subtitle {
-  margin: 0 0 24px 0; /* spacing below subtitle */
-  font-size: 16px; /* readable helper text size */
+/* =========================================================
+   ADD PAGE — EXISTING ITEMS LIST
+   ========================================================= */
+
+#existing-items-container {
+  margin-top: 4px;
 }
 
-.auth-passcode-circles {
+/* =========================================================
+   TURKISH CHAT BUBBLES
+   ========================================================= */
 
-  display: flex; /* puts circles in one row */
-  justify-content: center; /* centers the row */
-  gap: 10px; /* spacing between circles */
-
-  margin-bottom: 24px; /* spacing below circles */
-
-  font-size: 22px; /* circle size */
-
+#chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
 }
 
-.auth-error-message {
-  margin: 0 0 16px 0; /* spacing below error */
-  color: #A94442; /* muted red - incorrect passcode text */
-  font-size: 14px; /* smaller error size */
-}
+/* =========================================================
+   SPELLING QUIZ RESULT
+   ========================================================= */
 
-.auth-keypad {
-
-  display: grid; /* keypad grid layout */
-  grid-template-columns: repeat(3, 1fr); /* 3 columns like phone keypad */
-  gap: 14px; /* space between buttons */
-
-  justify-items: center; /* centers each keypad button in its cell */
-
-}
-
-.auth-keypad-button {
-
-  width: 76px; /* circular keypad width */
-  height: 76px; /* circular keypad height */
-
-  border-radius: 50%; /* makes buttons round */
-  border: 1px solid var(--border-soft); /* dusty beige - soft button border */
-
-  background-color: #EFE4D9; /* pale oatmeal - keypad button background */
-
-  font-size: 28px; /* large readable number size */
-  font-weight: 400; /* regular font weight */
-
-}
-
-.auth-keypad-spacer {
-  width: 76px; /* keeps 0 centered in bottom row */
-  height: 76px; /* matches keypad button size */
+#quiz-result {
+  font-size: 36px;
+  text-align: center;
+  min-height: 44px;
+  line-height: 1;
 }
