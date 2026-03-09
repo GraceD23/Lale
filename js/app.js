@@ -1,332 +1,528 @@
-
 /* =========================================================
-   APP.JS
+   ADD-SYSTEM.JS
    ---------------------------------------------------------
-   This is the SHARED STARTUP file for the homepage.
+   Full Add Page controller with AI-powered command parsing.
 
-   Its job is to:
-   - read labels from labels.js
-   - read settings from config.js
-   - insert easy-to-edit text into the page
-   - apply starter placeholder content while the real backend
-     and AI systems are not connected yet
-   - initialize simple page state safely
-
-   IMPORTANT:
-   This file should stay focused on startup/setup logic.
-   More specific feature behavior belongs in separate files like:
-   - menu.js
-   - dropdowns.js
-   - tasks.js
-   - streaks.js
-   - brain-dump.js
-   ========================================================= */
-
-
-/* =========================================================
-   SAFE APP START
-   ---------------------------------------------------------
-   Waits for the HTML page to finish loading before trying to
-   find or update page elements.
+   Features:
+   - Natural language command input
+   - AI parses intent and asks only relevant follow-up questions
+   - Create/edit/delete task boxes (like Daily Focus)
+   - Create/edit/delete health trackers
+   - Create/edit/delete pages
+   - All new boxes connect to Brain Dump automatically
    ========================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
-  initializeApp(); /* Starts the homepage setup after the page is ready */
+  initializeAddSystem();
 });
 
-
 /* =========================================================
-   MAIN INITIALIZER
-   ---------------------------------------------------------
-   Runs the startup steps in a clean, readable order.
+   INITIALIZER
    ========================================================= */
 
-function initializeApp() {
-  applyLabelsToPage(); /* Replaces hardcoded visible text with label values from labels.js */
-  applyStarterPlaceholderContent(); /* Inserts starter example tasks/streaks while live data is not connected */
-  applyInitialUiState(); /* Sets initial open/closed/hidden UI states based on config.js */
-  logStartupSummary(); /* Prints a readable console summary for debugging during development */
+function initializeAddSystem() {
+  renderExistingItems();
+  attachAddCommandHandler();
 }
 
-
 /* =========================================================
-   APPLY LABELS TO PAGE
-   ---------------------------------------------------------
-   This function updates visible text using values from labels.js.
-
-   Why this matters:
-   If you later rename something like "History" or "Brain Dump",
-   you can change it in labels.js without hunting through HTML.
+   COMMAND HANDLER
    ========================================================= */
 
-function applyLabelsToPage() {
-  setTextById("daily-focus-title", getLabel("dailyFocusTitle")); /* Updates the Daily Focus card title */
-  setTextById("weekly-tasks-title", getLabel("weeklyTasksTitle")); /* Updates the Weekly Tasks card title */
-  setTextById("streaks-dropdown-title", getLabel("streaksTitle")); /* Updates the homepage Streaks dropdown title */
-  setTextById("brain-dump-title", getLabel("brainDumpTitle")); /* Updates the Brain Dump card title */
-  setTextById("review-panel-title", getLabel("reviewPanelTitle")); /* Updates the slide-up review panel title */
+function attachAddCommandHandler() {
+  const submitBtn = document.getElementById("add-command-submit-button");
+  if (!submitBtn) return;
 
-  setTextById("brain-dump-submit-button", getLabel("submitButton")); /* Updates the Brain Dump Submit button text */
-  setTextById("review-confirm-button", getLabel("confirmButton")); /* Updates the review Confirm button text */
-  setTextById("review-edit-button", getLabel("editButton")); /* Updates the review Edit button text */
-  setTextById("review-cancel-button", getLabel("cancelButton")); /* Updates the review Cancel button text */
-
-  setTextById("review-panel-content", "<p>" + getLabel("reviewPlaceholder") + "</p>", true); /* Updates the initial placeholder inside the review panel */
-
-  setInputPlaceholderById("brain-dump-input", getLabel("brainDumpPlaceholder")); /* Updates the Brain Dump textarea placeholder */
-
-  setTextBySelector(".mobile-navigation-title", getLabel("menuTitle")); /* Updates the title shown at the top of the hamburger drawer */
-
-  updateNavigationLinkText(); /* Applies menu page labels to the existing navigation links */
+  submitBtn.addEventListener("click", handleAddCommand);
 }
 
+async function handleAddCommand() {
+  const input = document.getElementById("add-command-input");
+  if (!input) return;
 
-/* =========================================================
-   UPDATE NAVIGATION LINK TEXT
-   ---------------------------------------------------------
-   Updates the hamburger menu links with labels from labels.js.
-   This keeps menu titles editable from one central place.
-   ========================================================= */
+  const text = input.value.trim();
+  if (!text) return;
 
-function updateNavigationLinkText() {
-  const navigationLinks = document.querySelectorAll(".mobile-navigation-list a");
-  if (navigationLinks.length < 5) return;
+  const submitBtn = document.getElementById("add-command-submit-button");
+  if (submitBtn) { submitBtn.textContent = "Thinking..."; submitBtn.disabled = true; }
 
-  navigationLinks[0].textContent = getLabel("homePage");
-  navigationLinks[1].textContent = getLabel("streaksPage");
-  navigationLinks[2].textContent = getLabel("healthPage");
-  navigationLinks[3].textContent = getLabel("historyPage");
-  if (navigationLinks[4]) navigationLinks[4].textContent = "Notes";
-  if (navigationLinks[5]) navigationLinks[5].textContent = getLabel("addPage");
-  if (navigationLinks[6]) navigationLinks[6].textContent = "Spelling Quiz";
-  if (navigationLinks[7]) navigationLinks[7].textContent = "Turkish Stories";
-  if (navigationLinks[8]) navigationLinks[8].textContent = "Turkish Chat";
-}
-
-
-/* =========================================================
-   APPLY STARTER PLACEHOLDER CONTENT
-   ---------------------------------------------------------
-   While the backend/database/AI are not connected yet,
-   this function fills the page with starter example content.
-
-   This makes it easier to style and preview the interface now.
-   ========================================================= */
-
-function applyStarterPlaceholderContent() {
-  if (!getConfig("useStarterPlaceholderData")) {
-    return; /* Stops if starter placeholder data is disabled in config.js */
-  }
-
-  populateStarterTaskList(
-    "daily-focus-list",
-    getConfig("starterDailyTaskCount"),
-    getLabel("exampleDailyTask"),
-    "Complete daily task"
-  ); /* Inserts starter tasks into the Daily Focus list */
-
-  populateStarterTaskList(
-    "weekly-tasks-list",
-    getConfig("starterWeeklyTaskCount"),
-    getLabel("exampleWeeklyTask"),
-    "Complete weekly task"
-  ); /* Inserts starter tasks into the Weekly Tasks list */
-
-  populateStarterStreakList(
-    "streaks-dropdown-content",
-    getConfig("starterStreakCount"),
-    getLabel("exampleStreakName"),
-    getLabel("exampleStreakStars")
-  ); /* Inserts starter streak rows into the homepage Streaks dropdown */
-}
-
-
-/* =========================================================
-   POPULATE STARTER TASK LIST
-   ---------------------------------------------------------
-   Builds simple placeholder task rows for either:
-   - Daily Focus
-   - Weekly Tasks
-   ========================================================= */
-
-function populateStarterTaskList(containerId, itemCount, baseTaskLabel, buttonAriaLabel) {
-  const container = document.getElementById(containerId); /* Finds the target task list container */
-
-  if (!container) {
-    return; /* Stops safely if the container is not found */
-  }
-
-  container.innerHTML = ""; /* Clears any placeholder HTML already in the list before rebuilding it */
-
-  for (let index = 0; index < itemCount; index += 1) {
-    const taskRow = document.createElement("div"); /* Creates one task row wrapper */
-    taskRow.className = "task-row"; /* Applies the reusable task row styling */
-
-    const checkButton = document.createElement("button"); /* Creates the circular complete button */
-    checkButton.className = "task-check-button"; /* Applies the task button styling */
-    checkButton.type = "button"; /* Keeps the button from acting like a form submit button */
-    checkButton.setAttribute("aria-label", buttonAriaLabel); /* Accessibility label describing the button action */
-    checkButton.textContent = "○"; /* Placeholder open-circle symbol until custom icons are added */
-
-    const taskText = document.createElement("span"); /* Creates the visible task text element */
-    taskText.className = "task-text"; /* Applies task text styling if added later */
-    taskText.textContent = itemCount > 1 ? baseTaskLabel + " " + (index + 1) : baseTaskLabel; /* Adds numbering only if there is more than one starter item */
-
-    taskRow.appendChild(checkButton); /* Adds the complete button to the row */
-    taskRow.appendChild(taskText); /* Adds the task text to the row */
-
-    container.appendChild(taskRow); /* Inserts the finished row into the target list */
+  try {
+    const parsed = await parseAddCommand(text);
+    showAddReviewPanel(parsed, text);
+  } catch (err) {
+    console.error("Add command error:", err);
+    showAddReviewPanel({ action: "unknown", raw: text }, text);
+  } finally {
+    if (submitBtn) { submitBtn.textContent = "Submit"; submitBtn.disabled = false; }
   }
 }
 
-
 /* =========================================================
-   POPULATE STARTER STREAK LIST
-   ---------------------------------------------------------
-   Builds simple placeholder streak rows for the homepage
-   Streaks dropdown while live data is not connected yet.
+   AI COMMAND PARSER
    ========================================================= */
 
-function populateStarterStreakList(containerId, itemCount, streakName, streakStars) {
-  const container = document.getElementById(containerId); /* Finds the dropdown content container */
-
-  if (!container) {
-    return; /* Stops safely if the container is not found */
-  }
-
-  container.innerHTML = ""; /* Clears any placeholder HTML already inside the streak list */
-
-  for (let index = 0; index < itemCount; index += 1) {
-    const streakRow = document.createElement("div"); /* Creates one streak row wrapper */
-    streakRow.className = "streak-row"; /* Applies the reusable streak row styling */
-
-    const nameSpan = document.createElement("span"); /* Creates the streak name element */
-    nameSpan.className = "streak-name"; /* Applies streak name styling if added later */
-    nameSpan.textContent = itemCount > 1 ? streakName + " " + (index + 1) : streakName; /* Adds numbering only if there is more than one starter streak */
-
-    const starsSpan = document.createElement("span"); /* Creates the star display element */
-    starsSpan.className = "streak-stars"; /* Applies star styling if added later */
-    starsSpan.setAttribute("aria-label", "Current weekly stars"); /* Accessibility label for the star display */
-    starsSpan.textContent = getConfig("useCustomStarImage") ? getConfig("starFallbackText") : streakStars; /* Uses fallback text if image-based stars are planned later */
-
-    streakRow.appendChild(nameSpan); /* Adds the streak name to the row */
-    streakRow.appendChild(starsSpan); /* Adds the star display to the row */
-
-    container.appendChild(streakRow); /* Inserts the streak row into the dropdown content */
+async function parseAddCommand(text) {
+  try {
+    return await parseAddCommandWithAI(text);
+  } catch (e) {
+    console.warn("AI parse failed, using rules:", e.message);
+    return parseAddCommandWithRules(text);
   }
 }
 
+async function parseAddCommandWithAI(text) {
+  const WORKER_URL = "https://holy-wind-9442.doeppg.workers.dev";
+  const systemPrompt = `You parse natural language commands for a productivity dashboard's Add Page.
+
+Understand what the user wants to do — they may phrase it many ways.
+
+Return ONLY valid JSON — no explanation, no markdown.
+
+SUPPORTED ACTIONS:
+- create_task_box: create a new checklist/task box. Needs: name
+- create_health_tracker: add a new tracker to the Health Page. Needs: name, type (calendar|scale|weight|yesno). Use "calendar" by default unless the user specifies a number scale or yes/no.
+- create_page: create an entirely new standalone page. Needs: name
+- create_task: add a single task. Needs: name, destination (daily|weekly)
+- create_note: add a note. Needs: text
+- create_streak: add a new streak tracker to the Streaks page. Needs: name
+- delete_item: delete something. Needs: itemType, name
+- edit_item: rename something. Needs: itemType, oldName, newName
+- unknown: cannot determine intent
+
+KEY DISTINCTIONS:
+- If the user mentions "streak", "habit", "daily habit", "track habit" → use "create_streak"
+- If the user says anything about the Health Page, health tracking, symptoms, or adding a tracker → use "create_health_tracker"
+- Only use "create_page" if the user clearly wants a brand new standalone page unrelated to health or streaks
+- If the user says "add task" or "remind me to" → use "create_task"
+
+Return format examples:
+{"action":"create_streak","name":"Reading","confirmed":false}
+{"action":"create_streak","name":"Morning Run","confirmed":false}
+{"action":"create_health_tracker","name":"Burn Out","type":"calendar","confirmed":false}
+{"action":"create_page","name":"Projects","confirmed":false}
+{"action":"create_task","name":"Wash car","destination":"weekly","confirmed":false}`;
+
+  const response = await fetch(WORKER_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 256,
+      system: systemPrompt,
+      messages: [{ role: "user", content: text }]
+    })
+  });
+
+  if (!response.ok) throw new Error("Worker " + response.status);
+  const d = await response.json();
+  if (d.error) throw new Error("API error: " + JSON.stringify(d.error));
+  const clean = d.content[0].text.trim().replace(/```json|```/g, "").trim();
+  return JSON.parse(clean);
+}
+
+function parseAddCommandWithRules(text) {
+  const lower = text.toLowerCase();
+
+  if (lower.includes("create") || lower.includes("add") || lower.includes("new")) {
+    /* Health tracker check FIRST — catches "add tracker on Health Page" before generic "page" check */
+    if (lower.includes("health") || lower.includes("tracker") || lower.includes("symptom")) {
+      const name = extractNameFromCommand(text, ["create","add","new","health","tracker","symptom","on","the","page","name","it","called"]);
+      return { action:"create_health_tracker", name:name, type:"calendar", confirmed:false };
+    }
+    if (lower.includes("page")) {
+      const name = extractNameFromCommand(text, ["create","add","new","page"]);
+      return { action:"create_page", name:name, confirmed:false };
+    }
+    if (lower.includes("box") || lower.includes("list") || lower.includes("checklist")) {
+      const name = extractNameFromCommand(text, ["create","add","new","box","list","checklist"]);
+      return { action:"create_task_box", name:name, confirmed:false };
+    }
+    if (lower.includes("streak") || lower.includes("habit")) {
+      const name = extractNameFromCommand(text, ["create","add","new","streak","habit","called","named","a","an"]);
+      return { action:"create_streak", name:name, confirmed:false };
+    }
+    if (lower.includes("note")) {
+      const name = extractNameFromCommand(text, ["create","add","new","note"]);
+      return { action:"create_note", text:name, confirmed:false };
+    }
+  }
+
+  if (lower.includes("delete") || lower.includes("remove")) {
+    const name = extractNameFromCommand(text, ["delete","remove"]);
+    return { action:"delete_item", name:name, itemType:"unknown", confirmed:false };
+  }
+
+  if (lower.includes("rename") || lower.includes("edit") || lower.includes("change")) {
+    return { action:"edit_item", confirmed:false, raw:text };
+  }
+
+  /* Default: treat as task */
+  return { action:"create_task", name:text, destination:"weekly", confirmed:false };
+}
+
+function extractNameFromCommand(text, wordsToRemove) {
+  let result = text;
+  wordsToRemove.forEach(w => { result = result.replace(new RegExp("\\b" + w + "\\b", "gi"), ""); });
+  return result.replace(/\s+/g, " ").trim() || text.trim();
+}
 
 /* =========================================================
-   APPLY INITIAL UI STATE
-   ---------------------------------------------------------
-   Sets the starting visible/hidden/open/closed state for:
-   - mobile menu drawer
-   - review panel
-   - dropdown content
-
-   These defaults come from config.js.
+   REVIEW PANEL
    ========================================================= */
 
-function applyInitialUiState() {
-  const mobileNavigationDrawer = document.getElementById("mobile-navigation-drawer"); /* Finds the hamburger drawer */
-  const reviewPanel = document.getElementById("review-panel"); /* Finds the slide-up review panel */
-  const streaksDropdownContent = document.getElementById("streaks-dropdown-content"); /* Finds the homepage streak dropdown content */
-  const streaksDropdownToggle = document.getElementById("streaks-dropdown-toggle"); /* Finds the homepage streak dropdown toggle button */
-  const hamburgerMenuButton = document.getElementById("hamburger-menu-button"); /* Finds the hamburger menu button */
+function showAddReviewPanel(parsed, originalText) {
+  const panel = document.getElementById("add-review-panel");
+  const content = document.getElementById("add-review-content");
+  const overlay = document.getElementById("global-overlay");
 
-  if (mobileNavigationDrawer && getConfig("mobileMenuStartsHidden")) {
-    mobileNavigationDrawer.hidden = true; /* Keeps the navigation drawer hidden on initial page load */
+  if (!panel || !content) return;
+
+  window.currentAddReview = { parsed, originalText };
+  content.innerHTML = "";
+
+  const descEl = document.createElement("div");
+  descEl.innerHTML = buildAddReviewHTML(parsed, originalText);
+  content.appendChild(descEl);
+
+  /* Confirm */
+  const confirmBtn = document.getElementById("add-review-confirm-button");
+  if (confirmBtn) confirmBtn.onclick = function () { handleAddConfirm(); };
+
+  /* Cancel */
+  const cancelBtn = document.getElementById("add-review-cancel-button");
+  if (cancelBtn) cancelBtn.onclick = function () {
+    panel.setAttribute("hidden","");
+    if (overlay) overlay.setAttribute("hidden","");
+  };
+
+  panel.removeAttribute("hidden");
+  if (overlay) overlay.removeAttribute("hidden");
+}
+
+function buildAddReviewHTML(parsed, originalText) {
+  const action = parsed.action || "unknown";
+
+  if (action === "create_streak") {
+    summary = "New streak: <strong>" + escH(parsed.name || "?") + "</strong>";
+  }
+  if (action === "create_task_box") {
+    return `<p><strong>Create new task box:</strong></p>
+<p>"${escSafe(parsed.name || originalText)}"</p>
+<p>This will appear on the Home Page and connect to Brain Dump.</p>`;
+  }
+  if (action === "create_health_tracker") {
+    return `<p><strong>Create new health tracker:</strong></p>
+<p>"${escSafe(parsed.name || originalText)}"</p>
+<p>Type: ${escSafe(parsed.type || "calendar")} — will appear on the Health Page.</p>`;
+  }
+  if (action === "create_page") {
+    return `<p><strong>Create new page:</strong></p>
+<p>"${escSafe(parsed.name || originalText)}"</p>
+<p>A new page will be added to your navigation menu.</p>`;
+  }
+  if (action === "create_task") {
+    return `<p><strong>Add task:</strong></p>
+<p>"${escSafe(parsed.name || originalText)}"</p>
+<p><strong>Destination:</strong></p>
+<div style="display:flex;gap:8px;margin-top:4px;">
+  <button type="button" onclick="setAddDestination('daily',this)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #b0977a;background:${(parsed.destination==='daily')?'#b0977a':'white'};color:${(parsed.destination==='daily')?'white':'#3a2e28'};font-size:13px;cursor:pointer;">Daily Focus</button>
+  <button type="button" onclick="setAddDestination('weekly',this)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #b0977a;background:${(parsed.destination!=='daily')?'#b0977a':'white'};color:${(parsed.destination!=='daily')?'white':'#3a2e28'};font-size:13px;cursor:pointer;">Weekly Tasks</button>
+</div>`;
+  }
+  if (action === "create_note") {
+    return `<p><strong>Save note:</strong></p><p>"${escSafe(parsed.text || originalText)}"</p>`;
+  }
+  if (action === "delete_item") {
+    return `<p><strong>Delete:</strong></p><p>"${escSafe(parsed.name || originalText)}"</p>`;
+  }
+  if (action === "edit_item") {
+    return `<p><strong>Edit/Rename item</strong></p><p>${escSafe(originalText)}</p>`;
   }
 
-  if (reviewPanel && getConfig("reviewPanelStartsHidden")) {
-    reviewPanel.hidden = true; /* Keeps the review panel hidden until Brain Dump is submitted */
+  return `<p>Could not recognize command.</p><p>${escSafe(originalText)}</p>
+<p>Try: "create task box To Buy" or "create health tracker Burn Out"</p>`;
+}
+
+/* =========================================================
+   CONFIRM HANDLER
+   ========================================================= */
+
+function setAddDestination(dest, btn) {
+  if (window.currentAddReview && window.currentAddReview.parsed) {
+    window.currentAddReview.parsed.destination = dest;
+  }
+  /* Update button styles */
+  const parent = btn.parentElement;
+  parent.querySelectorAll("button").forEach(function(b) {
+    b.style.background = "white";
+    b.style.color = "#3a2e28";
+  });
+  btn.style.background = "#b0977a";
+  btn.style.color = "white";
+}
+
+function handleAddConfirm() {
+  const review = window.currentAddReview;
+  if (!review) return;
+
+  const parsed = review.parsed;
+  const action = parsed.action;
+
+  if (action === "create_task_box")       createCustomTaskBox(parsed);
+  else if (action === "create_streak")    createStreakFromAddPage(parsed);
+  else if (action === "create_health_tracker") createHealthTracker(parsed);
+  else if (action === "create_page")      createCustomPage(parsed);
+  else if (action === "create_task")      createTaskFromAddPage(parsed);
+  else if (action === "create_note")      createNoteFromAddPage(parsed, review.originalText);
+  else if (action === "delete_item")      deleteItemByName(parsed);
+
+  /* Clear input + close panel */
+  const input = document.getElementById("add-command-input");
+  if (input) input.value = "";
+
+  const panel = document.getElementById("add-review-panel");
+  const overlay = document.getElementById("global-overlay");
+  if (panel) panel.setAttribute("hidden","");
+  if (overlay) overlay.setAttribute("hidden","");
+
+  window.currentAddReview = null;
+  renderExistingItems(); /* Refresh the displayed list */
+}
+
+/* =========================================================
+   CREATE ACTIONS
+   ========================================================= */
+
+function createStreakFromAddPage(parsed) {
+  const name = (parsed.name || "").trim();
+  if (!name) { alert("No streak name found."); return; }
+
+  const existing = typeof loadStreaks === "function" ? loadStreaks() : [];
+  if (existing.find(s => s.name.toLowerCase() === name.toLowerCase())) {
+    alert("A streak called \"" + name + "\" already exists.");
+    return;
   }
 
-  if (streaksDropdownContent && getConfig("dropdownsStartClosed")) {
-    streaksDropdownContent.hidden = true; /* Keeps the Streaks dropdown closed at startup */
+  /* Build a simple ID from the name */
+  const id = "streak-" + name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g,"-");
+
+  const newStreak = {
+    id: id,
+    name: name,
+    count: 0,
+    weeklyCount: 0,
+    history: []
+  };
+
+  existing.push(newStreak);
+  if (typeof saveStreaks === "function") saveStreaks(existing);
+  alert("✅ \"" + name + "\" streak created! It will appear on the Streaks page.");
+}
+
+function createCustomTaskBox(parsed) {
+  const boxes = loadCustomBoxes();
+  const name = (parsed.name || "").trim();
+  if (!name) return;
+
+  if (boxes.find(b => b.name.toLowerCase() === name.toLowerCase())) {
+    alert("A box called \"" + name + "\" already exists.");
+    return;
   }
 
-  if (streaksDropdownToggle && getConfig("dropdownsStartClosed")) {
-    streaksDropdownToggle.setAttribute("aria-expanded", "false"); /* Marks the dropdown as closed for accessibility */
+  boxes.push({
+    id: makeAddId(name),
+    name: name,
+    createdAt: new Date().toISOString()
+  });
+
+  saveCustomBoxes(boxes);
+  alert("✅ \"" + name + "\" task box created! It will appear on the Home Page.");
+}
+
+function createHealthTracker(parsed) {
+  const trackers = loadHealthTrackers();
+  const name = (parsed.name || "").trim();
+  if (!name) return;
+
+  if (trackers.find(t => t.name.toLowerCase() === name.toLowerCase())) {
+    alert("A tracker called \"" + name + "\" already exists.");
+    return;
   }
 
-  if (hamburgerMenuButton && getConfig("mobileMenuStartsHidden")) {
-    hamburgerMenuButton.setAttribute("aria-expanded", "false"); /* Marks the mobile menu button as closed for accessibility */
+  trackers.push({
+    id: makeAddId(name),
+    name: name,
+    type: parsed.type || "calendar",
+    color: "#b0977a",
+    icon: "◉",
+    createdAt: new Date().toISOString()
+  });
+
+  saveHealthTrackers(trackers);
+  alert("✅ \"" + name + "\" health tracker created! It will appear on the Health Page.");
+}
+
+function createCustomPage(parsed) {
+  const pages = loadCustomPages();
+  const name = (parsed.name || "").trim();
+  if (!name) return;
+
+  if (pages.find(p => p.name.toLowerCase() === name.toLowerCase())) {
+    alert("A page called \"" + name + "\" already exists.");
+    return;
+  }
+
+  pages.push({
+    id: makeAddId(name),
+    name: name,
+    slug: name.toLowerCase().replace(/[^a-z0-9]+/g,"-"),
+    createdAt: new Date().toISOString()
+  });
+
+  saveCustomPages(pages);
+  alert("✅ \"" + name + "\" page created! It will appear in your navigation menu.");
+}
+
+function createTaskFromAddPage(parsed) {
+  const tasks = loadTasks();
+  const name = (parsed.name || "").trim();
+  if (!name) return;
+
+  tasks.push({
+    id: makeAddId(name),
+    name: name,
+    schedule: parsed.destination === "daily" ? "daily" : "weekly",
+    day: parsed.destination === "daily" ? new Date().toLocaleString("default",{weekday:"short"}) : null,
+    completed: false,
+    streak: false,
+    createdAt: new Date().toISOString()
+  });
+
+  saveTasks(tasks);
+  if (typeof renderDailyTasks === "function") renderDailyTasks();
+  if (typeof renderWeeklyTasks === "function") renderWeeklyTasks();
+}
+
+function createNoteFromAddPage(parsed, originalText) {
+  const notes = loadNotes();
+  const monthKey = getAddMonthKey();
+  if (!notes[monthKey]) notes[monthKey] = [];
+  notes[monthKey].push({ text: parsed.text || originalText, date: new Date().toISOString() });
+  saveNotes(notes);
+  if (typeof renderRecentNotes === "function") renderRecentNotes();
+}
+
+function deleteItemByName(parsed) {
+  const name = (parsed.name || "").trim().toLowerCase();
+  if (!name) return;
+
+  /* Try boxes */
+  const boxes = loadCustomBoxes();
+  const newBoxes = boxes.filter(b => b.name.toLowerCase() !== name);
+  if (newBoxes.length !== boxes.length) { saveCustomBoxes(newBoxes); alert("Deleted."); return; }
+
+  /* Try health trackers */
+  const trackers = loadHealthTrackers();
+  const newTrackers = trackers.filter(t => t.name.toLowerCase() !== name);
+  if (newTrackers.length !== trackers.length) { saveHealthTrackers(newTrackers); alert("Deleted."); return; }
+
+  /* Try pages */
+  const pages = loadCustomPages();
+  const newPages = pages.filter(p => p.name.toLowerCase() !== name);
+  if (newPages.length !== pages.length) { saveCustomPages(newPages); alert("Deleted."); return; }
+
+  alert("Could not find \"" + parsed.name + "\" to delete.");
+}
+
+/* =========================================================
+   RENDER EXISTING ITEMS
+   Shows current custom boxes, trackers, pages so user can see what exists
+   ========================================================= */
+
+function renderExistingItems() {
+  const container = document.getElementById("existing-items-container");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  /* Custom task boxes */
+  const boxes = loadCustomBoxes();
+  if (boxes.length > 0) {
+    const h = document.createElement("h3");
+    h.className = "card-title";
+    h.textContent = "Custom Task Boxes";
+    container.appendChild(h);
+    boxes.forEach(box => container.appendChild(buildItemRow(box, "box")));
+  }
+
+  /* Health trackers (custom only — not defaults) */
+  const trackers = loadHealthTrackers().filter(t => t.createdAt); /* Custom ones have createdAt */
+  if (trackers.length > 0) {
+    const h = document.createElement("h3");
+    h.className = "card-title";
+    h.style.marginTop = "12px";
+    h.textContent = "Custom Health Trackers";
+    container.appendChild(h);
+    trackers.forEach(tracker => container.appendChild(buildItemRow(tracker, "tracker")));
+  }
+
+  /* Custom pages */
+  const pages = loadCustomPages();
+  if (pages.length > 0) {
+    const h = document.createElement("h3");
+    h.className = "card-title";
+    h.style.marginTop = "12px";
+    h.textContent = "Custom Pages";
+    container.appendChild(h);
+    pages.forEach(page => container.appendChild(buildItemRow(page, "page")));
+  }
+
+  if (boxes.length === 0 && trackers.length === 0 && pages.length === 0) {
+    container.innerHTML = "<p style='opacity:0.6;font-size:13px;'>Nothing custom created yet. Use the command box above!</p>";
   }
 }
 
+function buildItemRow(item, type) {
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.08);";
 
-/* =========================================================
-   HELPER: SET TEXT BY ID
-   ---------------------------------------------------------
-   Updates the text or HTML of an element found by ID.
-   This keeps text-setting code cleaner and easier to read.
-   ========================================================= */
+  const name = document.createElement("span");
+  name.style.fontSize = "14px";
+  name.textContent = item.name;
+  row.appendChild(name);
 
-function setTextById(elementId, value, allowHtml = false) {
-  const element = document.getElementById(elementId); /* Finds the target element by its ID */
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "secondary-action-button";
+  deleteBtn.textContent = "Delete";
+  deleteBtn.style.fontSize = "12px";
+  deleteBtn.style.padding = "3px 8px";
+  deleteBtn.addEventListener("click", function () {
+    if (confirm("Delete \"" + item.name + "\"?")) {
+      deleteItemByName({ name: item.name });
+      renderExistingItems();
+    }
+  });
 
-  if (!element) {
-    return; /* Stops safely if the element does not exist */
-  }
-
-  if (allowHtml) {
-    element.innerHTML = value; /* Inserts HTML content when explicitly allowed */
-  } else {
-    element.textContent = value; /* Inserts plain text only */
-  }
+  row.appendChild(deleteBtn);
+  return row;
 }
 
-
 /* =========================================================
-   HELPER: SET TEXT BY SELECTOR
-   ---------------------------------------------------------
-   Updates the text content of the first element matching a
-   CSS selector.
+   HELPERS
    ========================================================= */
 
-function setTextBySelector(selector, value) {
-  const element = document.querySelector(selector); /* Finds the first matching element */
-
-  if (!element) {
-    return; /* Stops safely if no element matches the selector */
-  }
-
-  element.textContent = value; /* Replaces the visible text content */
+function makeAddId(text) {
+  return String(text).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") + "-" + Date.now();
 }
 
-
-/* =========================================================
-   HELPER: SET INPUT PLACEHOLDER BY ID
-   ---------------------------------------------------------
-   Updates placeholder text for inputs or textareas.
-   ========================================================= */
-
-function setInputPlaceholderById(elementId, value) {
-  const element = document.getElementById(elementId); /* Finds the target input or textarea */
-
-  if (!element) {
-    return; /* Stops safely if the input is not found */
-  }
-
-  element.setAttribute("placeholder", value); /* Replaces the current placeholder text */
+function getAddMonthKey() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
 }
 
-
-/* =========================================================
-   STARTUP DEBUG SUMMARY
-   ---------------------------------------------------------
-   Prints a readable summary in the browser console to help
-   during the early build stage.
-
-   This is useful while wiring the project together and can be
-   removed later if desired.
-   ========================================================= */
-
-function logStartupSummary() {
-  console.log("App initialized."); /* Confirms the startup script ran */
-  console.log("Weekly reset:", getConfig("weeklyResetLabel")); /* Shows the configured weekly reset timing */
-  console.log("Brain Dump uses AI:", getConfig("brainDumpUsesAI")); /* Shows whether AI parsing is enabled in config */
-  console.log("Mobile menu side:", getConfig("mobileMenuSide")); /* Shows which side the hamburger drawer should open from */
+function escSafe(text) {
+  const d = document.createElement("div");
+  d.textContent = String(text || "");
+  return d.innerHTML;
 }
