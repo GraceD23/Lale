@@ -1,293 +1,501 @@
-
 /* =========================================================
-   LAYOUT.CSS
+   COMPONENTS.CSS
    ---------------------------------------------------------
-   This file controls PAGE PLACEMENT ONLY.
-   Edit this file when you want to change:
-   - spacing between sections
-   - side-by-side box layout
-   - page padding
-   - mobile sizing
-   - Brain Dump height/width
-   - hamburger menu placement
+   This file styles reusable interface components across the
+   entire site. Edit this file when you want to change how
+   shared UI elements look, such as:
 
-   This file should NOT control colors.
-   Colors belong in theme.css.
+   - cards
+   - buttons
+   - dropdown toggles
+   - task rows
+   - textarea fields
+   - hamburger menu icon
+   - review panel content
+
+   This keeps visual tweaks separate from page structure.
+   Colors mostly come from theme.css variables.
    ========================================================= */
 
 
 /* =========================================================
-   PAGE WRAPPER
+   BASE CARD COMPONENT
    ---------------------------------------------------------
-   This controls the main outer spacing of the entire page.
-   If you want more or less breathing room around the edges
-   of the iPhone screen, adjust the padding here.
-   ========================================================= */
-
-.app-shell {
-  width: 100%; /* Makes the main app wrapper span the full available width */
-  max-width: 480px; /* Keeps layout comfortable for iPhone/mobile-sized screens */
-  margin: 0 auto; /* Centers the app wrapper horizontally on larger screens */
-  padding: 12px; /* Main page padding so content does not touch screen edges */
-  box-sizing: border-box; /* Includes padding inside the element's total width */
-}
-
-
-/* =========================================================
-   TOP BAR LAYOUT
-   ---------------------------------------------------------
-   This positions the top bar content:
-   - left side reserved area
-   - right side hamburger button
-   ========================================================= */
-
-.top-bar {
-  display: flex; /* Places left and right areas in one horizontal row */
-  justify-content: space-between; /* Pushes left side to left and hamburger to right */
-  align-items: center; /* Vertically centers items in the top bar */
-  width: 100%; /* Makes top bar span the width of the app shell */
-  min-height: 48px; /* Gives the top bar enough tap-friendly vertical space */
-  margin-bottom: 10px; /* Adds spacing below the top bar */
-}
-
-.top-bar-left {
-  flex: 1; /* Allows the left side to take remaining space and help push menu right */
-}
-
-.top-bar-right {
-  display: flex; /* Keeps the hamburger button aligned cleanly */
-  justify-content: flex-end; /* Pushes the hamburger button fully to the right */
-  align-items: center; /* Vertically aligns the hamburger button */
-}
-
-
-/* =========================================================
-   FUTURE MASCOT AREA
-   ---------------------------------------------------------
-   Reserved space for the mascot plugin later.
-   Since you want the mascot across the top of the page,
-   this area is already built into the structure.
-
-   If you later want more or less room for the mascot,
-   change the min-height here.
-   ========================================================= */
-
-.mascot-plugin-area {
-  width: 100%; /* Makes mascot area span the full card width */
-  min-height: 70px; /* Reserves visible vertical room for future mascot content */
-  margin-bottom: 12px; /* Adds spacing below the mascot area before main content */
-}
-
-
-/* =========================================================
-   MAIN CONTENT WRAPPER
-   ---------------------------------------------------------
-   This holds all homepage sections below the top bar:
-   - top row cards
-   - streaks dropdown
-   - brain dump
-   ========================================================= */
-
-.home-page-main-content {
-  display: flex; /* Lets homepage sections stack vertically */
-  flex-direction: column; /* Stacks homepage sections one under another */
-  gap: 12px; /* Controls spacing between major homepage sections */
-}
-
-
-/* =========================================================
-   TOP ROW CARDS
-   ---------------------------------------------------------
-   This creates the side-by-side layout for:
-   - Daily Focus (left)
-   - Weekly Tasks (right)
-
-   You asked for these to fit side by side on iPhone.
-   Each card is allowed to grow naturally in height.
-   ========================================================= */
-
-.top-row-cards {
-  display: flex; /* Places Daily Focus and Weekly Tasks next to each other */
-  flex-direction: row; /* Keeps the two top cards in one horizontal row */
-  align-items: flex-start; /* Lets each card grow naturally instead of forcing equal height */
-  gap: 10px; /* Space between the left and right top cards */
-  width: 100%; /* Makes the full row span the app width */
-}
-
-.daily-focus-card,
-.weekly-tasks-card {
-  flex: 1; /* Makes both top cards share the available width evenly */
-  min-width: 0; /* Prevents content from forcing the cards wider than the screen */
-}
-
-
-/* =========================================================
-   SHARED CARD SPACING
-   ---------------------------------------------------------
-   This section controls the inside spacing of each card.
-   Edit padding here if you want cards to feel roomier or tighter.
+   All main content boxes (Daily Focus, Weekly Tasks,
+   Streaks dropdown, Brain Dump) use this shared card style.
    ========================================================= */
 
 .dashboard-card {
-  padding: 12px; /* Inner spacing so titles/text/buttons are not against the edges */
-  box-sizing: border-box; /* Keeps padding inside the card width/height */
+
+  display: block; /* Ensures card behaves as a block container */
+
+  border-radius: var(--card-radius); /* Rounded corners defined in theme.css */
+
+  border: 1px solid var(--border-soft); /* Soft border color defined in theme.css */
+
+  box-shadow: 0 4px 10px var(--card-shadow); /* Subtle depth shadow */
+
 }
 
 
 /* =========================================================
-   CARD TITLE SPACING
+   TASK ROW COMPONENT
    ---------------------------------------------------------
-   Controls spacing for section titles like:
-   - Daily Focus
-   - Weekly Tasks
-   - Streaks
-   - Brain Dump
+   Used for each task inside Daily Focus and Weekly Tasks.
    ========================================================= */
 
-.card-title {
-  margin: 0 0 10px 0; /* Removes top margin and adds space below each section title */
+.task-row {
+
+  display: flex; /* Aligns checkbox and task text horizontally */
+
+  align-items: center; /* Vertically centers task text and button */
+
+  gap: 8px; /* Space between the check button and task text */
+
+  font-size: 15px; /* Comfortable readable task text size */
+
 }
 
 
 /* =========================================================
-   TASK LIST LAYOUT
+   TASK CHECK BUTTON
    ---------------------------------------------------------
-   Used inside Daily Focus and Weekly Tasks for task rows.
+   Circular button used to mark tasks complete.
    ========================================================= */
 
-.task-list {
-  display: flex; /* Lets task rows stack in a clean vertical list */
-  flex-direction: column; /* Stacks task rows one underneath another */
-  gap: 8px; /* Adds spacing between each task row */
+.task-check-button {
+
+  width: 22px; /* Small tap-friendly button width */
+
+  height: 22px; /* Keeps the button square */
+
+  border-radius: 50%; /* Makes the button circular */
+
+  border: 1px solid var(--border-soft); /* Soft border */
+
+  background-color: white; /* Neutral background */
+
+  font-size: 14px; /* Controls size of the ○ icon */
+
+  cursor: pointer; /* Indicates the button is clickable */
+
 }
 
 
 /* =========================================================
-   STREAKS DROPDOWN LAYOUT
+   DROPDOWN TOGGLE BUTTON
    ---------------------------------------------------------
-   Controls the spacing of the streaks card and its content area.
+   Used for the Streaks dropdown header and future dropdowns.
+   Clicking the title toggles the dropdown open/closed.
    ========================================================= */
 
-.streaks-dropdown-card {
-  width: 100%; /* Makes the streaks section span the available width */
-}
+.dropdown-toggle-button {
 
-.dropdown-content {
-  margin-top: 10px; /* Adds spacing between the toggle button and opened content */
+  width: 100%; /* Makes the button stretch across the card */
+
+  display: flex; /* Places title and arrow on the same row */
+
+  justify-content: space-between; /* Title on left, arrow on right */
+
+  align-items: center; /* Vertical alignment */
+
+  background: transparent; /* Removes default button background */
+
+  border: none; /* Removes default button border */
+
+  font-size: 16px; /* Clear readable dropdown title size */
+
+  cursor: pointer; /* Indicates the element is interactive */
+
 }
 
 
 /* =========================================================
-   BRAIN DUMP LAYOUT
+   DROPDOWN ARROW
    ---------------------------------------------------------
-   This section controls the size and spacing of the Brain Dump area.
-   You asked for a long horizontal rectangle at the bottom of the page.
+   Small arrow indicator showing dropdown state.
    ========================================================= */
 
-.brain-dump-card {
-  width: 100%; /* Makes Brain Dump span the full available width */
+.dropdown-arrow {
+
+  font-size: 16px; /* Size of arrow icon */
+
+  transition: transform 0.2s ease; /* Smooth rotation when opened */
+
 }
+
+
+/* =========================================================
+   STREAK ROW
+   ---------------------------------------------------------
+   Displays a single streak entry:
+   - streak name
+   - star icons or placeholder stars
+   ========================================================= */
+
+.streak-row {
+
+  display: flex; /* Aligns name and stars on one row */
+
+  justify-content: space-between; /* Name left, stars right */
+
+  align-items: center; /* Vertical alignment */
+
+  font-size: 15px; /* Consistent readable size */
+
+}
+
+
+/* =========================================================
+   BRAIN DUMP TEXTAREA
+   ---------------------------------------------------------
+   Multi-line text input where users type freeform entries.
+   ========================================================= */
 
 .brain-dump-input {
-  width: 100%; /* Makes the textarea stretch across the card width */
-  min-height: 130px; /* Gives the Brain Dump box a roomy multi-line height */
-  box-sizing: border-box; /* Keeps padding/border inside the total textarea width */
-  margin-bottom: 10px; /* Adds spacing between the textarea and Submit button */
-  resize: vertical; /* Allows height adjustment only vertically if you want to expand it */
-}
 
-.brain-dump-actions {
-  display: flex; /* Lets the action area line up the submit button cleanly */
-  justify-content: flex-end; /* Places the Submit button on the right side of the card */
-  align-items: center; /* Vertically centers the button within the action area */
+  width: 100%; /* Full card width */
+
+  padding: 10px; /* Inner spacing so text doesn't touch edges */
+
+  border-radius: var(--card-radius); /* Matches card roundness */
+
+  border: 1px solid var(--border-soft); /* Soft border color */
+
+  font-size: 15px; /* Comfortable typing size */
+
+  font-family: inherit; /* Uses site font */
+
 }
 
 
 /* =========================================================
-   REVIEW PANEL LAYOUT
+   PRIMARY ACTION BUTTON
    ---------------------------------------------------------
-   This panel is hidden at first and will later slide up from
-   the bottom of the screen after Brain Dump submission.
-
-   Position fixed makes it stay attached to the screen rather
-   than scroll with the page.
+   Used for main actions like the Brain Dump Submit button.
    ========================================================= */
 
-.review-panel {
-  position: fixed; /* Pins the review panel to the viewport instead of page flow */
-  left: 0; /* Aligns the panel to the left edge of the screen */
-  right: 0; /* Aligns the panel to the right edge of the screen */
-  bottom: 0; /* Anchors the panel to the bottom of the screen */
-  width: 100%; /* Makes the panel span the screen width */
-  max-width: 480px; /* Keeps it visually matched to the mobile app width */
-  margin: 0 auto; /* Centers the fixed panel horizontally on larger screens */
-  padding: 14px; /* Adds inner spacing around review content and buttons */
-  box-sizing: border-box; /* Includes padding within total panel size */
-  z-index: 1000; /* Keeps the review panel above the main page content */
+.primary-action-button {
+
+  padding: 8px 14px; /* Button interior spacing */
+
+  background-color: var(--button-primary); /* Color defined in theme.css */
+
+  color: white; /* High contrast button text */
+
+  border: none; /* Removes default border */
+
+  border-radius: var(--card-radius); /* Rounded edges */
+
+  cursor: pointer; /* Shows pointer cursor on hover */
+
+  font-size: 14px; /* Button text size */
+
 }
 
 
 /* =========================================================
-   MOBILE NAVIGATION DRAWER LAYOUT
+   SECONDARY ACTION BUTTON
    ---------------------------------------------------------
-   This positions the hamburger menu drawer.
-   It is designed to slide in from the right later using JS/CSS.
+   Used for less important actions like Edit and Cancel.
+   ========================================================= */
+
+.secondary-action-button {
+
+  padding: 7px 12px; /* Slightly smaller button padding */
+
+  border-radius: var(--card-radius); /* Rounded edges */
+
+  border: 1px solid var(--border-soft); /* Soft outline */
+
+  background-color: white; /* Neutral background */
+
+  cursor: pointer; /* Indicates clickability */
+
+  font-size: 14px; /* Button text size */
+
+}
+
+
+/* =========================================================
+   REVIEW PANEL CONTENT
+   ---------------------------------------------------------
+   Styles the confirmation panel shown after Brain Dump submit.
+   ========================================================= */
+
+.review-panel-content {
+
+  font-size: 15px; /* Readable content size */
+
+  margin-bottom: 12px; /* Spacing before action buttons */
+
+}
+
+
+/* =========================================================
+   REVIEW PANEL BUTTON ROW
+   ---------------------------------------------------------
+   Aligns Confirm/Edit/Cancel buttons nicely.
+   ========================================================= */
+
+.review-panel-actions {
+
+  display: flex; /* Horizontal button row */
+
+  justify-content: flex-end; /* Buttons align to right */
+
+  gap: 8px; /* Space between buttons */
+
+}
+
+
+/* =========================================================
+   HAMBURGER MENU ICON
+   ---------------------------------------------------------
+   Styles the three horizontal lines used for the hamburger icon.
+   ========================================================= */
+
+.hamburger-menu-button {
+
+  width: 34px; /* Clickable tap area width */
+
+  height: 28px; /* Clickable tap area height */
+
+  display: flex; /* Allows vertical stacking of lines */
+
+  flex-direction: column; /* Lines stack vertically */
+
+  justify-content: space-between; /* Even spacing between lines */
+
+  background: none; /* Removes default button background */
+
+  border: none; /* Removes default border */
+
+  cursor: pointer; /* Shows pointer cursor */
+
+}
+
+
+.hamburger-line {
+
+  width: 100%; /* Makes each line span the button width */
+
+  height: 3px; /* Thickness of each line */
+
+  background-color: #3a2e28; /* Uses main text color */
+
+  border-radius: 2px; /* Slight rounding on line ends */
+
+}
+
+
+/* =========================================================
+   MOBILE NAVIGATION LINKS
+   ---------------------------------------------------------
+   Styles links inside the hamburger menu drawer.
+   ========================================================= */
+
+.mobile-navigation-list a {
+
+  text-decoration: none; /* Removes underline */
+
+  font-size: 16px; /* Readable navigation size */
+
+  color: var(--text-main); /* Uses main text color */
+
+}
+
+/* =========================================================
+   MOBILE MENU PANEL
+   This makes the hamburger menu appear as its own solid panel
+   instead of letting homepage content visually mix underneath.
    ========================================================= */
 
 .mobile-navigation-drawer {
-  position: fixed; /* Keeps the drawer attached to the screen */
-  top: 0; /* Starts at the top of the viewport */
-  right: 0; /* Anchors the drawer to the right side */
-  width: 78%; /* Makes the drawer wide enough for mobile without covering everything */
-  max-width: 320px; /* Prevents the drawer from becoming too wide on larger screens */
-  height: 100vh; /* Makes the drawer span the full device height */
-  padding: 18px 16px; /* Adds inner spacing around menu content */
-  box-sizing: border-box; /* Includes padding within the drawer width */
-  z-index: 950; /* Keeps the menu above cards and above the review panel */
-}
-
-.mobile-navigation-list {
-  list-style: none; /* Removes default bullet points from menu links */
-  padding: 0; /* Removes default browser list padding */
-  margin: 16px 0 0 0; /* Adds space above the first navigation link */
-  display: flex; /* Lets links stack vertically in a controlled way */
-  flex-direction: column; /* Stacks each navigation link on its own line */
-  gap: 14px; /* Adds spacing between each menu item */
-}
-
-
-/* =========================================================
-   SMALL SCREEN SAFETY
-   ---------------------------------------------------------
-   This keeps spacing comfortable on narrower phones.
-   You can tweak these values later if you want an even tighter
-   or roomier mobile layout.
-   ========================================================= */
-
-@media (max-width: 360px) {
-  .app-shell {
-    padding: 10px; /* Slightly reduces page padding on very narrow phones */
-  }
-
-  .top-row-cards {
-    gap: 8px; /* Slightly reduces space between Daily and Weekly cards on smaller screens */
-  }
-
-  .dashboard-card {
-    padding: 10px; /* Slightly tighter card padding for extra room on small screens */
-  }
+  background-color: #F3EADF; /* soft warm beige - menu panel background */
+  box-shadow: -6px 0 16px rgba(0, 0, 0, 0.12); /* soft shadow - separates menu from page */
+  overflow-y: auto; /* allows menu to scroll if it gets taller later */
 }
 
 /* =========================================================
-   PANEL LAYER ORDER
-   Ensures popup panels appear above the overlay
+   REVIEW PANEL VISUAL STYLE
+   This gives the slide-up review panel its own solid box so
+   the homepage does not visually show through underneath.
    ========================================================= */
 
 .review-panel {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
 
-  z-index: 1000; /* above overlay */
+  background-color: #F3EADF; /* soft warm beige - review panel background */
+
+  border: 1px solid var(--border-soft); /* dusty beige - panel border */
+
+  border-radius: 20px 20px 0 0; /* rounded top corners - panel feels like it slides up */
+
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.12); /* soft shadow - separates panel from page */
+
+}
+
+
+/* =========================================================
+   REVIEW PANEL HEADER
+   Controls spacing for the "Review" title area
+   ========================================================= */
+
+.review-panel-header {
+  margin-bottom: 10px; /* space below the Review title */
+}
+
+
+/* =========================================================
+   REVIEW PANEL TITLE
+   Keeps the title from crowding the content below it
+   ========================================================= */
+
+.review-panel-title {
+  margin: 0; /* removes default extra spacing around the title */
+}
+
+
+/* =========================================================
+   REVIEW PANEL CONTENT BOX
+   Gives the detected text area its own readable spacing
+   ========================================================= */
+
+.review-panel-content {
+  margin-bottom: 14px; /* space between content and action buttons */
+}
+
+/* =========================================================
+   DETAIL / POPUP CONTENT AREA
+   Gives popup content a readable solid surface
+   ========================================================= */
+
+.review-panel-content {
+
+  background-color: #F8F2EA; /* very light warm cream - inner content area */
+
+  border: 1px solid var(--border-soft); /* dusty beige - subtle content border */
+
+  border-radius: 16px; /* soft rounded corners inside panel */
+
+  padding: 12px; /* inner spacing so text does not touch edges */
+
+}
+
+/* =========================================================
+   GLOBAL DIM OVERLAY
+   Darkens the page behind menus and popup panels
+   ========================================================= */
+
+.global-overlay {
+
+  position: fixed; /* covers entire screen */
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 100vh;
+
+  background-color: rgba(0,0,0,0.35); /* soft dim background */
+
+  z-index: 900; /* below panels but above page */
+
+}
+
+/* =========================================================
+   AUTH LOCK SCREEN
+   Full-screen iPhone-style passcode screen for mobile
+   ========================================================= */
+
+.auth-lock-overlay {
+
+  position: fixed; /* covers the whole screen instead of sitting in normal page flow */
+  top: 0; /* starts at top of screen */
+  left: 0; /* starts at left edge */
+
+  width: 100%;
+  height: 100vh; /* full mobile screen height */
+
+  background-color: #F7F1E8; /* warm cream - full passcode screen background */
+
+  display: flex; /* centers the passcode card */
+  align-items: center; /* vertical centering */
+  justify-content: center; /* horizontal centering */
+
+  z-index: 3000; /* sits above everything else on the site */
+
+  padding: 24px; /* mobile breathing room around the inner passcode card */
+
+}
+
+.auth-lock-card {
+
+  width: 100%; /* lets the inner passcode card size properly on mobile */
+  max-width: 360px; /* keeps the passcode area from becoming too wide */
+  min-height: 100vh; /* helps the passcode experience feel like a full-screen iPhone lock page */
+
+  display: flex; /* lets inner lock content stack cleanly */
+  flex-direction: column; /* stacks title, circles, keypad vertically */
+  justify-content: center; /* centers content vertically within the screen */
+
+  text-align: center; /* centers visible text and circles */
+
+}
+
+.auth-lock-title {
+  margin: 0 0 8px 0; /* spacing below title */
+  font-size: 28px; /* larger passcode heading */
+}
+
+.auth-lock-subtitle {
+  margin: 0 0 24px 0; /* spacing below subtitle */
+  font-size: 16px; /* readable helper text size */
+}
+
+.auth-passcode-circles {
+
+  display: flex; /* puts circles in one row */
+  justify-content: center; /* centers the row */
+  gap: 10px; /* spacing between circles */
+
+  margin-bottom: 24px; /* spacing below circles */
+
+  font-size: 22px; /* circle size */
+
+}
+
+.auth-error-message {
+  margin: 0 0 16px 0; /* spacing below error */
+  color: #A94442; /* muted red - incorrect passcode text */
+  font-size: 14px; /* smaller error size */
+}
+
+.auth-keypad {
+
+  display: grid; /* keypad grid layout */
+  grid-template-columns: repeat(3, 1fr); /* 3 columns like phone keypad */
+  gap: 14px; /* space between buttons */
+
+  justify-items: center; /* centers each keypad button in its cell */
+
+}
+
+.auth-keypad-button {
+
+  width: 76px; /* circular keypad width */
+  height: 76px; /* circular keypad height */
+
+  border-radius: 50%; /* makes buttons round */
+  border: 1px solid var(--border-soft); /* dusty beige - soft button border */
+
+  background-color: #EFE4D9; /* pale oatmeal - keypad button background */
+
+  font-size: 28px; /* large readable number size */
+  font-weight: 400; /* regular font weight */
+
+}
+
+.auth-keypad-spacer {
+  width: 76px; /* keeps 0 centered in bottom row */
+  height: 76px; /* matches keypad button size */
 }
