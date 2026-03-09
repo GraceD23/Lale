@@ -72,12 +72,10 @@ function renderDailyTasks() {
 
   const tasks = getTasks();
 
-  const today = getTodayName();
-
   container.innerHTML = "";
 
   tasks
-    .filter(task => (task.schedule === "daily" || task.day === today) && !task.completed)
+    .filter(task => task.schedule === "daily" && !task.completed)
     .forEach(task => {
 
       const row = buildTaskRow(task);
@@ -102,7 +100,7 @@ function renderWeeklyTasks() {
   container.innerHTML = "";
 
   tasks
-    .filter(task => !task.completed)
+    .filter(task => task.schedule === "weekly" && !task.completed)
     .forEach(task => {
 
       const row = buildTaskRow(task);
