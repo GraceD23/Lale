@@ -314,7 +314,7 @@ function buildWeightSection(tracker) {
       <span class="health-month-label" data-tracker="${tracker.id}" style="font-size:13px;flex:1;text-align:center;">${formatMonthLabel(monthKey)}</span>
       <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="1">›</button>
     </div>
-    <canvas id="weight-chart-${tracker.id}" height="120" style="width:100%;margin-bottom:10px;"></canvas>
+    <canvas id="weight-chart-${tracker.id}" height="120" style="display:none;width:100%;margin-bottom:10px;"></canvas>
     <div id="weight-entry-area-${tracker.id}" style="display:none;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
       <input type="text" id="weight-input-${tracker.id}" placeholder="e.g. 120lb 3oz" style="flex:1;min-width:120px;padding:6px 8px;border-radius:8px;border:1px solid #b0977a;font-size:13px;">
       <div style="display:flex;gap:6px;">
