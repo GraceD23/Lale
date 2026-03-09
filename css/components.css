@@ -171,3 +171,115 @@
   min-height: 44px;
   line-height: 1;
 }
+
+/* =========================================================
+   PASSCODE CIRCLES — iPhone-style dots
+   ========================================================= */
+
+.auth-passcode-circles {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 32px;
+}
+
+.auth-passcode-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #b0977a;
+  background: transparent;
+  display: inline-block;
+  font-size: 0; /* hides the ● ○ text characters */
+  transition: background 0.15s ease;
+}
+
+/* Filled state — when digit is typed */
+.auth-passcode-circle.filled,
+.auth-passcode-circles span:not(:empty) {
+  background: #b0977a;
+}
+
+/* =========================================================
+   HAMBURGER BUTTON — force brown, no blue
+   ========================================================= */
+
+.hamburger-menu-button {
+  background: none !important;
+  border: none !important;
+  color: #3a2e28 !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.hamburger-line {
+  background-color: #3a2e28 !important;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  display: block;
+}
+
+/* =========================================================
+   FIX: CSS VARIABLE FALLBACK — forces brown everywhere
+   --text-main is undefined so browser defaults to blue
+   ========================================================= */
+
+:root {
+  --text-main: #3a2e28;
+  --color-primary: #b0977a;
+  --border-soft: #c9b49a;
+  --bg-warm: #F3EADF;
+}
+
+/* =========================================================
+   FIX: HAMBURGER — triple override
+   ========================================================= */
+
+button.hamburger-menu-button,
+#hamburger-menu-button {
+  background: none !important;
+  border: none !important;
+  color: #3a2e28 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+button.hamburger-menu-button .hamburger-line,
+#hamburger-menu-button .hamburger-line,
+.hamburger-line {
+  background-color: #3a2e28 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 3px !important;
+  border-radius: 2px !important;
+}
+
+/* =========================================================
+   FIX: secondary-action-button — brown not blue
+   ========================================================= */
+
+.secondary-action-button,
+button.secondary-action-button {
+  background: white !important;
+  border: 1.5px solid #b0977a !important;
+  color: #3a2e28 !important;
+  font-family: "Josefin Sans", sans-serif !important;
+  border-radius: 10px !important;
+  padding: 10px 16px !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  -webkit-appearance: none !important;
+}
+
+/* =========================================================
+   FIX: all buttons — kill browser blue default
+   ========================================================= */
+
+button {
+  color: #3a2e28;
+  -webkit-appearance: none;
+  appearance: none;
+}
