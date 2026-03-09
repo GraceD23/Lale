@@ -38,7 +38,7 @@ async function generateStory() {
     const result = await callTurkishAPI(topic, tense, difficulty, extra);
     displayStoryResult(result);
   } catch (err) {
-    alert("Could not generate story. Please check your API key in brain-parser.js.");
+    alert("Could not generate story. Please try again.");
     console.error(err);
   } finally {
     btn.textContent = "Generate Story";
