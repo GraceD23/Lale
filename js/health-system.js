@@ -76,9 +76,9 @@ function buildCalendarSection(tracker) {
   section.innerHTML = `
     <h2 id="${tracker.id}-title" class="card-title" style="color:${tracker.color || '#b0977a'}">${escH(tracker.name)}</h2>
     <div class="health-month-nav" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <button type="button" class="secondary-action-button" style="padding:2px 8px;font-size:12px;" data-tracker="${tracker.id}" data-dir="-1">◀</button>
+      <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="-1">‹</button>
       <span class="health-month-label" data-tracker="${tracker.id}" style="font-size:13px;flex:1;text-align:center;">${formatMonthLabel(monthKey)}</span>
-      <button type="button" class="secondary-action-button" style="padding:2px 8px;font-size:12px;" data-tracker="${tracker.id}" data-dir="1">▶</button>
+      <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="1">›</button>
     </div>
     <div class="health-calendar-grid" id="calendar-${tracker.id}" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
     <div class="health-entry-form" id="entry-form-${tracker.id}" style="display:none;margin-top:10px;padding:10px;background:rgba(255,255,255,0.5);border-radius:10px;">
@@ -128,7 +128,9 @@ function buildCalendarSection(tracker) {
 }
 
 function renderCalendarGrid(tracker, monthKey, section) {
-  const grid = document.getElementById("calendar-" + tracker.id);
+  const grid = section
+    ? section.querySelector("#calendar-" + tracker.id)
+    : document.getElementById("calendar-" + tracker.id);
   if (!grid) return;
 
   const health = loadHealth();
@@ -245,9 +247,9 @@ function buildWeightSection(tracker) {
   section.innerHTML = `
     <h2 class="card-title" style="color:${tracker.color || '#8fa98f'}">${escH(tracker.name)}</h2>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <button type="button" class="secondary-action-button" style="padding:2px 8px;font-size:12px;" data-tracker="${tracker.id}" data-dir="-1">◀</button>
+      <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="-1">‹</button>
       <span class="health-month-label" data-tracker="${tracker.id}" style="font-size:13px;flex:1;text-align:center;">${formatMonthLabel(monthKey)}</span>
-      <button type="button" class="secondary-action-button" style="padding:2px 8px;font-size:12px;" data-tracker="${tracker.id}" data-dir="1">▶</button>
+      <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="1">›</button>
     </div>
     <canvas id="weight-chart-${tracker.id}" height="120" style="width:100%;margin-bottom:10px;"></canvas>
     <div id="weight-entry-area-${tracker.id}" style="display:none;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
@@ -355,12 +357,11 @@ function drawWeightChart(tracker, entries) {
   }).filter(v => v > 0);
 
   if (points.length < 2) {
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.font = "12px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("Add more entries to see trend", w / 2, h / 2);
+    canvas.style.display = "none";
     return;
   }
+
+  canvas.style.display = "block";
 
   const min = Math.min(...points) - 1;
   const max = Math.max(...points) + 1;
