@@ -62,46 +62,44 @@ async function handleAddCommand() {
    ========================================================= */
 
 async function parseAddCommand(text) {
-  const apiKey = typeof ANTHROPIC_API_KEY !== "undefined" ? ANTHROPIC_API_KEY : "YOUR_API_KEY_HERE";
-
-  if (apiKey && apiKey !== "YOUR_API_KEY_HERE") {
-    try { return await parseAddCommandWithAI(text, apiKey); }
-    catch (e) { console.warn("AI parse failed:", e.message); }
+  try {
+    return await parseAddCommandWithAI(text);
+  } catch (e) {
+    console.warn("AI parse failed, using rules:", e.message);
+    return parseAddCommandWithRules(text);
   }
-
-  return parseAddCommandWithRules(text);
 }
 
-async function parseAddCommandWithAI(text, apiKey) {
-  const systemPrompt = `You parse commands for a productivity dashboard's Add Page.
+async function parseAddCommandWithAI(text) {
+  const WORKER_URL = "https://holy-wind-9442.doeppg.workers.dev";
+  const systemPrompt = `You parse natural language commands for a productivity dashboard's Add Page.
+
+Understand what the user wants to do — they may phrase it many ways.
 
 Return ONLY valid JSON — no explanation, no markdown.
 
 SUPPORTED ACTIONS:
-- create_task_box: create a new checklist box (like Daily Focus). Needs: name
-- create_health_tracker: create a new health tracker. Needs: name, type (calendar|scale|weight|yesno)
-- create_page: create an entirely new page. Needs: name
-- create_task: add a single task directly. Needs: name, destination (daily|weekly)
+- create_task_box: create a new checklist/task box. Needs: name
+- create_health_tracker: add a new tracker to the Health Page. Needs: name, type (calendar|scale|weight|yesno). Use "calendar" by default unless the user specifies a number scale or yes/no.
+- create_page: create an entirely new standalone page. Needs: name
+- create_task: add a single task. Needs: name, destination (daily|weekly)
 - create_note: add a note. Needs: text
 - delete_item: delete something. Needs: itemType, name
 - edit_item: rename something. Needs: itemType, oldName, newName
 - unknown: cannot determine intent
 
-Return format:
-{"action":"create_task_box","name":"To Buy","confirmed":false}
+KEY DISTINCTION — "create_health_tracker" vs "create_page":
+- If the user says anything about the Health Page, health tracking, symptoms, or adding a tracker — use "create_health_tracker"
+- Only use "create_page" if the user clearly wants a brand new standalone page unrelated to health
+
+Return format examples:
 {"action":"create_health_tracker","name":"Burn Out","type":"calendar","confirmed":false}
 {"action":"create_page","name":"Projects","confirmed":false}
-{"action":"create_task","name":"Wash car","destination":"weekly","confirmed":false}
-{"action":"unknown","raw":"${text}","confirmed":false}`;
+{"action":"create_task","name":"Wash car","destination":"weekly","confirmed":false}`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch(WORKER_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 256,
@@ -110,8 +108,9 @@ Return format:
     })
   });
 
-  if (!response.ok) throw new Error("API " + response.status);
+  if (!response.ok) throw new Error("Worker " + response.status);
   const d = await response.json();
+  if (d.error) throw new Error("API error: " + JSON.stringify(d.error));
   const clean = d.content[0].text.trim().replace(/```json|```/g, "").trim();
   return JSON.parse(clean);
 }
@@ -120,13 +119,14 @@ function parseAddCommandWithRules(text) {
   const lower = text.toLowerCase();
 
   if (lower.includes("create") || lower.includes("add") || lower.includes("new")) {
+    /* Health tracker check FIRST — catches "add tracker on Health Page" before generic "page" check */
+    if (lower.includes("health") || lower.includes("tracker") || lower.includes("symptom")) {
+      const name = extractNameFromCommand(text, ["create","add","new","health","tracker","symptom","on","the","page","name","it","called"]);
+      return { action:"create_health_tracker", name:name, type:"calendar", confirmed:false };
+    }
     if (lower.includes("page")) {
       const name = extractNameFromCommand(text, ["create","add","new","page"]);
       return { action:"create_page", name:name, confirmed:false };
-    }
-    if (lower.includes("health") || lower.includes("tracker") || lower.includes("symptom")) {
-      const name = extractNameFromCommand(text, ["create","add","new","health","tracker","symptom"]);
-      return { action:"create_health_tracker", name:name, type:"calendar", confirmed:false };
     }
     if (lower.includes("box") || lower.includes("list") || lower.includes("checklist")) {
       const name = extractNameFromCommand(text, ["create","add","new","box","list","checklist"]);
