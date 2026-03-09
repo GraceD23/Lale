@@ -72,8 +72,7 @@ async function sendToAI(userText) {
 }
 
 async function callChatAPI() {
-  const apiKey = typeof ANTHROPIC_API_KEY !== "undefined" ? ANTHROPIC_API_KEY : "YOUR_API_KEY_HERE";
-  if (!apiKey || apiKey === "YOUR_API_KEY_HERE") throw new Error("No API key");
+  const WORKER_URL = "https://holy-wind-9442.doeppg.workers.dev";
 
   const systemPrompt = `You are a friendly Turkish language conversation partner helping a beginner practice Turkish.
 
@@ -86,13 +85,10 @@ Rules:
 - Stay on topic: ${chatTopic}
 - Be encouraging and warm`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch(WORKER_URL, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
