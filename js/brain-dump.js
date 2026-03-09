@@ -1,177 +1,159 @@
-
 /* =========================================================
    BRAIN-DUMP.JS
    ---------------------------------------------------------
-   This file controls the Brain Dump submission flow.
+   Controls Brain Dump submission and multi-item review panel.
 
-   Current starter responsibilities:
-   - read the text typed into the Brain Dump box
-   - make sure something was actually typed
-   - open the slide-up review panel when Submit is pressed
-   - show starter review content for now
-
-   FUTURE responsibilities:
-   - send Brain Dump text to AI
-   - parse tasks / health logs / new categories
-   - ask relevant follow-up questions only when needed
-   - route confirmed items to the correct page/category
-
-   IMPORTANT:
-   This file handles the Brain Dump flow only.
-   The review panel open/close behavior itself lives in:
-   - review-panel.js
-   ========================================================= */
-
-
-/* =========================================================
-   START AFTER PAGE LOAD
-   ---------------------------------------------------------
-   Waits until the HTML page is fully loaded before trying
-   to attach Brain Dump behavior to the page elements.
+   Features:
+   - Sends text to AI parser (brain-parser.js)
+   - Shows ALL detected items in one review panel
+   - Each task lets you choose Daily Focus or Weekly Tasks
+   - Single Confirm button saves everything at once
    ========================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
-  initializeBrainDump(); /* Starts Brain Dump setup after page HTML is ready */
+  initializeBrainDump();
 });
 
-
-/* =========================================================
-   MAIN INITIALIZER
-   ---------------------------------------------------------
-   Finds the Brain Dump elements and connects the Submit button.
-   ========================================================= */
-
 function initializeBrainDump() {
-  const submitButton = document.getElementById("brain-dump-submit-button"); /* Finds the Submit button inside the Brain Dump card */
-
-  if (!submitButton) {
-    return; /* Stops safely if the Submit button does not exist */
-  }
-
-  submitButton.addEventListener("click", function () {
-    handleBrainDumpSubmit(); /* Runs the Brain Dump submit flow when the button is tapped */
-  });
+  const submitButton = document.getElementById("brain-dump-submit-button");
+  if (!submitButton) return;
+  submitButton.addEventListener("click", handleBrainDumpSubmit);
 }
 
-/* =========================================================
-   HANDLE BRAIN DUMP SUBMIT
-   ========================================================= */
-
-function handleBrainDumpSubmit() {
-
+async function handleBrainDumpSubmit() {
   const input = document.getElementById("brain-dump-input");
   if (!input) return;
-
   const text = input.value.trim();
   if (!text) return;
 
-  const parsed = parseBrainDump(text); /* uses brain-parser.js */
+  /* Show loading state on button */
+  const submitButton = document.getElementById("brain-dump-submit-button");
+  const originalLabel = submitButton ? submitButton.textContent : "Submit";
+  if (submitButton) { submitButton.textContent = "Thinking..."; submitButton.disabled = true; }
 
-  openBrainReview(parsed, text);
-
+  try {
+    const parsedItems = await parseBrainDump(text); /* From brain-parser.js */
+    openBrainDumpReviewPanel(parsedItems, text);
+  } catch (err) {
+    console.error("Brain dump error:", err);
+    openBrainDumpReviewPanel([{ type:"note", name:text, destination:null, data:{} }], text);
+  } finally {
+    if (submitButton) { submitButton.textContent = originalLabel; submitButton.disabled = false; }
+  }
 }
 
- function openBrainReview(parsed, originalText) {
+/* =========================================================
+   BUILD + OPEN REVIEW PANEL
+   Shows all detected items with destination selectors for tasks
+   ========================================================= */
 
- const panel = document.getElementById("review-panel");
- const content = document.getElementById("review-panel-content");
- const overlay = document.getElementById("global-overlay");
+function openBrainDumpReviewPanel(parsedItems, originalText) {
+  const panel = document.getElementById("review-panel");
+  const content = document.getElementById("review-panel-content");
+  const overlay = document.getElementById("global-overlay");
 
-   if (!panel || !content) return;
+  if (!panel || !content) return;
 
-  let html = "";
+  /* Store for confirm step */
+  window.currentBrainDumpReview = { items: parsedItems, originalText: originalText };
 
-   if (parsed.type === "task") {
-     html += "<p><strong>Detected Task</strong></p>";
-    html += "<p>" + parsed.data.name + "</p>";
-   }
+  content.innerHTML = "";
 
-   else if (parsed.type === "streak") {
-     html += "<p><strong>Detected Streak Action</strong></p>";
-    html += "<p>" + parsed.data.name + "</p>";
- }
+  if (parsedItems.length === 0) {
+    content.innerHTML = "<p>Nothing recognized. Will save as a note.</p>";
+    window.currentBrainDumpReview = {
+      items: [{ type:"note", name:originalText, destination:null, data:{} }],
+      originalText: originalText
+    };
+  } else {
+    /* Header */
+    const header = document.createElement("p");
+    header.innerHTML = "<strong>Detected " + parsedItems.length + " item" + (parsedItems.length > 1 ? "s" : "") + ":</strong>";
+    content.appendChild(header);
 
-  else if (parsed.type === "health") {
-  html += "<p><strong>Detected Health Entry</strong></p>";
-html += "<p>Severity: " + (parsed.data.severity || "unknown") + "</p>";
-   html += "<p>Note: " + originalText + "</p>";
+    /* One row per item */
+    parsedItems.forEach(function (item, index) {
+      const row = document.createElement("div");
+      row.className = "review-item-row";
+      row.style.cssText = "margin-bottom:10px;padding:8px;border-radius:8px;background:rgba(255,255,255,0.5);";
+
+      /* Type badge */
+      const badge = document.createElement("span");
+      badge.style.cssText = "font-size:11px;text-transform:uppercase;letter-spacing:0.05em;opacity:0.6;display:block;margin-bottom:4px;";
+      badge.textContent = item.type;
+      row.appendChild(badge);
+
+      /* Item name */
+      const name = document.createElement("p");
+      name.style.cssText = "margin:0 0 6px 0;font-size:14px;";
+      name.textContent = item.name;
+      row.appendChild(name);
+
+      /* Destination selector — only for tasks */
+      if (item.type === "task") {
+        const destRow = document.createElement("div");
+        destRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;";
+
+        const options = [
+          { value: "daily", label: "Daily Focus" },
+          { value: "weekly", label: "Weekly Tasks" }
+        ];
+
+        options.forEach(function (opt) {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.textContent = opt.label;
+          btn.dataset.dest = opt.value;
+          btn.dataset.itemIndex = index;
+
+          const isSelected = item.destination === opt.value ||
+            (item.destination === null && opt.value === "weekly");
+
+          btn.style.cssText = "padding:4px 10px;border-radius:20px;border:1px solid #b0977a;font-size:12px;cursor:pointer;background:" +
+            (isSelected ? "#b0977a" : "white") + ";color:" + (isSelected ? "white" : "#b0977a") + ";";
+
+          btn.addEventListener("click", function () {
+            /* Update destination in stored review */
+            window.currentBrainDumpReview.items[index].destination = opt.value;
+
+            /* Update button styles in this row */
+            destRow.querySelectorAll("button").forEach(function (b) {
+              const sel = b.dataset.dest === opt.value;
+              b.style.background = sel ? "#b0977a" : "white";
+              b.style.color = sel ? "white" : "#b0977a";
+            });
+          });
+
+          /* Set default destination */
+          if (item.destination === null) {
+            window.currentBrainDumpReview.items[index].destination = "weekly";
+          }
+
+          destRow.appendChild(btn);
+        });
+
+        row.appendChild(destRow);
+      }
+
+      content.appendChild(row);
+    });
   }
 
-  else {
-   html += "<p><strong>Saved as Note</strong></p>";
-   html += "<p>" + originalText + "</p>";
+  /* Wire confirm button to brain-confirm.js handler */
+  const confirmBtn = document.getElementById("review-confirm-button");
+  if (confirmBtn) {
+    confirmBtn.onclick = function () { handleBrainDumpConfirm(); };
   }
-   window.currentBrainDumpReview = { parsed: parsed, originalText: originalText }; /* Stores the current review data for Confirm */
-  content.innerHTML = html;
+
+  /* Wire cancel button */
+  const cancelBtn = document.getElementById("review-cancel-button");
+  if (cancelBtn) {
+    cancelBtn.onclick = function () {
+      panel.setAttribute("hidden", "");
+      if (overlay) overlay.setAttribute("hidden", "");
+    };
+  }
 
   panel.removeAttribute("hidden");
   if (overlay) overlay.removeAttribute("hidden");
-
- }
-
-/* =========================================================
-   SHOW EMPTY MESSAGE
-   ---------------------------------------------------------
-   If Submit is pressed with no text typed, this opens the
-   review panel and shows a simple helpful message instead
-   of trying to process empty input.
-   ========================================================= */
-
-function showEmptyBrainDumpMessage() {
-  const emptyMessageHtml = `
-    <p><strong>Nothing to review yet.</strong></p>
-    <p>Please type something into the Brain Dump box before pressing Submit.</p>
-  `; /* Simple starter message shown when the textarea is empty */
-
-  setReviewPanelContent(emptyMessageHtml, true); /* Inserts the empty-state message into the review panel */
-  openReviewPanel(); /* Opens the review panel so the user sees the message */
-}
-
-
-/* =========================================================
-   BUILD STARTER REVIEW HTML
-   ---------------------------------------------------------
-   This creates temporary starter review content using the
-   user's typed Brain Dump text.
-
-   For now, it does NOT do real AI classification.
-   It simply shows:
-   - the text they typed
-   - a placeholder "detected" type
-   - a placeholder "suggested destination"
-
-   Later, this function will be replaced by AI results.
-   ========================================================= */
-
-function buildStarterReviewHtml(userText) {
-  const escapedUserText = escapeHtml(userText); /* Safely escapes typed text so it displays as text instead of raw HTML */
-
-  return `
-    <p><strong>Review your Brain Dump:</strong></p>
-
-    <p><strong>Typed text:</strong><br>${escapedUserText}</p>
-
-    <p><strong>Starter detected type:</strong><br>Needs AI review</p>
-
-    <p><strong>Starter suggested location:</strong><br>Pending review</p>
-
-    <p>This is temporary starter behavior. Later, AI will interpret whether this should become a task, health entry, streak item, or new category.</p>
-  `; /* Returns formatted review HTML for the starter version of the Brain Dump flow */
-}
-
-
-/* =========================================================
-   ESCAPE HTML
-   ---------------------------------------------------------
-   Converts special characters into safe display characters.
-
-   This prevents typed text like:
-   <script>
-   from being treated as real HTML in the review panel.
-   ========================================================= */
-
-function escapeHtml(text) {
-  const temporaryElement = document.createElement("div"); /* Creates a temporary safe element for encoding */
-  temporaryElement.textContent = text; /* Stores the user text as plain text */
-  return temporaryElement.innerHTML; /* Returns the safely escaped HTML version of the text */
 }
