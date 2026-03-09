@@ -89,17 +89,18 @@ function applyLabelsToPage() {
    ========================================================= */
 
 function updateNavigationLinkText() {
-  const navigationLinks = document.querySelectorAll(".mobile-navigation-list a"); /* Finds all menu links in the hamburger drawer */
+  const navigationLinks = document.querySelectorAll(".mobile-navigation-list a");
+  if (navigationLinks.length < 5) return;
 
-  if (navigationLinks.length < 5) {
-    return; /* Stops safely if the expected links are not present */
-  }
-
-  navigationLinks[0].textContent = getLabel("homePage"); /* Sets the Home menu link label */
-  navigationLinks[1].textContent = getLabel("streaksPage"); /* Sets the Streaks menu link label */
-  navigationLinks[2].textContent = getLabel("healthPage"); /* Sets the Health menu link label */
-  navigationLinks[3].textContent = getLabel("historyPage"); /* Sets the History menu link label */
-  navigationLinks[4].textContent = getLabel("addPage"); /* Sets the Add menu link label */
+  navigationLinks[0].textContent = getLabel("homePage");
+  navigationLinks[1].textContent = getLabel("streaksPage");
+  navigationLinks[2].textContent = getLabel("healthPage");
+  navigationLinks[3].textContent = getLabel("historyPage");
+  if (navigationLinks[4]) navigationLinks[4].textContent = "Notes";
+  if (navigationLinks[5]) navigationLinks[5].textContent = getLabel("addPage");
+  if (navigationLinks[6]) navigationLinks[6].textContent = "Spelling Quiz";
+  if (navigationLinks[7]) navigationLinks[7].textContent = "Turkish Stories";
+  if (navigationLinks[8]) navigationLinks[8].textContent = "Turkish Chat";
 }
 
 
