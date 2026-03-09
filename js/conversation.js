@@ -65,7 +65,7 @@ async function sendToAI(userText) {
     addMessageBubble(reply, "ai");
     chatHistory.push({ role: "assistant", content: reply });
   } catch (err) {
-    addMessageBubble("⚠ Could not connect. Please check your API key.", "error");
+    addMessageBubble("⚠ Could not connect. Please try again.", "error");
   } finally {
     if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = "Send"; }
   }
