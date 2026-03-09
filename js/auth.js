@@ -9,11 +9,21 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 const DEMO_PASSCODE = "2604";
-const SESSION_UNLOCK_KEY = "productivitySiteUnlocked";
-const SESSION_UNLOCK_EXPIRES_KEY = "productivitySiteUnlockExpires";
+const SESSION_UNLOCK_KEY = "lale_unlocked";
+const SESSION_UNLOCK_EXPIRES_KEY = "lale_unlock_expires";
+const SESSION_DURATION_MS = 60 * 60 * 1000; /* 1 hour */
 
 function initializeAuthLockScreen() {
   const appShell = document.getElementById("app-shell");
+
+  /* Check if already unlocked within the session window */
+  const unlockFlag = localStorage.getItem(SESSION_UNLOCK_KEY) === "true";
+  const unlockExpires = Number(localStorage.getItem(SESSION_UNLOCK_EXPIRES_KEY) || "0");
+  if (unlockFlag && Date.now() < unlockExpires) {
+    /* Still within unlock window — skip passcode */
+    if (appShell) appShell.style.visibility = "";
+    return;
+  }
 
   if (!appShell) { return; }
 
@@ -152,14 +162,16 @@ function updatePasscodeCircles() {
   circlesContainer.innerHTML = "";
   for (let index = 0; index < totalCircles; index += 1) {
     const circle = document.createElement("span");
-    circle.className = "auth-passcode-circle";
-    circle.textContent = index < currentPasscodeInput.length ? "●" : "○";
+    circle.className = "auth-passcode-circle" + (index < currentPasscodeInput.length ? " filled" : "");
     circlesContainer.appendChild(circle);
   }
 }
 
 function validatePasscode() {
   if (currentPasscodeInput === DEMO_PASSCODE) {
+    /* Save unlock for 1 hour across all pages */
+    localStorage.setItem(SESSION_UNLOCK_KEY, "true");
+    localStorage.setItem(SESSION_UNLOCK_EXPIRES_KEY, String(Date.now() + SESSION_DURATION_MS));
     unlockAppContent();
     return;
   }
