@@ -250,10 +250,14 @@ function buildWeightSection(tracker) {
       <button type="button" class="secondary-action-button" style="padding:2px 8px;font-size:12px;" data-tracker="${tracker.id}" data-dir="1">▶</button>
     </div>
     <canvas id="weight-chart-${tracker.id}" height="120" style="width:100%;margin-bottom:10px;"></canvas>
-    <div style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
-      <input type="text" id="weight-input-${tracker.id}" placeholder="e.g. 120lb 3oz" style="flex:1;padding:6px 8px;border-radius:8px;border:1px solid #b0977a;font-size:13px;">
-      <button type="button" class="primary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="log-weight">Log</button>
+    <div id="weight-entry-area-${tracker.id}" style="display:none;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="weight-input-${tracker.id}" placeholder="e.g. 120lb 3oz" style="flex:1;min-width:120px;padding:6px 8px;border-radius:8px;border:1px solid #b0977a;font-size:13px;">
+      <div style="display:flex;gap:6px;">
+        <button type="button" class="primary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="log-weight">Save</button>
+        <button type="button" class="secondary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="cancel-weight">Cancel</button>
+      </div>
     </div>
+    <button type="button" class="secondary-action-button" id="weight-add-btn-${tracker.id}" style="font-size:12px;margin-bottom:8px;" data-tracker="${tracker.id}" data-action="show-weight-entry">+ Add Entry</button>
     <div id="weight-log-${tracker.id}" style="font-size:13px;"></div>
   `;
 
@@ -268,6 +272,26 @@ function buildWeightSection(tracker) {
     });
   });
 
+  /* Show entry area on + Add Entry click */
+  const addBtn = section.querySelector("[data-action='show-weight-entry']");
+  if (addBtn) {
+    addBtn.addEventListener("click", function () {
+      const area = document.getElementById("weight-entry-area-" + tracker.id);
+      if (area) { area.style.display = "flex"; addBtn.style.display = "none"; }
+    });
+  }
+
+  /* Cancel entry */
+  const cancelBtn = section.querySelector("[data-action='cancel-weight']");
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", function () {
+      const area = document.getElementById("weight-entry-area-" + tracker.id);
+      const addB = document.getElementById("weight-add-btn-" + tracker.id);
+      if (area) area.style.display = "none";
+      if (addB) addB.style.display = "";
+    });
+  }
+
   /* Log weight */
   section.querySelector("[data-action='log-weight']").addEventListener("click", function () {
     const input = document.getElementById("weight-input-" + tracker.id);
@@ -275,6 +299,10 @@ function buildWeightSection(tracker) {
     if (!val) return;
     logWeightEntry(tracker, val);
     if (input) input.value = "";
+    const area = document.getElementById("weight-entry-area-" + tracker.id);
+    const addB = document.getElementById("weight-add-btn-" + tracker.id);
+    if (area) area.style.display = "none";
+    if (addB) addB.style.display = "";
     renderWeightSection(tracker, section.dataset.currentMonth, section);
   });
 
@@ -298,7 +326,7 @@ function renderWeightSection(tracker, monthKey, section) {
 
   if (log) {
     log.innerHTML = entries.length === 0
-      ? "<p style='opacity:0.5;font-size:12px;'>No entries yet.</p>"
+      ? ""
       : entries.map(e => `<p style="margin:0 0 4px 0;">${formatShortDate(e.date)} — ${escH(e.value)}</p>`).join("");
   }
 
