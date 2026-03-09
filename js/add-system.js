@@ -84,15 +84,20 @@ SUPPORTED ACTIONS:
 - create_page: create an entirely new standalone page. Needs: name
 - create_task: add a single task. Needs: name, destination (daily|weekly)
 - create_note: add a note. Needs: text
+- create_streak: add a new streak tracker to the Streaks page. Needs: name
 - delete_item: delete something. Needs: itemType, name
 - edit_item: rename something. Needs: itemType, oldName, newName
 - unknown: cannot determine intent
 
-KEY DISTINCTION — "create_health_tracker" vs "create_page":
-- If the user says anything about the Health Page, health tracking, symptoms, or adding a tracker — use "create_health_tracker"
-- Only use "create_page" if the user clearly wants a brand new standalone page unrelated to health
+KEY DISTINCTIONS:
+- If the user mentions "streak", "habit", "daily habit", "track habit" → use "create_streak"
+- If the user says anything about the Health Page, health tracking, symptoms, or adding a tracker → use "create_health_tracker"
+- Only use "create_page" if the user clearly wants a brand new standalone page unrelated to health or streaks
+- If the user says "add task" or "remind me to" → use "create_task"
 
 Return format examples:
+{"action":"create_streak","name":"Reading","confirmed":false}
+{"action":"create_streak","name":"Morning Run","confirmed":false}
 {"action":"create_health_tracker","name":"Burn Out","type":"calendar","confirmed":false}
 {"action":"create_page","name":"Projects","confirmed":false}
 {"action":"create_task","name":"Wash car","destination":"weekly","confirmed":false}`;
@@ -131,6 +136,10 @@ function parseAddCommandWithRules(text) {
     if (lower.includes("box") || lower.includes("list") || lower.includes("checklist")) {
       const name = extractNameFromCommand(text, ["create","add","new","box","list","checklist"]);
       return { action:"create_task_box", name:name, confirmed:false };
+    }
+    if (lower.includes("streak") || lower.includes("habit")) {
+      const name = extractNameFromCommand(text, ["create","add","new","streak","habit","called","named","a","an"]);
+      return { action:"create_streak", name:name, confirmed:false };
     }
     if (lower.includes("note")) {
       const name = extractNameFromCommand(text, ["create","add","new","note"]);
@@ -193,6 +202,9 @@ function showAddReviewPanel(parsed, originalText) {
 function buildAddReviewHTML(parsed, originalText) {
   const action = parsed.action || "unknown";
 
+  if (action === "create_streak") {
+    summary = "New streak: <strong>" + escH(parsed.name || "?") + "</strong>";
+  }
   if (action === "create_task_box") {
     return `<p><strong>Create new task box:</strong></p>
 <p>"${escSafe(parsed.name || originalText)}"</p>
@@ -257,6 +269,7 @@ function handleAddConfirm() {
   const action = parsed.action;
 
   if (action === "create_task_box")       createCustomTaskBox(parsed);
+  else if (action === "create_streak")    createStreakFromAddPage(parsed);
   else if (action === "create_health_tracker") createHealthTracker(parsed);
   else if (action === "create_page")      createCustomPage(parsed);
   else if (action === "create_task")      createTaskFromAddPage(parsed);
@@ -279,6 +292,32 @@ function handleAddConfirm() {
 /* =========================================================
    CREATE ACTIONS
    ========================================================= */
+
+function createStreakFromAddPage(parsed) {
+  const name = (parsed.name || "").trim();
+  if (!name) { alert("No streak name found."); return; }
+
+  const existing = typeof loadStreaks === "function" ? loadStreaks() : [];
+  if (existing.find(s => s.name.toLowerCase() === name.toLowerCase())) {
+    alert("A streak called \"" + name + "\" already exists.");
+    return;
+  }
+
+  /* Build a simple ID from the name */
+  const id = "streak-" + name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g,"-");
+
+  const newStreak = {
+    id: id,
+    name: name,
+    count: 0,
+    weeklyCount: 0,
+    history: []
+  };
+
+  existing.push(newStreak);
+  if (typeof saveStreaks === "function") saveStreaks(existing);
+  alert("✅ \"" + name + "\" streak created! It will appear on the Streaks page.");
+}
 
 function createCustomTaskBox(parsed) {
   const boxes = loadCustomBoxes();
