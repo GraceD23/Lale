@@ -55,12 +55,32 @@ function saveConfirmedHealth(item) {
   if (!health[mk]) health[mk] = {};
   const cat = (item.data && item.data.category) || "general";
   if (!health[mk][cat]) health[mk][cat] = [];
-  health[mk][cat].push({
-    day: getConfirmTodayShort(),
+
+  const today = new Date();
+  const dayKey = today.getFullYear() + "-" +
+    String(today.getMonth()+1).padStart(2,"0") + "-" +
+    String(today.getDate()).padStart(2,"0");
+
+  const entry = {
+    day: dayKey,
     date: new Date().toISOString(),
-    severity: (item.data && item.data.severity) || null,
     note: item.name
-  });
+  };
+
+  /* Weight — store the actual value text */
+  if (cat === "weight" && item.data && item.data.value) {
+    entry.value = item.data.value;
+  }
+  /* Headaches / calendar — store severity */
+  if (item.data && item.data.severity) {
+    entry.severity = item.data.severity;
+  }
+  /* Energy — store level */
+  if (item.data && item.data.level) {
+    entry.level = item.data.level;
+  }
+
+  health[mk][cat].push(entry);
   if (typeof saveHealth === "function") saveHealth(health);
 }
 
