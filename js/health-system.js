@@ -185,9 +185,9 @@ function renderCalendarGrid(tracker, monthKey, section) {
       font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;
       ${isToday ? 'box-shadow:0 0 0 2px ' + (tracker.color || '#b0977a') + '44;' : ''}
     `;
-    /* Show count if multiple entries, checkmark if one, day number if empty */
-    circle.textContent = dayEntries.length > 1 ? String(dayEntries.length) : (isFilled ? "✓" : String(day));
-    circle.title = "Day " + day + (dayEntries.length > 0 ? " (" + dayEntries.length + " entr" + (dayEntries.length > 1 ? "ies" : "y") + ")" : "");
+    /* Always show checkmark when filled, day number when empty */
+    circle.textContent = isFilled ? "✓" : String(day);
+    circle.title = "Day " + day + (dayEntries.length > 1 ? " (" + dayEntries.length + " entries)" : "");
 
     circle.addEventListener("click", function () {
       openDayEntryForm(tracker, dateKey, day, section, isFilled, dayEntries);
