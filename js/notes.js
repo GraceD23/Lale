@@ -10,8 +10,35 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   if (document.getElementById("recent-notes-list")) {
     renderRecentNotes();
+    initQuickNoteSave();
   }
 });
+
+function initQuickNoteSave() {
+  const btn = document.getElementById("quick-note-save");
+  const input = document.getElementById("quick-note-input");
+  if (!btn || !input) return;
+  btn.addEventListener("click", function () {
+    const text = input.value.trim();
+    if (!text) return;
+    if (typeof saveNote === "function") {
+      saveNote(text);
+    } else {
+      /* Fallback: save directly to storage */
+      const notes = typeof loadNotes === "function" ? loadNotes() : {};
+      const now = new Date();
+      const key = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+      if (!notes[key]) notes[key] = [];
+      notes[key].unshift({ id: Date.now().toString(), text: text, date: now.toISOString() });
+      if (typeof saveNotes === "function") saveNotes(notes);
+    }
+    input.value = "";
+    renderRecentNotes();
+  });
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") btn.click();
+  });
+}
 
 /* =========================================================
    NOTES PAGE
