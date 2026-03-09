@@ -47,10 +47,6 @@
 
       <section class="dashboard-card">
         <h1 class="card-title">Notes</h1>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
-          <textarea id="new-note-input" placeholder="Write a note..." rows="3" style="width:100%;padding:8px;border-radius:10px;border:1px solid #c9b49a;font-size:14px;font-family:'Josefin Sans',sans-serif;resize:none;box-sizing:border-box;"></textarea>
-          <button type="button" id="new-note-save" class="primary-action-button" style="align-self:flex-end;">Save Note</button>
-        </div>
       </section>
 
       <!-- Month selector -->
@@ -59,16 +55,22 @@
           <span id="notes-month-label" class="dropdown-title">Month: Current Month</span>
           <span class="dropdown-arrow" aria-hidden="true">⌄</span>
         </button>
-        <div id="notes-month-dropdown" class="dropdown-content" hidden>
-          <!-- Month buttons injected by JS -->
-        </div>
+        <div id="notes-month-dropdown" class="dropdown-content" hidden></div>
       </section>
 
       <!-- Notes list -->
       <section class="dashboard-card" aria-labelledby="notes-list-title">
         <h2 id="notes-list-title" class="card-title">All Notes</h2>
         <div id="notes-list-container">
-          <p style="opacity:0.5;font-size:13px;">No notes yet. Add one from Brain Dump or the Add Page.</p>
+          <p style="opacity:0.5;font-size:13px;">No notes yet.</p>
+        </div>
+      </section>
+
+      <!-- Entry box at the bottom, grows downward -->
+      <section class="dashboard-card">
+        <textarea id="new-note-input" placeholder="Write a note..." rows="3" style="width:100%;padding:8px;border-radius:10px;border:1px solid #c9b49a;font-size:14px;font-family:'Josefin Sans',sans-serif;resize:none;box-sizing:border-box;"></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+          <button type="button" id="new-note-save" class="primary-action-button">Save Note</button>
         </div>
       </section>
 
