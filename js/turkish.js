@@ -103,8 +103,10 @@ ${extra ? "Extra: " + extra : ""}`;
     })
   });
 
-  if (!response.ok) throw new Error("API " + response.status);
+  if (!response.ok) throw new Error("Worker HTTP " + response.status);
   const data = await response.json();
+  if (data.error) throw new Error("API error: " + JSON.stringify(data.error));
+  if (!data.content || !data.content[0]) throw new Error("Unexpected response: " + JSON.stringify(data));
   const clean = data.content[0].text.trim().replace(/```json|```/g, "").trim();
   return JSON.parse(clean);
 }
