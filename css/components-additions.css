@@ -1,59 +1,40 @@
 /* =========================================================
    COMPONENTS-ADDITIONS.CSS
-   ---------------------------------------------------------
-   Defines missing CSS variables and adds extra component
-   styles. Loads LAST so it wins over everything else.
+   Extra styles that load last to override defaults.
    ========================================================= */
 
-/* =========================================================
-   CSS VARIABLES — defines everything components.css needs
-   ========================================================= */
-
-:root {
-  --text-main:      #3a2e28;
-  --border-soft:    #c9b49a;
-  --card-radius:    14px;
-  --card-shadow:    rgba(0,0,0,0.07);
-  --button-primary: #b0977a;
-  --bg-warm:        #F3EADF;
-}
-
-/* =========================================================
-   HAMBURGER LINES — brown
-   ========================================================= */
-
+/* HAMBURGER — brown lines */
 .hamburger-line {
-  background-color: #3a2e28 !important;
+  background-color: #3C2F26 !important;
 }
 
-/* =========================================================
-   MENU + REVIEW PANEL
-   ========================================================= */
-
+/* MENU DRAWER */
 .mobile-navigation-drawer {
-  background-color: #F3EADF !important;
+  background-color: #F7F1E8 !important;
   box-shadow: -6px 0 16px rgba(0,0,0,0.15) !important;
   overflow-y: auto;
   z-index: 1000;
 }
 
+.mobile-navigation-list a {
+  color: #3C2F26 !important;
+}
+
+/* REVIEW PANEL */
 .review-panel {
-  background-color: #F3EADF !important;
+  background-color: #F7F1E8 !important;
   z-index: 1000;
 }
 
 .review-panel-content {
-  background-color: #F8F2EA;
-  border: 1px solid #c9b49a;
+  background-color: #EFE4D9;
+  border: 1px solid #CBB7A3;
   border-radius: 16px;
   padding: 12px;
   margin-bottom: 14px;
 }
 
-/* =========================================================
-   TASK ROWS
-   ========================================================= */
-
+/* TASK ROWS */
 .task-row {
   display: flex;
   align-items: center;
@@ -69,7 +50,7 @@
   height: 26px;
   min-width: 26px;
   border-radius: 50%;
-  border: 1.5px solid #c9b49a;
+  border: 1.5px solid #CBB7A3;
   background-color: white;
   font-size: 13px;
   cursor: pointer;
@@ -87,24 +68,18 @@
   word-break: break-word;
 }
 
-/* =========================================================
-   CARD TITLES
-   ========================================================= */
-
+/* CARD TITLES */
 .card-title {
   font-family: "Josefin Sans", sans-serif;
   font-weight: 600;
   font-size: 16px;
-  color: #3a2e28;
+  color: #3C2F26;
   letter-spacing: 0.02em;
 }
 
-/* =========================================================
-   DROPDOWN BUTTON
-   ========================================================= */
-
+/* DROPDOWN BUTTON */
 .dropdown-toggle-button {
-  color: #3a2e28 !important;
+  color: #3C2F26 !important;
   font-family: "Josefin Sans", sans-serif;
   background: transparent;
   border: none;
@@ -119,19 +94,16 @@
 .dropdown-toggle-button .dropdown-title,
 .dropdown-toggle-button span,
 #streaks-dropdown-title {
-  color: #3a2e28 !important;
+  color: #3C2F26 !important;
   font-family: "Josefin Sans", sans-serif;
   font-weight: 600;
 }
 
-/* =========================================================
-   SECONDARY BUTTON
-   ========================================================= */
-
+/* SECONDARY BUTTON */
 .secondary-action-button {
   background: white !important;
-  border: 1.5px solid #b0977a !important;
-  color: #3a2e28 !important;
+  border: 1.5px solid #B88C6A !important;
+  color: #3C2F26 !important;
   font-family: "Josefin Sans", sans-serif !important;
   border-radius: 10px !important;
   padding: 10px 16px !important;
@@ -139,28 +111,17 @@
   cursor: pointer !important;
 }
 
-/* =========================================================
-   NAV LINKS
-   ========================================================= */
-
-.mobile-navigation-list a {
-  color: #3a2e28 !important;
-}
-
-/* =========================================================
-   MISC
-   ========================================================= */
-
-.brain-dump-card { border-top: 2px solid #c9b49a; margin-top: 4px; }
+/* MISC */
+.brain-dump-card { border-top: 2px solid #CBB7A3; margin-top: 4px; }
 .notes-preview-card { width: 100%; }
 .notes-preview-card .card-title { margin-bottom: 8px; }
 #recent-notes-list ul { list-style: disc; padding-left: 16px; margin: 0; }
 #recent-notes-list li { font-size: 13px; margin-bottom: 4px; line-height: 1.4; font-family: "Josefin Sans", sans-serif; }
-.notes-preview-link { display: block; text-align: right; font-size: 12px; color: #3a2e28; opacity: 0.6; margin-top: 6px; text-decoration: none; }
+.notes-preview-link { display: block; text-align: right; font-size: 12px; color: #3C2F26; opacity: 0.6; margin-top: 6px; text-decoration: none; }
 .review-item-row { margin-bottom: 10px; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.5); }
 .health-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
-.history-task-name, .history-task-count, .history-task-row { font-family: "Josefin Sans", sans-serif; color: #3a2e28; }
+.history-task-name, .history-task-count, .history-task-row { font-family: "Josefin Sans", sans-serif; color: #3C2F26; }
 #chat-messages { display: flex; flex-direction: column; gap: 8px; padding: 4px 0; }
 #quiz-result { font-size: 36px; text-align: center; min-height: 44px; line-height: 1; }
-.auth-passcode-circle { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #b0977a; background: transparent; display: inline-block; font-size: 0; transition: background 0.15s ease; }
-.auth-passcode-circle.filled { background: #b0977a; }
+.auth-passcode-circle { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #B88C6A; background: transparent; display: inline-block; font-size: 0; transition: background 0.15s ease; }
+.auth-passcode-circle.filled { background: #B88C6A; }
