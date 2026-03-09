@@ -114,14 +114,15 @@
            JavaScript will inject all real stored streak rows here.
            ===================================================== -->
       <section class="dashboard-card" aria-labelledby="full-streaks-title">
-        <h2 id="full-streaks-title" class="card-title">All Streaks</h2> <!-- Section title for streak list -->
-
-        <!-- Main streak list container
-             streaks.js will fill this area using real stored streak data -->
-        <div id="full-streaks-container">
-          <!-- Starts empty so JavaScript can build the real rows -->
-        </div>
+        <h2 id="full-streaks-title" class="card-title">All Streaks</h2>
+        <div id="full-streaks-container"></div>
       </section>
+
+      <!-- Edit Streaks button -->
+      <button type="button" id="streaks-edit-btn" class="secondary-action-button"
+        style="width:100%;margin-bottom:24px;">
+        Edit Streaks
+      </button>
 
       <!-- =====================================================
            FUTURE DETAIL PANEL
@@ -167,5 +168,6 @@
   <script src="js/review-panel.js"></script> <!-- Shared slide-up panel behavior -->
   <script src="js/storage.js"></script> <!-- Central saved-data system -->
   <script src="js/streaks.js"></script> <!-- Real stored streak rendering -->
+  <script src="js/streaks-edit.js"></script> <!-- Edit/delete streaks + missed day fill -->
 </body>
 </html>
