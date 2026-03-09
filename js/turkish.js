@@ -47,8 +47,7 @@ async function generateStory() {
 }
 
 async function callTurkishAPI(topic, tense, difficulty, extra) {
-  const apiKey = typeof ANTHROPIC_API_KEY !== "undefined" ? ANTHROPIC_API_KEY : "YOUR_API_KEY_HERE";
-  if (!apiKey || apiKey === "YOUR_API_KEY_HERE") throw new Error("No API key");
+  const WORKER_URL = "https://holy-wind-9442.doeppg.workers.dev";
 
   const difficultyMap = {
     beginner: "A1 beginner level — very simple sentences, common everyday words only, max 8-10 sentences",
@@ -91,13 +90,10 @@ Tense: ${tenseMap[tense] || tenseMap.present}
 Level: ${difficultyMap[difficulty] || difficultyMap.beginner}
 ${extra ? "Extra: " + extra : ""}`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch(WORKER_URL, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true"
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
       model: "claude-haiku-4-5-20251001",
