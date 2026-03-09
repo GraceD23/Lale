@@ -139,28 +139,41 @@ function unlockAppContent() {
 let currentPasscodeInput = "";
 
 function attachKeypadHandlers() {
-  const keypadButtons = document.querySelectorAll(".auth-keypad-button");
+  const overlay = document.getElementById("auth-lock-overlay");
+  if (!overlay) return;
 
-  keypadButtons.forEach(function (button) {
-    /* touchstart for instant full-bubble response on iPhone — no zoom, no delay */
+  /* Select by data attribute — buttons have no class in the new inline design */
+  const digitButtons = overlay.querySelectorAll("[data-auth-digit]");
+  const deleteButtons = overlay.querySelectorAll("[data-auth-delete]");
+
+  digitButtons.forEach(function (button) {
     button.addEventListener("touchstart", function (e) {
       e.preventDefault();
-      const digit = button.getAttribute("data-auth-digit");
-      const isDelete = button.getAttribute("data-auth-delete") === "true";
-      if (isDelete) { removeLastPasscodeDigit(); return; }
-      if (digit !== null) { appendPasscodeDigit(digit); }
-    });
+      appendPasscodeDigit(button.getAttribute("data-auth-digit"));
+    }, { passive: false });
 
-    /* click fallback for desktop */
     button.addEventListener("click", function (e) {
-      /* skip if already handled by touchstart */
       if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
-      const digit = button.getAttribute("data-auth-digit");
-      const isDelete = button.getAttribute("data-auth-delete") === "true";
-      if (isDelete) { removeLastPasscodeDigit(); return; }
-      if (digit !== null) { appendPasscodeDigit(digit); }
+      appendPasscodeDigit(button.getAttribute("data-auth-digit"));
     });
   });
+
+  deleteButtons.forEach(function (button) {
+    button.addEventListener("touchstart", function (e) {
+      e.preventDefault();
+      removeLastPasscodeDigit();
+    }, { passive: false });
+
+    button.addEventListener("click", function (e) {
+      if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
+      removeLastPasscodeDigit();
+    });
+  });
+
+  /* Prevent double-tap zoom on the whole overlay */
+  overlay.addEventListener("touchend", function (e) {
+    e.preventDefault();
+  }, { passive: false });
 }
 
 function attachKeyboardHandlers() {
