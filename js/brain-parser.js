@@ -22,6 +22,13 @@ async function parseBrainDump(text) {
 }
 
 async function parseWithClaudeAPI(text) {
+  /* Load existing streak names so AI can match them */
+  const existingStreaks = (typeof loadStreaks === "function" ? loadStreaks() : [])
+    .map(s => s.name).filter(Boolean);
+  const streakHint = existingStreaks.length > 0
+    ? `\n\nUSER'S EXISTING STREAKS (match these by name, even if phrased differently):\n${existingStreaks.map(n => "- " + n).join("\n")}\nIf the input clearly refers to one of these streaks (e.g. "no instagram" matches "No instagram"), classify it as type "streak" and use the exact streak name.`
+    : "";
+
   const systemPrompt = `You are a productivity assistant parsing user input for a personal dashboard app.
 
 Your job: split the input into individual items, categorize each one, and return structured JSON.
@@ -52,7 +59,7 @@ Input: "120.3lbs"
 Output: [{"type":"health","name":"120.3lbs","destination":null,"data":{"category":"weight","value":"120.3lbs"}}]
 
 Input: "bad headache, pick up milk, took vitamins"
-Output: [{"type":"health","name":"bad headache","destination":null,"data":{"category":"headaches","severity":null}},{"type":"task","name":"pick up milk","destination":"daily","data":{}},{"type":"streak","name":"took vitamins","destination":null,"data":{}}]
+Output: [{"type":"health","name":"bad headache","destination":null,"data":{"category":"headaches","severity":null}},{"type":"task","name":"pick up milk","destination":"daily","data":{}},{"type":"streak","name":"took vitamins","destination":null,"data":{}}]${streakHint}
 
 Return ONLY a valid JSON array. No explanation, no markdown, no extra text.`;
 
@@ -125,6 +132,17 @@ function splitByActionWords(text, actionWords) {
 
 function classifyChunk(text) {
   const lower = text.toLowerCase();
+
+  /* Check against user's existing streak names FIRST */
+  if (typeof loadStreaks === "function") {
+    const streaks = loadStreaks();
+    const matchedStreak = streaks.find(s =>
+      lower.includes(s.name.toLowerCase()) ||
+      s.name.toLowerCase().includes(lower)
+    );
+    if (matchedStreak) return { type:"streak", name:matchedStreak.name, destination:null, data:{} };
+  }
+
   if (lower.includes("headache") || lower.includes("migraine")) {
     const sev = text.match(/[1-5]/);
     return { type:"health", name:text, destination:null, data:{ category:"headaches", severity:sev?sev[0]:null } };
