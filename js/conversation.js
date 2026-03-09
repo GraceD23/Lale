@@ -65,7 +65,7 @@ async function sendToAI(userText) {
     addMessageBubble(reply, "ai");
     chatHistory.push({ role: "assistant", content: reply });
   } catch (err) {
-    addMessageBubble("⚠ Could not connect. Please try again.", "error");
+    addMessageBubble("⚠ Could not connect: " + err.message, "error");
   } finally {
     if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = "Send"; }
   }
@@ -98,8 +98,10 @@ Rules:
     })
   });
 
-  if (!response.ok) throw new Error("API " + response.status);
+  if (!response.ok) throw new Error("Worker HTTP " + response.status);
   const data = await response.json();
+  if (data.error) throw new Error("API error: " + JSON.stringify(data.error));
+  if (!data.content || !data.content[0]) throw new Error("Unexpected response: " + JSON.stringify(data));
   return data.content[0].text.trim();
 }
 
