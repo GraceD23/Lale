@@ -285,7 +285,7 @@ function buildWeightSection(tracker) {
   section.dataset.currentMonth = monthKey;
 
   section.innerHTML = `
-    <h2 class="card-title" style="color:${tracker.color || '#8fa98f'}">${escH(tracker.name)}</h2>
+    <h2 class="card-title" style="color:#3a2e28;">${escH(tracker.name)}</h2>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
       <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="-1">‹</button>
       <span class="health-month-label" data-tracker="${tracker.id}" style="font-size:13px;flex:1;text-align:center;">${formatMonthLabel(monthKey)}</span>
