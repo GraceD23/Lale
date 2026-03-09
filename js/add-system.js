@@ -1,621 +1,471 @@
 /* =========================================================
    ADD-SYSTEM.JS
    ---------------------------------------------------------
-   Final starter logic for the Add page.
+   Full Add Page controller with AI-powered command parsing.
 
-   What this file does:
-   - reads the typed Add command
-   - shows a review panel before saving
-   - creates tasks
-   - creates streaks
-   - creates health categories
-   - creates new pages/categories as starter records
-   - saves everything through storage.js
-   - keeps overlay/panel behavior clean
-
-   IMPORTANT:
-   This is still a rule-based command system.
-   Later, this can become more AI-driven.
-   ========================================================= */
-
-
-/* =========================================================
-   PAGE STARTUP
+   Features:
+   - Natural language command input
+   - AI parses intent and asks only relevant follow-up questions
+   - Create/edit/delete task boxes (like Daily Focus)
+   - Create/edit/delete health trackers
+   - Create/edit/delete pages
+   - All new boxes connect to Brain Dump automatically
    ========================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
-  initializeAddSystem(); /* Starts Add page behavior after HTML is ready */
+  initializeAddSystem();
 });
-
 
 /* =========================================================
    INITIALIZER
    ========================================================= */
 
 function initializeAddSystem() {
-  attachAddSubmitHandler(); /* Connects the Add page Submit button */
-  attachAddReviewButtons(); /* Connects Confirm / Edit / Cancel buttons in the Add review panel */
+  renderExistingItems();
+  attachAddCommandHandler();
 }
 
-
 /* =========================================================
-   SUBMIT BUTTON
+   COMMAND HANDLER
    ========================================================= */
 
-function attachAddSubmitHandler() {
-  const submitButton = document.getElementById("add-command-submit-button"); /* Main Add page submit button */
+function attachAddCommandHandler() {
+  const submitBtn = document.getElementById("add-command-submit-button");
+  if (!submitBtn) return;
 
-  if (!submitButton) {
-    return; /* Stops safely if button does not exist on this page */
+  submitBtn.addEventListener("click", handleAddCommand);
+}
+
+async function handleAddCommand() {
+  const input = document.getElementById("add-command-input");
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  const submitBtn = document.getElementById("add-command-submit-button");
+  if (submitBtn) { submitBtn.textContent = "Thinking..."; submitBtn.disabled = true; }
+
+  try {
+    const parsed = await parseAddCommand(text);
+    showAddReviewPanel(parsed, text);
+  } catch (err) {
+    console.error("Add command error:", err);
+    showAddReviewPanel({ action: "unknown", raw: text }, text);
+  } finally {
+    if (submitBtn) { submitBtn.textContent = "Submit"; submitBtn.disabled = false; }
+  }
+}
+
+/* =========================================================
+   AI COMMAND PARSER
+   ========================================================= */
+
+async function parseAddCommand(text) {
+  const apiKey = typeof ANTHROPIC_API_KEY !== "undefined" ? ANTHROPIC_API_KEY : "YOUR_API_KEY_HERE";
+
+  if (apiKey && apiKey !== "YOUR_API_KEY_HERE") {
+    try { return await parseAddCommandWithAI(text, apiKey); }
+    catch (e) { console.warn("AI parse failed:", e.message); }
   }
 
-  submitButton.addEventListener("click", function () {
-    handleAddCommandSubmit(); /* Runs Add page command flow */
+  return parseAddCommandWithRules(text);
+}
+
+async function parseAddCommandWithAI(text, apiKey) {
+  const systemPrompt = `You parse commands for a productivity dashboard's Add Page.
+
+Return ONLY valid JSON — no explanation, no markdown.
+
+SUPPORTED ACTIONS:
+- create_task_box: create a new checklist box (like Daily Focus). Needs: name
+- create_health_tracker: create a new health tracker. Needs: name, type (calendar|scale|weight|yesno)
+- create_page: create an entirely new page. Needs: name
+- create_task: add a single task directly. Needs: name, destination (daily|weekly)
+- create_note: add a note. Needs: text
+- delete_item: delete something. Needs: itemType, name
+- edit_item: rename something. Needs: itemType, oldName, newName
+- unknown: cannot determine intent
+
+Return format:
+{"action":"create_task_box","name":"To Buy","confirmed":false}
+{"action":"create_health_tracker","name":"Burn Out","type":"calendar","confirmed":false}
+{"action":"create_page","name":"Projects","confirmed":false}
+{"action":"create_task","name":"Wash car","destination":"weekly","confirmed":false}
+{"action":"unknown","raw":"${text}","confirmed":false}`;
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 256,
+      system: systemPrompt,
+      messages: [{ role: "user", content: text }]
+    })
   });
+
+  if (!response.ok) throw new Error("API " + response.status);
+  const d = await response.json();
+  const clean = d.content[0].text.trim().replace(/```json|```/g, "").trim();
+  return JSON.parse(clean);
 }
 
+function parseAddCommandWithRules(text) {
+  const lower = text.toLowerCase();
 
-/* =========================================================
-   HANDLE ADD COMMAND SUBMIT
-   ---------------------------------------------------------
-   Reads the typed command, parses it, and opens the review
-   panel with a readable summary.
-   ========================================================= */
-
-function handleAddCommandSubmit() {
-  const input = document.getElementById("add-command-input"); /* Typed command textarea */
-
-  if (!input) {
-    return; /* Stops safely if input is missing */
+  if (lower.includes("create") || lower.includes("add") || lower.includes("new")) {
+    if (lower.includes("page")) {
+      const name = extractNameFromCommand(text, ["create","add","new","page"]);
+      return { action:"create_page", name:name, confirmed:false };
+    }
+    if (lower.includes("health") || lower.includes("tracker") || lower.includes("symptom")) {
+      const name = extractNameFromCommand(text, ["create","add","new","health","tracker","symptom"]);
+      return { action:"create_health_tracker", name:name, type:"calendar", confirmed:false };
+    }
+    if (lower.includes("box") || lower.includes("list") || lower.includes("checklist")) {
+      const name = extractNameFromCommand(text, ["create","add","new","box","list","checklist"]);
+      return { action:"create_task_box", name:name, confirmed:false };
+    }
+    if (lower.includes("note")) {
+      const name = extractNameFromCommand(text, ["create","add","new","note"]);
+      return { action:"create_note", text:name, confirmed:false };
+    }
   }
 
-  const rawText = input.value; /* Exact typed command */
-  const cleanedText = rawText.trim(); /* Removes extra start/end spaces */
+  if (lower.includes("delete") || lower.includes("remove")) {
+    const name = extractNameFromCommand(text, ["delete","remove"]);
+    return { action:"delete_item", name:name, itemType:"unknown", confirmed:false };
+  }
 
-  if (cleanedText === "") {
-    openAddReviewPanel(
-      "<p><strong>Nothing to review yet.</strong></p><p>Please type a command before pressing Submit.</p>"
-    ); /* Friendly empty-state review */
+  if (lower.includes("rename") || lower.includes("edit") || lower.includes("change")) {
+    return { action:"edit_item", confirmed:false, raw:text };
+  }
+
+  /* Default: treat as task */
+  return { action:"create_task", name:text, destination:"weekly", confirmed:false };
+}
+
+function extractNameFromCommand(text, wordsToRemove) {
+  let result = text;
+  wordsToRemove.forEach(w => { result = result.replace(new RegExp("\\b" + w + "\\b", "gi"), ""); });
+  return result.replace(/\s+/g, " ").trim() || text.trim();
+}
+
+/* =========================================================
+   REVIEW PANEL
+   ========================================================= */
+
+function showAddReviewPanel(parsed, originalText) {
+  const panel = document.getElementById("add-review-panel");
+  const content = document.getElementById("add-review-content");
+  const overlay = document.getElementById("global-overlay");
+
+  if (!panel || !content) return;
+
+  window.currentAddReview = { parsed, originalText };
+  content.innerHTML = "";
+
+  const descEl = document.createElement("div");
+  descEl.innerHTML = buildAddReviewHTML(parsed, originalText);
+  content.appendChild(descEl);
+
+  /* Confirm */
+  const confirmBtn = document.getElementById("add-review-confirm-button");
+  if (confirmBtn) confirmBtn.onclick = function () { handleAddConfirm(); };
+
+  /* Cancel */
+  const cancelBtn = document.getElementById("add-review-cancel-button");
+  if (cancelBtn) cancelBtn.onclick = function () {
+    panel.setAttribute("hidden","");
+    if (overlay) overlay.setAttribute("hidden","");
+  };
+
+  panel.removeAttribute("hidden");
+  if (overlay) overlay.removeAttribute("hidden");
+}
+
+function buildAddReviewHTML(parsed, originalText) {
+  const action = parsed.action || "unknown";
+
+  if (action === "create_task_box") {
+    return `<p><strong>Create new task box:</strong></p>
+<p>"${escSafe(parsed.name || originalText)}"</p>
+<p>This will appear on the Home Page and connect to Brain Dump.</p>`;
+  }
+  if (action === "create_health_tracker") {
+    return `<p><strong>Create new health tracker:</strong></p>
+<p>"${escSafe(parsed.name || originalText)}"</p>
+<p>Type: ${escSafe(parsed.type || "calendar")} — will appear on the Health Page.</p>`;
+  }
+  if (action === "create_page") {
+    return `<p><strong>Create new page:</strong></p>
+<p>"${escSafe(parsed.name || originalText)}"</p>
+<p>A new page will be added to your navigation menu.</p>`;
+  }
+  if (action === "create_task") {
+    return `<p><strong>Add task:</strong></p>
+<p>"${escSafe(parsed.name || originalText)}"</p>
+<p>Destination: ${parsed.destination === "daily" ? "Daily Focus" : "Weekly Tasks"}</p>`;
+  }
+  if (action === "create_note") {
+    return `<p><strong>Save note:</strong></p><p>"${escSafe(parsed.text || originalText)}"</p>`;
+  }
+  if (action === "delete_item") {
+    return `<p><strong>Delete:</strong></p><p>"${escSafe(parsed.name || originalText)}"</p>`;
+  }
+  if (action === "edit_item") {
+    return `<p><strong>Edit/Rename item</strong></p><p>${escSafe(originalText)}</p>`;
+  }
+
+  return `<p>Could not recognize command.</p><p>${escSafe(originalText)}</p>
+<p>Try: "create task box To Buy" or "create health tracker Burn Out"</p>`;
+}
+
+/* =========================================================
+   CONFIRM HANDLER
+   ========================================================= */
+
+function handleAddConfirm() {
+  const review = window.currentAddReview;
+  if (!review) return;
+
+  const parsed = review.parsed;
+  const action = parsed.action;
+
+  if (action === "create_task_box")       createCustomTaskBox(parsed);
+  else if (action === "create_health_tracker") createHealthTracker(parsed);
+  else if (action === "create_page")      createCustomPage(parsed);
+  else if (action === "create_task")      createTaskFromAddPage(parsed);
+  else if (action === "create_note")      createNoteFromAddPage(parsed, review.originalText);
+  else if (action === "delete_item")      deleteItemByName(parsed);
+
+  /* Clear input + close panel */
+  const input = document.getElementById("add-command-input");
+  if (input) input.value = "";
+
+  const panel = document.getElementById("add-review-panel");
+  const overlay = document.getElementById("global-overlay");
+  if (panel) panel.setAttribute("hidden","");
+  if (overlay) overlay.setAttribute("hidden","");
+
+  window.currentAddReview = null;
+  renderExistingItems(); /* Refresh the displayed list */
+}
+
+/* =========================================================
+   CREATE ACTIONS
+   ========================================================= */
+
+function createCustomTaskBox(parsed) {
+  const boxes = loadCustomBoxes();
+  const name = (parsed.name || "").trim();
+  if (!name) return;
+
+  if (boxes.find(b => b.name.toLowerCase() === name.toLowerCase())) {
+    alert("A box called \"" + name + "\" already exists.");
     return;
   }
 
-  const parsed = parseAddCommand(cleanedText); /* Parses the typed command into a structured result */
+  boxes.push({
+    id: makeAddId(name),
+    name: name,
+    createdAt: new Date().toISOString()
+  });
 
-  window.currentAddReview = {
-    originalText: cleanedText, /* Stores original command text */
-    parsed: parsed /* Stores parsed Add command result */
-  }; /* Saves current Add review data for Confirm button use */
-
-  openAddReviewPanel(buildAddReviewHtml(parsed, cleanedText)); /* Opens the Add review panel with a summary */
+  saveCustomBoxes(boxes);
+  alert("✅ \"" + name + "\" task box created! It will appear on the Home Page.");
 }
 
+function createHealthTracker(parsed) {
+  const trackers = loadHealthTrackers();
+  const name = (parsed.name || "").trim();
+  if (!name) return;
 
-/* =========================================================
-   PARSE ADD COMMAND
-   ---------------------------------------------------------
-   Rule-based parser for the Add page.
-
-   Supported starter commands:
-   - create task wash car every Tuesday streak yes
-   - create streak vitamins
-   - create health category migraines
-   - create new page Projects
-   - create category Cleaning on Home
-   ========================================================= */
-
-function parseAddCommand(commandText) {
-  const lower = commandText.toLowerCase(); /* Lowercase copy for easier keyword checks */
-
-  const result = {
-    action: "unknown", /* Default action if parser cannot understand the command */
-    data: {}
-  };
-
-  /* -------------------------
-     CREATE TASK
-     ------------------------- */
-  if (lower.startsWith("create task ")) {
-    const taskName = commandText.replace(/^create task /i, "").trim(); /* Removes the command prefix and keeps the remaining task text */
-
-    result.action = "create-task";
-    result.data = {
-      name: cleanTaskName(taskName), /* Task name with schedule/streak phrases stripped if detected */
-      schedule: parseTaskSchedule(commandText), /* Recurring schedule if present */
-      day: parseTaskDay(commandText), /* Day like Tuesday if included */
-      streak: parseYesNoFlag(commandText, "streak") /* Detects "streak yes" */
-    };
-
-    return result;
+  if (trackers.find(t => t.name.toLowerCase() === name.toLowerCase())) {
+    alert("A tracker called \"" + name + "\" already exists.");
+    return;
   }
 
-  /* -------------------------
-     CREATE STREAK
-     ------------------------- */
-  if (lower.startsWith("create streak ")) {
-    const streakName = commandText.replace(/^create streak /i, "").trim(); /* Keeps streak name text */
+  trackers.push({
+    id: makeAddId(name),
+    name: name,
+    type: parsed.type || "calendar",
+    color: "#b0977a",
+    icon: "◉",
+    createdAt: new Date().toISOString()
+  });
 
-    result.action = "create-streak";
-    result.data = {
-      name: streakName
-    };
-
-    return result;
-  }
-
-  /* -------------------------
-     CREATE HEALTH CATEGORY
-     ------------------------- */
-  if (lower.startsWith("create health category ")) {
-    const categoryName = commandText.replace(/^create health category /i, "").trim(); /* Health category name */
-
-    result.action = "create-health-category";
-    result.data = {
-      name: categoryName,
-      trackerType: inferHealthTrackerType(categoryName) /* Starter guess: symptom vs measurement */
-    };
-
-    return result;
-  }
-
-  /* -------------------------
-     CREATE NEW PAGE
-     ------------------------- */
-  if (lower.startsWith("create new page ")) {
-    const pageName = commandText.replace(/^create new page /i, "").trim(); /* New page name */
-
-    result.action = "create-page";
-    result.data = {
-      name: pageName
-    };
-
-    return result;
-  }
-
-  /* -------------------------
-     CREATE GENERIC CATEGORY
-     Example:
-     create category Cleaning on Home
-     ------------------------- */
-  if (lower.startsWith("create category ")) {
-    const remainder = commandText.replace(/^create category /i, "").trim(); /* Everything after "create category " */
-    const splitMatch = remainder.match(/^(.*?)\s+on\s+(.*)$/i); /* Attempts to split category name and page location */
-
-    result.action = "create-category";
-    result.data = {
-      name: splitMatch ? splitMatch[1].trim() : remainder, /* Category name before "on" if present */
-      page: splitMatch ? splitMatch[2].trim() : "Unassigned" /* Page name after "on", otherwise unassigned */
-    };
-
-    return result;
-  }
-
-  return result; /* Returns unknown if no rule matched */
+  saveHealthTrackers(trackers);
+  alert("✅ \"" + name + "\" health tracker created! It will appear on the Health Page.");
 }
 
+function createCustomPage(parsed) {
+  const pages = loadCustomPages();
+  const name = (parsed.name || "").trim();
+  if (!name) return;
 
-/* =========================================================
-   BUILD REVIEW HTML
-   ---------------------------------------------------------
-   Creates the review panel summary for the parsed Add command.
-   ========================================================= */
-
-function buildAddReviewHtml(parsed, originalText) {
-  let html = ""; /* Final review HTML */
-
-  html += "<p><strong>Review your Add command:</strong></p>";
-  html += "<p><strong>Typed text:</strong><br>" + escapeAddHtml(originalText) + "</p>";
-
-  if (parsed.action === "create-task") {
-    html += "<p><strong>Detected action:</strong><br>Create Task</p>";
-    html += "<p><strong>Task name:</strong><br>" + escapeAddHtml(parsed.data.name || "") + "</p>";
-    html += "<p><strong>Schedule:</strong><br>" + escapeAddHtml(parsed.data.schedule || "weekly") + "</p>";
-
-    if (parsed.data.day) {
-      html += "<p><strong>Day:</strong><br>" + escapeAddHtml(parsed.data.day) + "</p>";
-    }
-
-    html += "<p><strong>Counts as streak:</strong><br>" + (parsed.data.streak ? "Yes" : "No") + "</p>";
+  if (pages.find(p => p.name.toLowerCase() === name.toLowerCase())) {
+    alert("A page called \"" + name + "\" already exists.");
+    return;
   }
 
-  else if (parsed.action === "create-streak") {
-    html += "<p><strong>Detected action:</strong><br>Create Streak</p>";
-    html += "<p><strong>Streak name:</strong><br>" + escapeAddHtml(parsed.data.name || "") + "</p>";
-  }
+  pages.push({
+    id: makeAddId(name),
+    name: name,
+    slug: name.toLowerCase().replace(/[^a-z0-9]+/g,"-"),
+    createdAt: new Date().toISOString()
+  });
 
-  else if (parsed.action === "create-health-category") {
-    html += "<p><strong>Detected action:</strong><br>Create Health Category</p>";
-    html += "<p><strong>Name:</strong><br>" + escapeAddHtml(parsed.data.name || "") + "</p>";
-    html += "<p><strong>Tracker type:</strong><br>" + escapeAddHtml(parsed.data.trackerType || "symptom") + "</p>";
-  }
-
-  else if (parsed.action === "create-page") {
-    html += "<p><strong>Detected action:</strong><br>Create New Page</p>";
-    html += "<p><strong>Page name:</strong><br>" + escapeAddHtml(parsed.data.name || "") + "</p>";
-  }
-
-  else if (parsed.action === "create-category") {
-    html += "<p><strong>Detected action:</strong><br>Create Category</p>";
-    html += "<p><strong>Category name:</strong><br>" + escapeAddHtml(parsed.data.name || "") + "</p>";
-    html += "<p><strong>Page:</strong><br>" + escapeAddHtml(parsed.data.page || "Unassigned") + "</p>";
-  }
-
-  else {
-    html += "<p><strong>Detected action:</strong><br>Needs more detail</p>";
-    html += "<p>This command is not recognized yet. Try commands like:</p>";
-    html += "<ul>";
-    html += "<li>create task wash car every Tuesday streak yes</li>";
-    html += "<li>create streak vitamins</li>";
-    html += "<li>create health category migraines</li>";
-    html += "<li>create new page Projects</li>";
-    html += "</ul>";
-  }
-
-  return html;
+  saveCustomPages(pages);
+  alert("✅ \"" + name + "\" page created! It will appear in your navigation menu.");
 }
 
-
-/* =========================================================
-   OPEN REVIEW PANEL
-   ========================================================= */
-
-function openAddReviewPanel(html) {
-  const panel = document.getElementById("add-review-panel"); /* Add review panel */
-  const content = document.getElementById("add-review-content"); /* Review content area */
-  const overlay = document.getElementById("global-overlay"); /* Global dim overlay */
-
-  if (!panel || !content) {
-    return; /* Stops safely if panel/content is missing */
-  }
-
-  content.innerHTML = html; /* Inserts review HTML */
-  panel.removeAttribute("hidden"); /* Shows review panel */
-
-  if (overlay) {
-    overlay.removeAttribute("hidden"); /* Shows dim overlay */
-  }
-}
-
-
-/* =========================================================
-   CLOSE REVIEW PANEL
-   ========================================================= */
-
-function closeAddReviewPanel() {
-  const panel = document.getElementById("add-review-panel"); /* Add review panel */
-  const overlay = document.getElementById("global-overlay"); /* Global dim overlay */
-
-  if (panel) {
-    panel.setAttribute("hidden", ""); /* Hides review panel */
-  }
-
-  if (overlay) {
-    overlay.setAttribute("hidden", ""); /* Hides overlay */
-  }
-}
-
-
-/* =========================================================
-   REVIEW BUTTONS
-   ========================================================= */
-
-function attachAddReviewButtons() {
-  const confirmButton = document.getElementById("add-review-confirm-button"); /* Confirm button */
-  const editButton = document.getElementById("add-review-edit-button"); /* Edit button */
-  const cancelButton = document.getElementById("add-review-cancel-button"); /* Cancel button */
-
-  if (confirmButton) {
-    confirmButton.addEventListener("click", function () {
-      handleAddReviewConfirm(); /* Saves the parsed Add command */
-    });
-  }
-
-  if (editButton) {
-    editButton.addEventListener("click", function () {
-      handleAddReviewEdit(); /* Leaves panel open for further editing */
-    });
-  }
-
-  if (cancelButton) {
-    cancelButton.addEventListener("click", function () {
-      handleAddReviewCancel(); /* Closes panel without saving */
-    });
-  }
-}
-
-
-/* =========================================================
-   CONFIRM BUTTON
-   ---------------------------------------------------------
-   Saves the parsed Add command into storage.
-   ========================================================= */
-
-function handleAddReviewConfirm() {
-  const currentReview = window.currentAddReview; /* Temporary Add review data */
-
-  if (!currentReview || !currentReview.parsed) {
-    return; /* Stops if there is no parsed Add command to save */
-  }
-
-  const parsed = currentReview.parsed; /* Parsed command object */
-
-  if (parsed.action === "create-task") {
-    saveAddTask(parsed.data); /* Saves a new task */
-  }
-
-  else if (parsed.action === "create-streak") {
-    saveAddStreak(parsed.data); /* Saves a new streak */
-  }
-
-  else if (parsed.action === "create-health-category") {
-    saveAddHealthCategory(parsed.data); /* Saves a health category definition */
-  }
-
-  else if (parsed.action === "create-page") {
-    saveAddPage(parsed.data); /* Saves a page definition */
-  }
-
-  else if (parsed.action === "create-category") {
-    saveAddCategory(parsed.data); /* Saves a category definition */
-  }
-
-  clearAddCommandInput(); /* Clears the typed command box */
-  clearAddReviewMemory(); /* Clears temporary review data */
-  closeAddReviewPanel(); /* Hides panel + overlay */
-}
-
-
-/* =========================================================
-   EDIT BUTTON
-   ========================================================= */
-
-function handleAddReviewEdit() {
-  console.log("Add review edit clicked."); /* Starter debug note */
-}
-
-
-/* =========================================================
-   CANCEL BUTTON
-   ========================================================= */
-
-function handleAddReviewCancel() {
-  closeAddReviewPanel(); /* Hides the panel but keeps current typed text */
-}
-
-
-/* =========================================================
-   SAVE TASK
-   ========================================================= */
-
-function saveAddTask(taskData) {
-  const tasks = typeof loadTasks === "function" ? loadTasks() : []; /* Current task list */
+function createTaskFromAddPage(parsed) {
+  const tasks = loadTasks();
+  const name = (parsed.name || "").trim();
+  if (!name) return;
 
   tasks.push({
-    id: buildAddUniqueId(taskData.name || "task"), /* Unique task ID */
-    name: taskData.name || "Untitled Task", /* Visible task name */
-    schedule: taskData.schedule || "weekly", /* Schedule string */
-    day: taskData.day || null, /* Optional weekday */
-    completed: false, /* New tasks begin incomplete */
-    streak: Boolean(taskData.streak) /* Whether this task should count as a streak */
+    id: makeAddId(name),
+    name: name,
+    schedule: parsed.destination === "daily" ? "daily" : "weekly",
+    day: parsed.destination === "daily" ? new Date().toLocaleString("default",{weekday:"short"}) : null,
+    completed: false,
+    streak: false,
+    createdAt: new Date().toISOString()
   });
 
-  if (typeof saveTasks === "function") {
-    saveTasks(tasks); /* Saves updated task array */
-  }
+  saveTasks(tasks);
+  if (typeof renderDailyTasks === "function") renderDailyTasks();
+  if (typeof renderWeeklyTasks === "function") renderWeeklyTasks();
 }
 
+function createNoteFromAddPage(parsed, originalText) {
+  const notes = loadNotes();
+  const monthKey = getAddMonthKey();
+  if (!notes[monthKey]) notes[monthKey] = [];
+  notes[monthKey].push({ text: parsed.text || originalText, date: new Date().toISOString() });
+  saveNotes(notes);
+  if (typeof renderRecentNotes === "function") renderRecentNotes();
+}
+
+function deleteItemByName(parsed) {
+  const name = (parsed.name || "").trim().toLowerCase();
+  if (!name) return;
+
+  /* Try boxes */
+  const boxes = loadCustomBoxes();
+  const newBoxes = boxes.filter(b => b.name.toLowerCase() !== name);
+  if (newBoxes.length !== boxes.length) { saveCustomBoxes(newBoxes); alert("Deleted."); return; }
+
+  /* Try health trackers */
+  const trackers = loadHealthTrackers();
+  const newTrackers = trackers.filter(t => t.name.toLowerCase() !== name);
+  if (newTrackers.length !== trackers.length) { saveHealthTrackers(newTrackers); alert("Deleted."); return; }
+
+  /* Try pages */
+  const pages = loadCustomPages();
+  const newPages = pages.filter(p => p.name.toLowerCase() !== name);
+  if (newPages.length !== pages.length) { saveCustomPages(newPages); alert("Deleted."); return; }
+
+  alert("Could not find \"" + parsed.name + "\" to delete.");
+}
 
 /* =========================================================
-   SAVE STREAK
+   RENDER EXISTING ITEMS
+   Shows current custom boxes, trackers, pages so user can see what exists
    ========================================================= */
 
-function saveAddStreak(streakData) {
-  const streaks = typeof loadStreaks === "function" ? loadStreaks() : []; /* Current streak list */
+function renderExistingItems() {
+  const container = document.getElementById("existing-items-container");
+  if (!container) return;
 
-  const alreadyExists = streaks.some(function (streak) {
-    return streak.name === streakData.name; /* Checks for duplicate streak name */
-  });
+  container.innerHTML = "";
 
-  if (alreadyExists) {
-    return; /* Stops if streak already exists */
+  /* Custom task boxes */
+  const boxes = loadCustomBoxes();
+  if (boxes.length > 0) {
+    const h = document.createElement("h3");
+    h.className = "card-title";
+    h.textContent = "Custom Task Boxes";
+    container.appendChild(h);
+    boxes.forEach(box => container.appendChild(buildItemRow(box, "box")));
   }
 
-  streaks.push({
-    id: buildAddUniqueId(streakData.name || "streak"), /* Unique streak ID */
-    name: streakData.name || "Untitled Streak", /* Visible streak name */
-    count: 0, /* Running total count */
-    weeklyCount: 0, /* Weekly count for homepage view */
-    history: [] /* Running streak history for future use */
-  });
+  /* Health trackers (custom only — not defaults) */
+  const trackers = loadHealthTrackers().filter(t => t.createdAt); /* Custom ones have createdAt */
+  if (trackers.length > 0) {
+    const h = document.createElement("h3");
+    h.className = "card-title";
+    h.style.marginTop = "12px";
+    h.textContent = "Custom Health Trackers";
+    container.appendChild(h);
+    trackers.forEach(tracker => container.appendChild(buildItemRow(tracker, "tracker")));
+  }
 
-  if (typeof saveStreaks === "function") {
-    saveStreaks(streaks); /* Saves updated streak list */
+  /* Custom pages */
+  const pages = loadCustomPages();
+  if (pages.length > 0) {
+    const h = document.createElement("h3");
+    h.className = "card-title";
+    h.style.marginTop = "12px";
+    h.textContent = "Custom Pages";
+    container.appendChild(h);
+    pages.forEach(page => container.appendChild(buildItemRow(page, "page")));
+  }
+
+  if (boxes.length === 0 && trackers.length === 0 && pages.length === 0) {
+    container.innerHTML = "<p style='opacity:0.6;font-size:13px;'>Nothing custom created yet. Use the command box above!</p>";
   }
 }
 
+function buildItemRow(item, type) {
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.08);";
+
+  const name = document.createElement("span");
+  name.style.fontSize = "14px";
+  name.textContent = item.name;
+  row.appendChild(name);
+
+  const deleteBtn = document.createElement("button");
+  deleteBtn.type = "button";
+  deleteBtn.className = "secondary-action-button";
+  deleteBtn.textContent = "Delete";
+  deleteBtn.style.fontSize = "12px";
+  deleteBtn.style.padding = "3px 8px";
+  deleteBtn.addEventListener("click", function () {
+    if (confirm("Delete \"" + item.name + "\"?")) {
+      deleteItemByName({ name: item.name });
+      renderExistingItems();
+    }
+  });
+
+  row.appendChild(deleteBtn);
+  return row;
+}
 
 /* =========================================================
-   SAVE HEALTH CATEGORY
-   ---------------------------------------------------------
-   Stores health category definitions inside health storage
-   under a helper bucket called __categories.
+   HELPERS
    ========================================================= */
 
-function saveAddHealthCategory(categoryData) {
-  const health = typeof loadHealth === "function" ? loadHealth() : {}; /* Current health storage */
-
-  if (!health.__categories) {
-    health.__categories = []; /* Creates health category definition array */
-  }
-
-  const alreadyExists = health.__categories.some(function (category) {
-    return category.name === categoryData.name; /* Prevents duplicate category names */
-  });
-
-  if (alreadyExists) {
-    return; /* Stops if the health category already exists */
-  }
-
-  health.__categories.push({
-    id: buildAddUniqueId(categoryData.name || "health-category"), /* Unique category ID */
-    name: categoryData.name || "Untitled Health Category", /* Visible category name */
-    trackerType: categoryData.trackerType || "symptom" /* symptom or measurement */
-  });
-
-  if (typeof saveHealth === "function") {
-    saveHealth(health); /* Saves updated health storage */
-  }
+function makeAddId(text) {
+  return String(text).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") + "-" + Date.now();
 }
 
-
-/* =========================================================
-   SAVE PAGE DEFINITION
-   ---------------------------------------------------------
-   Stores custom page definitions inside history storage
-   helper bucket __pages for now.
-   ========================================================= */
-
-function saveAddPage(pageData) {
-  const history = typeof loadHistory === "function" ? loadHistory() : {}; /* Reuses history storage for starter page definitions */
-
-  if (!history.__pages) {
-    history.__pages = []; /* Creates page-definition bucket */
-  }
-
-  const alreadyExists = history.__pages.some(function (page) {
-    return page.name === pageData.name; /* Prevents duplicate page names */
-  });
-
-  if (alreadyExists) {
-    return; /* Stops if page already exists */
-  }
-
-  history.__pages.push({
-    id: buildAddUniqueId(pageData.name || "page"), /* Unique page ID */
-    name: pageData.name || "Untitled Page" /* Visible page name */
-  });
-
-  if (typeof saveHistory === "function") {
-    saveHistory(history); /* Saves updated history helper data */
-  }
+function getAddMonthKey() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
 }
 
-
-/* =========================================================
-   SAVE CATEGORY DEFINITION
-   ---------------------------------------------------------
-   Stores custom categories in history storage helper bucket
-   __categories for now.
-   ========================================================= */
-
-function saveAddCategory(categoryData) {
-  const history = typeof loadHistory === "function" ? loadHistory() : {}; /* Reuses history storage for starter category definitions */
-
-  if (!history.__categories) {
-    history.__categories = []; /* Creates category-definition bucket */
-  }
-
-  history.__categories.push({
-    id: buildAddUniqueId(categoryData.name || "category"), /* Unique category ID */
-    name: categoryData.name || "Untitled Category", /* Visible category name */
-    page: categoryData.page || "Unassigned" /* Page where the category should be featured */
-  });
-
-  if (typeof saveHistory === "function") {
-    saveHistory(history); /* Saves updated helper category data */
-  }
-}
-
-
-/* =========================================================
-   HELPERS: PARSE TASK DETAILS
-   ========================================================= */
-
-function cleanTaskName(taskNameText) {
-  return String(taskNameText)
-    .replace(/\bevery\s+[a-z]+\b/gi, "") /* Removes recurring day phrase like "every Tuesday" */
-    .replace(/\bstreak\s+(yes|no)\b/gi, "") /* Removes streak yes/no phrase */
-    .trim(); /* Final cleaned task name */
-}
-
-function parseTaskSchedule(commandText) {
-  const lower = commandText.toLowerCase(); /* Lowercase command text */
-
-  if (lower.includes(" every ")) {
-    return "recurring"; /* Starter recurring label if command includes "every" */
-  }
-
-  return "weekly"; /* Default schedule if no recurring phrase exists */
-}
-
-function parseTaskDay(commandText) {
-  const dayMatch = commandText.match(/\bevery\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i); /* Detects recurring weekday */
-
-  if (!dayMatch) {
-    return null; /* No day found */
-  }
-
-  return capitalizeFirstLetter(dayMatch[1]); /* Returns weekday with capital first letter */
-}
-
-function parseYesNoFlag(commandText, flagName) {
-  const regex = new RegExp("\\b" + flagName + "\\s+(yes|no)\\b", "i"); /* Detects phrases like "streak yes" */
-  const match = commandText.match(regex);
-
-  if (!match) {
-    return false; /* Defaults to false if no yes/no flag is found */
-  }
-
-  return match[1].toLowerCase() === "yes"; /* Returns true only for yes */
-}
-
-function inferHealthTrackerType(categoryName) {
-  const lower = String(categoryName).toLowerCase(); /* Lowercase category name */
-
-  if (lower.includes("weight")) {
-    return "measurement"; /* Weight-like terms default to measurement tracker */
-  }
-
-  return "symptom"; /* Everything else defaults to symptom for now */
-}
-
-
-/* =========================================================
-   HELPERS: UI STATE
-   ========================================================= */
-
-function clearAddCommandInput() {
-  const input = document.getElementById("add-command-input"); /* Typed Add command textarea */
-
-  if (!input) {
-    return; /* Stops if input does not exist */
-  }
-
-  input.value = ""; /* Clears typed command */
-}
-
-function clearAddReviewMemory() {
-  window.currentAddReview = null; /* Removes temporary Add review memory */
-}
-
-
-/* =========================================================
-   HELPERS: GENERAL
-   ========================================================= */
-
-function buildAddUniqueId(text) {
-  return String(text)
-    .toLowerCase() /* Lowercase ID */
-    .replace(/[^a-z0-9]+/g, "-") /* Replaces spaces/symbols with dashes */
-    .replace(/^-+|-+$/g, "") + "-" + Date.now(); /* Trims edge dashes and adds timestamp */
-}
-
-function capitalizeFirstLetter(value) {
-  const text = String(value || ""); /* Safe text conversion */
-  return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase(); /* Capitalizes first letter */
-}
-
-function escapeAddHtml(value) {
-  const div = document.createElement("div"); /* Safe temp element */
-  div.textContent = value; /* Stores as plain text */
-  return div.innerHTML; /* Returns escaped HTML-safe string */
+function escSafe(text) {
+  const d = document.createElement("div");
+  d.textContent = String(text || "");
+  return d.innerHTML;
 }
