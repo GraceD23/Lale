@@ -15,16 +15,6 @@ const SESSION_UNLOCK_EXPIRES_KEY = "productivitySiteUnlockExpires";
 function initializeAuthLockScreen() {
   const appShell = document.getElementById("app-shell");
 
-  const rememberSession = window.getConfig && window.getConfig("rememberSession");
-  const unlockFlag = localStorage.getItem(SESSION_UNLOCK_KEY) === "true";
-  const unlockExpires = Number(localStorage.getItem(SESSION_UNLOCK_EXPIRES_KEY) || "0");
-  const sessionStillValid = unlockFlag && Date.now() < unlockExpires;
-
-  if (rememberSession && sessionStillValid) {
-    unlockAppContent();
-    return;
-  }
-
   if (!appShell) { return; }
 
   createLockScreenOverlay();
@@ -43,6 +33,23 @@ function createLockScreenOverlay() {
   overlay.id = "auth-lock-overlay";
   overlay.className = "auth-lock-overlay";
   overlay.setAttribute("aria-label", "Passcode lock screen");
+
+  /* Inline styles guarantee full-screen coverage even if CSS loads late or has specificity issues */
+  overlay.style.cssText = `
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100vh !important;
+    background-color: #F7F1E8 !important;
+    z-index: 9999 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+    touch-action: none !important;
+  `;
 
   overlay.innerHTML = `
     <div class="auth-lock-card">
@@ -71,8 +78,7 @@ function createLockScreenOverlay() {
 
 function lockAppContent(appShell) {
   appShell.setAttribute("aria-hidden", "true");
-  appShell.style.pointerEvents = "none";
-  appShell.style.userSelect = "none";
+  appShell.style.visibility = "hidden"; /* hides content visually — overlay handles blocking interaction */
 }
 
 function unlockAppContent() {
@@ -81,8 +87,7 @@ function unlockAppContent() {
 
   if (appShell) {
     appShell.removeAttribute("aria-hidden");
-    appShell.style.pointerEvents = "";
-    appShell.style.userSelect = "";
+    appShell.style.visibility = "";
   }
 
   if (overlay) { overlay.remove(); }
@@ -155,11 +160,6 @@ function updatePasscodeCircles() {
 
 function validatePasscode() {
   if (currentPasscodeInput === DEMO_PASSCODE) {
-    const rememberSession = window.getConfig && window.getConfig("rememberSession");
-    if (rememberSession) {
-      localStorage.setItem(SESSION_UNLOCK_KEY, "true");
-      localStorage.setItem(SESSION_UNLOCK_EXPIRES_KEY, String(Date.now() + (60 * 60 * 1000)));
-    }
     unlockAppContent();
     return;
   }
@@ -185,6 +185,5 @@ function resetPasscodeInput() {
 }
 
 function getPasscodeLength() {
-  if (window.getConfig) { return window.getConfig("passcodeLength") || 4; }
-  return 4;
+  return 4; /* 2604 is a 4-digit passcode */
 }
