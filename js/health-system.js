@@ -28,16 +28,17 @@ function buildHealthPage() {
   const main = document.querySelector(".home-page-main-content");
   if (!main) return;
 
-  /* Remove old hardcoded health sections */
+  /* Remove old hardcoded health sections and old edit button */
   const oldSections = main.querySelectorAll(".health-category-card");
   oldSections.forEach(s => s.remove());
+  const oldEditBtn = document.getElementById("health-edit-trackers-btn");
+  if (oldEditBtn) oldEditBtn.remove();
 
   const trackers = loadHealthTrackers();
 
   trackers.forEach(function (tracker) {
     const section = buildTrackerSection(tracker);
     if (section) {
-      /* Insert before the detail panel */
       const detailPanel = document.getElementById("health-detail-panel");
       if (detailPanel) {
         main.insertBefore(section, detailPanel);
@@ -46,6 +47,16 @@ function buildHealthPage() {
       }
     }
   });
+
+  /* Edit Trackers button at the very bottom */
+  const editBtn = document.createElement("button");
+  editBtn.id = "health-edit-trackers-btn";
+  editBtn.type = "button";
+  editBtn.className = "secondary-action-button";
+  editBtn.textContent = "Edit Trackers";
+  editBtn.style.cssText = "width:100%;margin-top:8px;margin-bottom:24px;";
+  editBtn.addEventListener("click", openTrackerEditPanel);
+  main.appendChild(editBtn);
 }
 
 /* =========================================================
@@ -161,7 +172,8 @@ function renderCalendarGrid(tracker, monthKey, section) {
   for (let day = 1; day <= daysInMonth; day++) {
     const dayStr = String(day).padStart(2, "0");
     const dateKey = monthKey + "-" + dayStr;
-    const isFilled = filledDays.has(dateKey);
+    const dayEntries = monthData.filter(e => e.day === dateKey);
+    const isFilled = dayEntries.length > 0;
     const isToday = dateKey === getTodayKey();
 
     const circle = document.createElement("button");
@@ -173,11 +185,12 @@ function renderCalendarGrid(tracker, monthKey, section) {
       font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;
       ${isToday ? 'box-shadow:0 0 0 2px ' + (tracker.color || '#b0977a') + '44;' : ''}
     `;
-    circle.textContent = isFilled ? "✓" : String(day);
-    circle.title = "Day " + day;
+    /* Show count if multiple entries, checkmark if one, day number if empty */
+    circle.textContent = dayEntries.length > 1 ? String(dayEntries.length) : (isFilled ? "✓" : String(day));
+    circle.title = "Day " + day + (dayEntries.length > 0 ? " (" + dayEntries.length + " entr" + (dayEntries.length > 1 ? "ies" : "y") + ")" : "");
 
     circle.addEventListener("click", function () {
-      openDayEntryForm(tracker, dateKey, day, section, isFilled, monthData.filter(e => e.day === dateKey));
+      openDayEntryForm(tracker, dateKey, day, section, isFilled, dayEntries);
     });
 
     grid.appendChild(circle);
@@ -191,23 +204,33 @@ function openDayEntryForm(tracker, dateKey, day, section, isFilled, existingEntr
 
   section.dataset.selectedDay = dateKey;
 
-  const entry = (isFilled && existingEntries.length > 0) ? existingEntries[0] : null;
-  titleEl.textContent = entry ? "Edit entry — Day " + day : "Add entry for Day " + day;
+  /* Show existing entries with timestamps if any */
+  let existingHtml = "";
+  if (existingEntries.length > 0) {
+    existingHtml = existingEntries.map(e => {
+      const t = new Date(e.date);
+      const timeStr = t.toLocaleTimeString("default", { hour:"2-digit", minute:"2-digit" });
+      return `<p style="font-size:12px;margin:2px 0;opacity:0.7;">${timeStr}${e.severity ? " — severity " + e.severity : ""}${e.note ? " — " + e.note : ""}</p>`;
+    }).join("");
+  }
+
+  titleEl.innerHTML = existingEntries.length > 0
+    ? "Day " + day + " (" + existingEntries.length + " entr" + (existingEntries.length > 1 ? "ies" : "y") + ")<br><small style='font-weight:normal;font-size:12px;'>" + existingHtml + "</small><br>Add another:"
+    : "Add entry for Day " + day;
 
   const sevInput = section.querySelector("#entry-severity-" + tracker.id);
   const noteInput = section.querySelector("#entry-note-" + tracker.id);
-  if (sevInput) sevInput.value = entry ? (entry.severity || "") : "";
-  if (noteInput) noteInput.value = entry ? (entry.note || "") : "";
+  if (sevInput) sevInput.value = "";
+  if (noteInput) noteInput.value = "";
 
-  /* Show/hide delete button */
+  /* Show/hide delete button — only show if single entry (for multi-entry, delete via edit page) */
   let deleteBtn = section.querySelector("[data-action='delete-entry']");
-  if (entry) {
+  if (existingEntries.length === 1) {
     if (!deleteBtn) {
       deleteBtn = document.createElement("button");
       deleteBtn.type = "button";
       deleteBtn.className = "secondary-action-button";
       deleteBtn.style.cssText = "font-size:12px;color:#a94442;border-color:#a94442;";
-      deleteBtn.setAttribute("data-tracker", tracker.id);
       deleteBtn.setAttribute("data-action", "delete-entry");
       deleteBtn.textContent = "Delete";
       const btnRow = form.querySelector("div[style*='flex']");
@@ -371,7 +394,15 @@ function renderWeightSection(tracker, monthKey, section) {
   if (log) {
     log.innerHTML = entries.length === 0
       ? ""
-      : entries.map(e => `<p style="margin:0 0 4px 0;font-family:'Josefin Sans',sans-serif;font-size:13px;">${formatShortDate(e.date)} — ${escH(e.value)} <button type="button" onclick="deleteWeightEntry('${tracker.id}','${tracker.id}-${e.date}')" style="background:none;border:none;color:#a94442;font-size:11px;cursor:pointer;padding:0 4px;">✕</button></p>`).join("");
+      : entries.slice().reverse().map(e => {
+          const t = new Date(e.date);
+          const timeStr = t.toLocaleTimeString("default", { hour:"2-digit", minute:"2-digit" });
+          const dateStr = t.toLocaleDateString("default", { month:"short", day:"numeric" });
+          return `<p style="margin:0 0 4px 0;font-family:'Josefin Sans',sans-serif;font-size:13px;">
+            ${dateStr} ${timeStr} — ${escH(e.value || e.note || "")}
+            <button type="button" onclick="deleteWeightEntry('${tracker.id}','${e.date}')" style="background:none;border:none;color:#a94442;font-size:11px;cursor:pointer;padding:0 4px;">✕</button>
+          </p>`;
+        }).join("");
   }
 
   drawWeightChart(tracker, entries, section);
@@ -578,23 +609,91 @@ function escH(text) {
 }
 
 /* Delete a weight entry by tracker id and date key */
-function deleteWeightEntry(trackerId, entryKey) {
+function deleteWeightEntry(trackerId, isoDate) {
   const health = loadHealth();
+  const section = document.getElementById("tracker-" + trackerId);
   const trackers = loadHealthTrackers();
   const tracker = trackers.find(t => t.id === trackerId);
-  if (!tracker) return;
-
-  /* Find the section */
-  const section = document.getElementById("tracker-" + trackerId);
-  if (!section) return;
-
+  if (!tracker || !section) return;
   const monthKey = section.dataset.currentMonth || getCurrentMonthKey();
   if (!health[monthKey] || !health[monthKey][trackerId]) return;
-
-  /* Remove entry matching the date portion of entryKey */
-  const datePart = entryKey.replace(trackerId + "-", "");
-  health[monthKey][trackerId] = health[monthKey][trackerId].filter(e => e.date !== datePart);
+  health[monthKey][trackerId] = health[monthKey][trackerId].filter(e => e.date !== isoDate);
   saveHealth(health);
-
   renderWeightSection(tracker, monthKey, section);
+}
+
+/* =========================================================
+   TRACKER EDIT PANEL
+   Edit name, delete trackers from Health Page
+   ========================================================= */
+
+function openTrackerEditPanel() {
+  /* Remove existing panel if any */
+  const existing = document.getElementById("tracker-edit-panel");
+  if (existing) { existing.remove(); return; }
+
+  const trackers = loadHealthTrackers();
+  const panel = document.createElement("div");
+  panel.id = "tracker-edit-panel";
+  panel.style.cssText = `
+    position:fixed;bottom:0;left:0;width:100%;max-height:70vh;overflow-y:auto;
+    background:#F3EADF;border-radius:20px 20px 0 0;
+    box-shadow:0 -4px 20px rgba(0,0,0,0.15);z-index:1000;padding:20px;box-sizing:border-box;
+  `;
+
+  panel.innerHTML = `
+    <h3 style="font-family:'Josefin Sans',sans-serif;font-size:16px;font-weight:600;color:#3a2e28;margin:0 0 16px 0;">Edit Trackers</h3>
+    <div id="tracker-edit-list"></div>
+    <button type="button" onclick="document.getElementById('tracker-edit-panel').remove()" 
+      style="width:100%;margin-top:12px;padding:10px;border-radius:10px;border:1px solid #c9b49a;background:white;font-family:'Josefin Sans',sans-serif;font-size:14px;color:#3a2e28;cursor:pointer;">
+      Done
+    </button>
+  `;
+
+  const list = panel.querySelector("#tracker-edit-list");
+
+  trackers.forEach(function(tracker) {
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;";
+    row.innerHTML = `
+      <input type="text" value="${escH(tracker.name)}" data-tracker-id="${tracker.id}"
+        style="flex:1;padding:8px;border-radius:8px;border:1px solid #c9b49a;font-size:14px;font-family:'Josefin Sans',sans-serif;">
+      <button type="button" data-save-tracker="${tracker.id}"
+        style="padding:6px 12px;border-radius:8px;border:1px solid #b0977a;background:#b0977a;color:white;font-size:13px;cursor:pointer;font-family:'Josefin Sans',sans-serif;">
+        Save
+      </button>
+      <button type="button" data-delete-tracker="${tracker.id}"
+        style="padding:6px 10px;border-radius:8px;border:1px solid #a94442;background:white;color:#a94442;font-size:13px;cursor:pointer;">
+        ✕
+      </button>
+    `;
+    list.appendChild(row);
+  });
+
+  /* Wire save buttons */
+  panel.querySelectorAll("[data-save-tracker]").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      const id = btn.getAttribute("data-save-tracker");
+      const input = panel.querySelector("[data-tracker-id='" + id + "']");
+      const newName = input ? input.value.trim() : "";
+      if (!newName) return;
+      const trackers = loadHealthTrackers();
+      const t = trackers.find(x => x.id === id);
+      if (t) { t.name = newName; saveHealthTrackers(trackers); buildHealthPage(); }
+    });
+  });
+
+  /* Wire delete buttons */
+  panel.querySelectorAll("[data-delete-tracker]").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      const id = btn.getAttribute("data-delete-tracker");
+      if (!confirm("Delete this tracker and all its data?")) return;
+      const trackers = loadHealthTrackers().filter(x => x.id !== id);
+      saveHealthTrackers(trackers);
+      buildHealthPage();
+      panel.remove();
+    });
+  });
+
+  document.body.appendChild(panel);
 }
