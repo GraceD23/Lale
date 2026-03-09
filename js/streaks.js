@@ -1,356 +1,182 @@
 /* =========================================================
-   STREAKS.JS
-   ---------------------------------------------------------
-   Uses real stored streak data instead of starter demo data.
-
-   What this file does:
-   - renders homepage Streaks dropdown from storage
-   - renders full Streaks page from storage
-   - supports text stars now
-   - supports custom PNG stars later
-   - keeps weekly homepage view separate from full streak history
-   ========================================================= */
-
-
-/* =========================================================
-   PAGE STARTUP
+   STREAKS-EDIT.JS
+   - Edit Streaks panel (rename / delete)
+   - Auto-fill missed days with blank stars on page load
    ========================================================= */
 
 document.addEventListener("DOMContentLoaded", function () {
-  initializeStreaks(); /* Starts streak rendering when the page is ready */
+  fillMissedStreakDays();
+
+  const btn = document.getElementById("streaks-edit-btn");
+  if (btn) btn.addEventListener("click", openStreaksEditPanel);
 });
 
-
 /* =========================================================
-   MAIN INITIALIZER
+   AUTO-FILL MISSED DAYS
+   For each streak, fill any gap days since streak was created
+   with { filled: false } so blank stars show automatically
    ========================================================= */
 
-function initializeStreaks() {
-  exposeStreakHelpers(); /* Makes helper functions available to other scripts */
-  renderHomepageStreaks(); /* Renders homepage dropdown if present */
-  renderFullStreaksPage(); /* Renders full Streaks page if present */
-}
+function fillMissedStreakDays() {
+  if (typeof loadStreaks !== "function" || typeof saveStreaks !== "function") return;
 
+  const streaks = loadStreaks();
+  let changed = false;
 
-/* =========================================================
-   HELPERS EXPOSED GLOBALLY
-   ========================================================= */
+  streaks.forEach(function (streak) {
+    if (!streak.history || streak.history.length === 0) return;
 
-function exposeStreakHelpers() {
-  window.renderHomepageStreaks = renderHomepageStreaks; /* Lets other scripts refresh homepage streaks */
-  window.renderFullStreaksPage = renderFullStreaksPage; /* Lets other scripts refresh full streaks page */
-  window.incrementStoredStreak = incrementStoredStreak; /* Lets other scripts add one streak completion */
-  window.ensureStoredStreakExists = ensureStoredStreakExists; /* Lets other scripts create streak if missing */
-  window.buildStarDisplay = buildStarDisplay; /* Reuses star rendering in other scripts */
-}
+    /* Find the date of the first history entry */
+    const firstEntry = streak.history[0];
+    if (!firstEntry || !firstEntry.date) return;
 
+    const start = new Date(firstEntry.date);
+    start.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-/* =========================================================
-   STORAGE ACCESS
-   ========================================================= */
+    /* Build a set of days already logged (by YYYY-MM-DD) */
+    const loggedDays = new Set(streak.history.map(function (e) {
+      return e.date ? e.date.slice(0, 10) : null;
+    }).filter(Boolean));
 
-function getStoredStreaks() {
-  if (typeof loadStreaks === "function") {
-    const stored = loadStreaks(); /* Loads streaks from storage.js */
+    /* Walk every day from start to yesterday */
+    const cursor = new Date(start);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-    if (Array.isArray(stored)) {
-      return stored; /* Uses real stored streak data */
+    const missingEntries = [];
+
+    while (cursor <= yesterday) {
+      const dayKey = cursor.getFullYear() + "-" +
+        String(cursor.getMonth()+1).padStart(2,"0") + "-" +
+        String(cursor.getDate()).padStart(2,"0");
+
+      if (!loggedDays.has(dayKey)) {
+        missingEntries.push({
+          date: cursor.toISOString(),
+          filled: false
+        });
+        changed = true;
+      }
+
+      cursor.setDate(cursor.getDate() + 1);
     }
-  }
 
-  return []; /* Safe fallback if storage.js is missing */
-}
-
-function saveStoredStreaks(streaks) {
-  if (typeof saveStreaks === "function") {
-    saveStreaks(streaks); /* Saves updated streak list into storage */
-  }
-}
-
-
-/* =========================================================
-   HOMEPAGE STREAKS
-   ---------------------------------------------------------
-   Renders tracker name + weekly stars on the homepage.
-   ========================================================= */
-
-function renderHomepageStreaks() {
-  const container = document.getElementById("streaks-dropdown-content"); /* Homepage dropdown container */
-
-  if (!container) {
-    return; /* Stops safely if not on homepage */
-  }
-
-  const streaks = getStoredStreaks()
-    .filter(function (streak) {
-      return streak && streak.name; /* Keeps only valid streak objects */
-    })
-    .sort(function (a, b) {
-      return (b.weeklyCount || 0) - (a.weeklyCount || 0); /* Highest weekly count first */
-    });
-
-  container.innerHTML = ""; /* Clears old rows before rebuilding */
-
-  if (streaks.length === 0) {
-    const emptyMessage = document.createElement("p"); /* Empty-state text */
-    emptyMessage.textContent = "No streaks yet.";
-    container.appendChild(emptyMessage);
-    return;
-  }
-
-  streaks.forEach(function (streak) {
-    const row = document.createElement("div"); /* One homepage streak row */
-    row.className = "streak-row";
-
-    const nameSpan = document.createElement("span"); /* Streak name */
-    nameSpan.className = "streak-name";
-    nameSpan.textContent = streak.name;
-
-    const starsSpan = document.createElement("span"); /* Weekly stars */
-    starsSpan.className = "streak-stars";
-    starsSpan.innerHTML = buildStarDisplay(streak.weeklyCount || 0); /* Weekly homepage view */
-
-    row.appendChild(nameSpan);
-    row.appendChild(starsSpan);
-
-    container.appendChild(row);
-  });
-}
-
-
-/* =========================================================
-   FULL STREAKS PAGE
-   ---------------------------------------------------------
-   Renders all streaks on streaks.html.
-
-   Filled star = completed
-   Unfilled star = missed / not completed in running history
-   ========================================================= */
-
-function renderFullStreaksPage() {
-  const container = document.getElementById("full-streaks-container"); /* Full Streaks page container */
-
-  if (!container) {
-    return; /* Stops safely if not on streaks.html */
-  }
-
-  const streaks = getStoredStreaks()
-    .filter(function (streak) {
-      return streak && streak.name; /* Keeps only valid streak objects */
-    })
-    .sort(function (a, b) {
-      return (b.count || 0) - (a.count || 0); /* Highest total count first */
-    });
-
-  container.innerHTML = ""; /* Clears old rows before rebuilding */
-
-  if (streaks.length === 0) {
-    const emptyMessage = document.createElement("p"); /* Empty-state text */
-    emptyMessage.textContent = "No streaks yet.";
-    container.appendChild(emptyMessage);
-    return;
-  }
-
-  streaks.forEach(function (streak) {
-    const row = document.createElement("div"); /* One full streak row */
-    row.className = "streak-row";
-
-    const nameSpan = document.createElement("span"); /* Streak name */
-    nameSpan.className = "streak-name";
-    nameSpan.textContent = streak.name;
-
-    const starsSpan = document.createElement("span"); /* Full history stars */
-    starsSpan.className = "streak-stars";
-    starsSpan.innerHTML = buildHistoryStarDisplay(streak.history || [], streak.count || 0);
-
-    row.appendChild(nameSpan);
-    row.appendChild(starsSpan);
-
-    container.appendChild(row);
-  });
-}
-
-
-/* =========================================================
-   STAR DISPLAY
-   ---------------------------------------------------------
-   Homepage weekly star display.
-   ========================================================= */
-
-function buildStarDisplay(starCount) {
-  const count = Number.isFinite(starCount) ? Math.max(0, starCount) : 0; /* Safe non-negative count */
-
-  if (shouldUseCustomStarImage()) {
-    return buildImageStarDisplay(count); /* Uses image stars if enabled */
-  }
-
-  return buildTextStarDisplay(count); /* Uses text stars otherwise */
-}
-
-function buildTextStarDisplay(starCount) {
-  const textStar = getConfiguredTextStar(); /* Reads fallback text star */
-  return textStar.repeat(starCount); /* Repeats filled star count times */
-}
-
-function buildImageStarDisplay(starCount) {
-  const starPath = getConfiguredStarPath(); /* Reads configured image path */
-  let html = "";
-
-  for (let index = 0; index < starCount; index += 1) {
-    html += '<img class="streak-star-image" src="' + escapeAttribute(starPath) + '" alt="Star" />'; /* One image per star */
-  }
-
-  return html;
-}
-
-
-/* =========================================================
-   FULL HISTORY STAR DISPLAY
-   ---------------------------------------------------------
-   Full streak page visual:
-   - filled stars for completed entries
-   - unfilled stars for missed entries
-   - if no history exists yet, falls back to total count
-   ========================================================= */
-
-function buildHistoryStarDisplay(historyArray, totalCount) {
-  const history = Array.isArray(historyArray) ? historyArray : []; /* Safe history array */
-
-  if (history.length === 0) {
-    return buildTextStarDisplay(totalCount || 0); /* Fallback if no running history exists yet */
-  }
-
-  let output = "";
-
-  history.forEach(function (item) {
-    if (item && item.filled === true) {
-      output += getConfiguredTextStar(); /* Filled star */
-    } else {
-      output += "☆"; /* Unfilled star */
+    if (missingEntries.length > 0) {
+      /* Insert missed entries in chronological order */
+      streak.history = streak.history.concat(missingEntries)
+        .sort(function (a, b) { return new Date(a.date) - new Date(b.date); });
     }
   });
 
-  return output;
+  if (changed) {
+    saveStreaks(streaks);
+    /* Re-render if the full page function is available */
+    if (typeof renderFullStreaksPage === "function") renderFullStreaksPage();
+  }
 }
-
 
 /* =========================================================
-   CREATE / UPDATE STREAKS
-   ---------------------------------------------------------
-   Used by other systems like:
-   - Brain Dump confirm
-   - future task completion logic
+   EDIT PANEL
    ========================================================= */
 
-function ensureStoredStreakExists(streakName) {
-  const cleanedName = String(streakName || "").trim(); /* Safe streak name */
+function openStreaksEditPanel() {
+  const existing = document.getElementById("streaks-edit-panel");
+  if (existing) { existing.remove(); return; }
 
-  if (cleanedName === "") {
-    return null; /* Stops if no valid streak name */
+  const streaks = typeof loadStreaks === "function" ? loadStreaks() : [];
+
+  const panel = document.createElement("div");
+  panel.id = "streaks-edit-panel";
+  panel.style.cssText = `
+    position:fixed;bottom:0;left:0;width:100%;max-height:70vh;overflow-y:auto;
+    background:#F3EADF;border-radius:20px 20px 0 0;
+    box-shadow:0 -4px 20px rgba(0,0,0,0.15);z-index:1000;
+    padding:20px;box-sizing:border-box;
+  `;
+
+  panel.innerHTML = `
+    <h3 style="font-family:'Josefin Sans',sans-serif;font-size:16px;font-weight:600;color:#3a2e28;margin:0 0 16px 0;">
+      Edit Streaks
+    </h3>
+    <div id="streaks-edit-list"></div>
+    <button type="button" id="streaks-edit-done"
+      style="width:100%;margin-top:12px;padding:10px;border-radius:10px;
+      border:1px solid #c9b49a;background:white;font-family:'Josefin Sans',sans-serif;
+      font-size:14px;color:#3a2e28;cursor:pointer;">
+      Done
+    </button>
+  `;
+
+  const list = panel.querySelector("#streaks-edit-list");
+
+  if (streaks.length === 0) {
+    list.innerHTML = "<p style='font-size:13px;opacity:0.6;font-family:Josefin Sans,sans-serif;'>No streaks yet.</p>";
+  } else {
+    streaks.forEach(function (streak) {
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;";
+      row.innerHTML = `
+        <input type="text" value="${escapeForAttr(streak.name)}" data-streak-id="${streak.id}"
+          style="flex:1;padding:8px;border-radius:8px;border:1px solid #c9b49a;
+          font-size:14px;font-family:'Josefin Sans',sans-serif;">
+        <button type="button" data-save-streak="${streak.id}"
+          style="padding:6px 12px;border-radius:8px;border:1px solid #b0977a;
+          background:#b0977a;color:white;font-size:13px;cursor:pointer;
+          font-family:'Josefin Sans',sans-serif;">
+          Save
+        </button>
+        <button type="button" data-delete-streak="${streak.id}"
+          style="padding:6px 10px;border-radius:8px;border:1px solid #a94442;
+          background:white;color:#a94442;font-size:13px;cursor:pointer;">
+          ✕
+        </button>
+      `;
+      list.appendChild(row);
+    });
   }
 
-  const streaks = getStoredStreaks(); /* Current stored streaks */
-
-  let matchingStreak = streaks.find(function (streak) {
-    return streak.name === cleanedName; /* Looks for existing streak */
+  /* Wire Done */
+  panel.querySelector("#streaks-edit-done").addEventListener("click", function () {
+    panel.remove();
   });
 
-  if (!matchingStreak) {
-    matchingStreak = {
-      id: buildSimpleStreakId(cleanedName), /* Unique streak ID */
-      name: cleanedName, /* Visible streak name */
-      count: 0, /* Total completions */
-      weeklyCount: 0, /* Homepage weekly stars */
-      history: [] /* Full streak history array */
-    };
-
-    streaks.push(matchingStreak); /* Adds new streak */
-    saveStoredStreaks(streaks); /* Saves updated streak list */
-  }
-
-  return matchingStreak;
-}
-
-function incrementStoredStreak(streakName) {
-  const cleanedName = String(streakName || "").trim(); /* Safe streak name */
-
-  if (cleanedName === "") {
-    return; /* Stops if no valid name */
-  }
-
-  const streaks = getStoredStreaks(); /* Current stored streaks */
-
-  let matchingStreak = streaks.find(function (streak) {
-    return streak.name === cleanedName; /* Finds existing streak */
+  /* Wire Save buttons */
+  panel.querySelectorAll("[data-save-streak]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      const id = btn.getAttribute("data-save-streak");
+      const input = panel.querySelector("[data-streak-id='" + id + "']");
+      const newName = input ? input.value.trim() : "";
+      if (!newName) return;
+      const streaks = loadStreaks();
+      const s = streaks.find(x => x.id === id);
+      if (s) {
+        s.name = newName;
+        saveStreaks(streaks);
+        if (typeof renderFullStreaksPage === "function") renderFullStreaksPage();
+        if (typeof renderHomepageStreaks === "function") renderHomepageStreaks();
+      }
+    });
   });
 
-  if (!matchingStreak) {
-    matchingStreak = {
-      id: buildSimpleStreakId(cleanedName), /* Unique streak ID */
-      name: cleanedName,
-      count: 0,
-      weeklyCount: 0,
-      history: []
-    };
-
-    streaks.push(matchingStreak); /* Creates streak if missing */
-  }
-
-  matchingStreak.count += 1; /* Total count */
-  matchingStreak.weeklyCount += 1; /* Homepage weekly count */
-  matchingStreak.history.push({
-    date: new Date().toISOString(), /* Stores completion timestamp */
-    filled: true /* Completed streak day */
+  /* Wire Delete buttons */
+  panel.querySelectorAll("[data-delete-streak]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      const id = btn.getAttribute("data-delete-streak");
+      if (!confirm("Delete this streak and all its history?")) return;
+      const streaks = loadStreaks().filter(x => x.id !== id);
+      saveStreaks(streaks);
+      if (typeof renderFullStreaksPage === "function") renderFullStreaksPage();
+      if (typeof renderHomepageStreaks === "function") renderHomepageStreaks();
+      panel.remove();
+      openStreaksEditPanel(); /* Reopen with updated list */
+    });
   });
 
-  saveStoredStreaks(streaks); /* Saves updated streak list */
-  renderHomepageStreaks(); /* Refreshes homepage dropdown if present */
-  renderFullStreaksPage(); /* Refreshes full streaks page if present */
+  document.body.appendChild(panel);
 }
 
-
-/* =========================================================
-   CONFIG HELPERS
-   ========================================================= */
-
-function shouldUseCustomStarImage() {
-  if (window.getConfig) {
-    return Boolean(window.getConfig("useCustomStarImage")); /* Reads image-star setting */
-  }
-
-  return false;
-}
-
-function getConfiguredStarPath() {
-  if (window.getConfig) {
-    return window.getConfig("starIconPath") || "assets/icons/star-default.png"; /* Reads star image path */
-  }
-
-  return "assets/icons/star-default.png";
-}
-
-function getConfiguredTextStar() {
-  if (window.getConfig) {
-    return window.getConfig("starFallbackText") || "★"; /* Reads text star */
-  }
-
-  return "★";
-}
-
-
-/* =========================================================
-   SMALL HELPERS
-   ========================================================= */
-
-function buildSimpleStreakId(streakName) {
-  return String(streakName)
-    .toLowerCase() /* Lowercase ID */
-    .replace(/[^a-z0-9]+/g, "-") /* Replaces spaces/symbols with dashes */
-    .replace(/^-+|-+$/g, "") + "-" + Date.now(); /* Trims edge dashes and adds timestamp */
-}
-
-function escapeAttribute(value) {
-  const temporaryElement = document.createElement("div"); /* Safe temp element */
-  temporaryElement.textContent = value;
-  return temporaryElement.innerHTML.replace(/"/g, "&quot;"); /* Safe attribute string */
+function escapeForAttr(str) {
+  return String(str || "").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
 }
