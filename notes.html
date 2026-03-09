@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notes</title>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+  <div id="global-overlay" class="global-overlay" hidden></div>
+  <div id="app-shell" class="app-shell">
+
+    <header class="top-bar">
+      <div class="top-bar-left"></div>
+      <div class="top-bar-right">
+        <button id="hamburger-menu-button" class="hamburger-menu-button" type="button"
+          aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-navigation-drawer">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
+      </div>
+    </header>
+
+    <nav id="mobile-navigation-drawer" class="mobile-navigation-drawer" aria-label="Main navigation" hidden>
+      <div class="mobile-navigation-header">
+        <h2 class="mobile-navigation-title">Menu</h2>
+      </div>
+      <ul class="mobile-navigation-list">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="streaks.html">Streaks</a></li>
+        <li><a href="health.html">Health</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="notes.html">Notes</a></li>
+        <li><a href="add.html">Add</a></li>
+        <li><a href="spelling.html">Spelling Quiz</a></li>
+        <li><a href="turkish.html">Turkish Stories</a></li>
+        <li><a href="conversation.html">Turkish Chat</a></li>
+      </ul>
+    </nav>
+
+    <main class="home-page-main-content">
+
+      <section class="dashboard-card">
+        <h1 class="card-title">Notes</h1>
+      </section>
+
+      <!-- Month selector -->
+      <section class="dashboard-card">
+        <button type="button" class="dropdown-toggle-button" aria-expanded="false" aria-controls="notes-month-dropdown">
+          <span id="notes-month-label" class="dropdown-title">Month: Current Month</span>
+          <span class="dropdown-arrow" aria-hidden="true">⌄</span>
+        </button>
+        <div id="notes-month-dropdown" class="dropdown-content" hidden>
+          <!-- Month buttons injected by JS -->
+        </div>
+      </section>
+
+      <!-- Notes list -->
+      <section class="dashboard-card" aria-labelledby="notes-list-title">
+        <h2 id="notes-list-title" class="card-title">All Notes</h2>
+        <div id="notes-list-container">
+          <p style="opacity:0.5;font-size:13px;">No notes yet. Add one from Brain Dump or the Add Page.</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/labels.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/dropdowns.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/notes.js"></script>
+</body>
+</html>

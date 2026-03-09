@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Turkish Chat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+  <div id="global-overlay" class="global-overlay" hidden></div>
+  <div id="app-shell" class="app-shell">
+
+    <header class="top-bar">
+      <div class="top-bar-left"></div>
+      <div class="top-bar-right">
+        <button id="hamburger-menu-button" class="hamburger-menu-button" type="button"
+          aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-navigation-drawer">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
+      </div>
+    </header>
+
+    <nav id="mobile-navigation-drawer" class="mobile-navigation-drawer" aria-label="Main navigation" hidden>
+      <div class="mobile-navigation-header"><h2 class="mobile-navigation-title">Menu</h2></div>
+      <ul class="mobile-navigation-list">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="streaks.html">Streaks</a></li>
+        <li><a href="health.html">Health</a></li>
+        <li><a href="history.html">History</a></li>
+        <li><a href="notes.html">Notes</a></li>
+        <li><a href="add.html">Add</a></li>
+        <li><a href="spelling.html">Spelling Quiz</a></li>
+        <li><a href="turkish.html">Turkish Stories</a></li>
+        <li><a href="conversation.html">Turkish Chat</a></li>
+      </ul>
+    </nav>
+
+    <main class="home-page-main-content">
+
+      <section class="dashboard-card">
+        <h1 class="card-title">Turkish Chat</h1>
+        <p style="font-size:13px;opacity:0.7;margin:0;">Practice Turkish conversation. The AI responds in Turkish and gently corrects your mistakes.</p>
+      </section>
+
+      <!-- Topic selector -->
+      <section class="dashboard-card" id="chat-setup-section">
+        <h2 class="card-title">Conversation Topic</h2>
+        <input type="text" id="chat-topic" placeholder="e.g. at the market, introducing yourself, at a restaurant..."
+          style="width:100%;padding:8px;border-radius:8px;border:1px solid #b0977a;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
+        <button type="button" class="primary-action-button" id="chat-start-btn" style="width:100%;">Start Conversation</button>
+      </section>
+
+      <!-- Chat window -->
+      <section class="dashboard-card" id="chat-section" hidden>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <h2 class="card-title" style="margin:0;" id="chat-topic-display"></h2>
+          <button type="button" class="secondary-action-button" id="chat-reset-btn" style="font-size:12px;">New Chat</button>
+        </div>
+
+        <!-- Messages -->
+        <div id="chat-messages" style="min-height:200px;max-height:400px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:8px;"></div>
+
+        <!-- Input row -->
+        <div style="display:flex;gap:8px;align-items:flex-end;">
+          <textarea id="chat-input" rows="2" placeholder="Type in Turkish (or English to ask a question)..."
+            style="flex:1;padding:8px;border-radius:8px;border:1px solid #b0977a;font-size:14px;box-sizing:border-box;resize:none;"></textarea>
+          <button type="button" class="primary-action-button" id="chat-send-btn" style="padding:10px 14px;">Send</button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/labels.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/brain-parser.js"></script>
+  <script src="js/conversation.js"></script>
+</body>
+</html>
