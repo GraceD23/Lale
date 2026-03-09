@@ -119,7 +119,7 @@ function buildCalendarSection(tracker) {
 
   /* Cancel entry button */
   section.querySelector("[data-action='cancel-entry']").addEventListener("click", function () {
-    document.getElementById("entry-form-" + tracker.id).style.display = "none";
+    section.querySelector("#entry-form-" + tracker.id).style.display = "none";
     section.dataset.selectedDay = "";
   });
 
@@ -185,21 +185,40 @@ function renderCalendarGrid(tracker, monthKey, section) {
 }
 
 function openDayEntryForm(tracker, dateKey, day, section, isFilled, existingEntries) {
-  const form = document.getElementById("entry-form-" + tracker.id);
-  const titleEl = document.getElementById("entry-form-title-" + tracker.id);
+  const form = section.querySelector("#entry-form-" + tracker.id);
+  const titleEl = section.querySelector("#entry-form-title-" + tracker.id);
   if (!form || !titleEl) return;
 
   section.dataset.selectedDay = dateKey;
 
-  if (isFilled && existingEntries.length > 0) {
-    const entry = existingEntries[0];
-    titleEl.textContent = "Day " + day + (entry.severity ? " — Severity: " + entry.severity : "") + (entry.note ? " — " + entry.note : "");
-  } else {
-    titleEl.textContent = "Add entry for Day " + day;
-    const sevInput = document.getElementById("entry-severity-" + tracker.id);
-    const noteInput = document.getElementById("entry-note-" + tracker.id);
-    if (sevInput) sevInput.value = "";
-    if (noteInput) noteInput.value = "";
+  const entry = (isFilled && existingEntries.length > 0) ? existingEntries[0] : null;
+  titleEl.textContent = entry ? "Edit entry — Day " + day : "Add entry for Day " + day;
+
+  const sevInput = section.querySelector("#entry-severity-" + tracker.id);
+  const noteInput = section.querySelector("#entry-note-" + tracker.id);
+  if (sevInput) sevInput.value = entry ? (entry.severity || "") : "";
+  if (noteInput) noteInput.value = entry ? (entry.note || "") : "";
+
+  /* Show/hide delete button */
+  let deleteBtn = section.querySelector("[data-action='delete-entry']");
+  if (entry) {
+    if (!deleteBtn) {
+      deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "secondary-action-button";
+      deleteBtn.style.cssText = "font-size:12px;color:#a94442;border-color:#a94442;";
+      deleteBtn.setAttribute("data-tracker", tracker.id);
+      deleteBtn.setAttribute("data-action", "delete-entry");
+      deleteBtn.textContent = "Delete";
+      const btnRow = form.querySelector("div[style*='flex']");
+      if (btnRow) btnRow.appendChild(deleteBtn);
+      deleteBtn.addEventListener("click", function () {
+        deleteCalendarEntry(tracker, dateKey, section);
+      });
+    }
+    deleteBtn.style.display = "";
+  } else if (deleteBtn) {
+    deleteBtn.style.display = "none";
   }
 
   form.style.display = "block";
@@ -209,8 +228,8 @@ function saveCalendarEntry(tracker, section) {
   const dateKey = section.dataset.selectedDay;
   if (!dateKey) return;
 
-  const sevInput = document.getElementById("entry-severity-" + tracker.id);
-  const noteInput = document.getElementById("entry-note-" + tracker.id);
+  const sevInput = section.querySelector("#entry-severity-" + tracker.id);
+  const noteInput = section.querySelector("#entry-note-" + tracker.id);
 
   const health = loadHealth();
   const monthKey = section.dataset.currentMonth;
@@ -218,16 +237,37 @@ function saveCalendarEntry(tracker, section) {
   if (!health[monthKey]) health[monthKey] = {};
   if (!health[monthKey][tracker.id]) health[monthKey][tracker.id] = [];
 
-  health[monthKey][tracker.id].push({
+  /* Replace existing entry for this day if present, otherwise add */
+  const existing = health[monthKey][tracker.id].findIndex(e => e.day === dateKey);
+  const newEntry = {
     day: dateKey,
     date: new Date().toISOString(),
     severity: sevInput ? sevInput.value : null,
     note: noteInput ? noteInput.value : ""
-  });
+  };
+
+  if (existing >= 0) {
+    health[monthKey][tracker.id][existing] = newEntry;
+  } else {
+    health[monthKey][tracker.id].push(newEntry);
+  }
 
   saveHealth(health);
 
-  document.getElementById("entry-form-" + tracker.id).style.display = "none";
+  section.querySelector("#entry-form-" + tracker.id).style.display = "none";
+  renderCalendarGrid(tracker, monthKey, section);
+}
+
+function deleteCalendarEntry(tracker, dateKey, section) {
+  const health = loadHealth();
+  const monthKey = section.dataset.currentMonth;
+
+  if (health[monthKey] && health[monthKey][tracker.id]) {
+    health[monthKey][tracker.id] = health[monthKey][tracker.id].filter(e => e.day !== dateKey);
+    saveHealth(health);
+  }
+
+  section.querySelector("#entry-form-" + tracker.id).style.display = "none";
   renderCalendarGrid(tracker, monthKey, section);
 }
 
@@ -324,19 +364,23 @@ function logWeightEntry(tracker, value) {
 function renderWeightSection(tracker, monthKey, section) {
   const health = loadHealth();
   const entries = (health[monthKey] && health[monthKey][tracker.id]) || [];
-  const log = document.getElementById("weight-log-" + tracker.id);
+  const log = section
+    ? section.querySelector("#weight-log-" + tracker.id)
+    : document.getElementById("weight-log-" + tracker.id);
 
   if (log) {
     log.innerHTML = entries.length === 0
       ? ""
-      : entries.map(e => `<p style="margin:0 0 4px 0;">${formatShortDate(e.date)} — ${escH(e.value)}</p>`).join("");
+      : entries.map(e => `<p style="margin:0 0 4px 0;font-family:'Josefin Sans',sans-serif;font-size:13px;">${formatShortDate(e.date)} — ${escH(e.value)} <button type="button" onclick="deleteWeightEntry('${tracker.id}','${tracker.id}-${e.date}')" style="background:none;border:none;color:#a94442;font-size:11px;cursor:pointer;padding:0 4px;">✕</button></p>`).join("");
   }
 
-  drawWeightChart(tracker, entries);
+  drawWeightChart(tracker, entries, section);
 }
 
-function drawWeightChart(tracker, entries) {
-  const canvas = document.getElementById("weight-chart-" + tracker.id);
+function drawWeightChart(tracker, entries, section) {
+  const canvas = section
+    ? section.querySelector("#weight-chart-" + tracker.id)
+    : document.getElementById("weight-chart-" + tracker.id);
   if (!canvas) return;
 
   const ctx = canvas.getContext("2d");
@@ -531,4 +575,26 @@ function escH(text) {
   const d = document.createElement("div");
   d.textContent = String(text||"");
   return d.innerHTML;
+}
+
+/* Delete a weight entry by tracker id and date key */
+function deleteWeightEntry(trackerId, entryKey) {
+  const health = loadHealth();
+  const trackers = loadHealthTrackers();
+  const tracker = trackers.find(t => t.id === trackerId);
+  if (!tracker) return;
+
+  /* Find the section */
+  const section = document.getElementById("tracker-" + trackerId);
+  if (!section) return;
+
+  const monthKey = section.dataset.currentMonth || getCurrentMonthKey();
+  if (!health[monthKey] || !health[monthKey][trackerId]) return;
+
+  /* Remove entry matching the date portion of entryKey */
+  const datePart = entryKey.replace(trackerId + "-", "");
+  health[monthKey][trackerId] = health[monthKey][trackerId].filter(e => e.date !== datePart);
+  saveHealth(health);
+
+  renderWeightSection(tracker, monthKey, section);
 }
