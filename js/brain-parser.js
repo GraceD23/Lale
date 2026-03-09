@@ -5,7 +5,7 @@
    Falls back to rule-based parsing if API unavailable.
    ========================================================= */
 
-const ANTHROPIC_API_KEY = "Auth"
+const ANTHROPIC_API_KEY = "Auth code"
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 async function parseBrainDump(text) {
