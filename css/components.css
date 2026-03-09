@@ -62,6 +62,14 @@
   letter-spacing: 0.02em;
 }
 
+/* Fix dropdown toggle button inheriting blue browser default */
+.dropdown-toggle-button,
+.dropdown-toggle-button .dropdown-title,
+.dropdown-toggle-button span {
+  color: var(--text-main, #3a2e28) !important;
+  font-family: "Josefin Sans", sans-serif;
+}
+
 /* =========================================================
    VISUAL SEPARATOR
    Adds a clear line between Streaks dropdown and Brain Dump
