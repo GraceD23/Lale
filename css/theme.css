@@ -1,164 +1,44 @@
-
 /* =========================================================
    THEME.CSS
-   ---------------------------------------------------------
-   This file controls VISUAL DESIGN ONLY.
-   You can safely edit colors, background images, borders,
-   shadows, and rounded corners here without affecting logic.
-
-   If you want to redesign the entire site later, most changes
-   should happen in this file instead of editing index.html.
-   ========================================================= */
-
-
-/* =========================================================
-   GLOBAL COLOR SETTINGS
-   ---------------------------------------------------------
-   These variables define the main color palette for the site.
-   Change these values to redesign the appearance quickly.
    ========================================================= */
 
 :root {
-
-  /* Main page background color */
-  --bg-main: #F7F1E8; /* warm cream - full page background */
-
-  /* Card background colors for homepage sections */
-  --card-daily: #E8DCCB; /* soft beige - Daily Focus card */
-  --card-weekly: #E3D3C3; /* light tan - Weekly Tasks card */
-  --card-streaks: #EFE4D9; /* pale oatmeal - Streak dropdown card */
-  --card-braindump: #F4E7DC; /* soft peach-beige - Brain Dump card */
-
-  /* Text colors */
-  --text-main: #4E4036; /* warm brown - main body text */
-  --title-color: #3C2F26; /* deeper brown - card titles */
-
-  /* Border color for cards and UI elements */
-  --border-soft: #CBB7A3; /* dusty beige - subtle borders */
-
-  /* Primary button color */
-  --button-primary: #B88C6A; /* muted terracotta - Submit buttons */
-
-  /* Rounded corner size for all cards */
-  --card-radius: 18px; /* soft rounded corners for cozy card style */
-
-  /* Shadow color for cards */
-  --card-shadow: rgba(0,0,0,0.08); /* light gray shadow for depth */
-
+  --bg-main:        #F7F1E8;
+  --card-daily:     #E8DCCB;
+  --card-weekly:    #E3D3C3;
+  --card-streaks:   #EFE4D9;
+  --card-braindump: #F4E7DC;
+  --text-main:      #4E4036;
+  --title-color:    #3C2F26;
+  --border-soft:    #CBB7A3;
+  --button-primary: #B88C6A;
+  --card-radius:    18px;
+  --card-shadow:    rgba(0,0,0,0.08);
 }
-
-
-/* =========================================================
-   BACKGROUND IMAGE SETTING (OPTIONAL)
-   ---------------------------------------------------------
-   If you later want a background image instead of a color,
-   you can add it here. Example:
-
-   body {
-     background-image: url("../assets/backgrounds/homepage-bg.jpg");
-     background-size: cover;
-     background-position: center;
-   }
-   ========================================================= */
-
-
-/* =========================================================
-   BODY BASE STYLE
-   ---------------------------------------------------------
-   Applies the main background and text color to the whole site.
-   ========================================================= */
 
 body {
-  background-color: var(--bg-main); /* uses warm cream background */
-  color: var(--text-main); /* sets main readable text color */
+  background-color: var(--bg-main);
+  color: var(--text-main);
 }
 
-
-/* =========================================================
-   DASHBOARD CARD COLORS
-   ---------------------------------------------------------
-   Each homepage card has its own background color variable.
-   This makes it easy to recolor specific sections later.
-   ========================================================= */
-
-.daily-focus-card {
-  background-color: var(--card-daily); /* background for Daily Focus card */
-}
-
-.weekly-tasks-card {
-  background-color: var(--card-weekly); /* background for Weekly Tasks card */
-}
-
-.streaks-dropdown-card {
-  background-color: var(--card-streaks); /* background for Streaks dropdown */
-}
-
-.brain-dump-card {
-  background-color: var(--card-braindump); /* background for Brain Dump card */
-}
-
-
-/* =========================================================
-   CARD GLOBAL STYLING
-   ---------------------------------------------------------
-   Shared appearance for all dashboard cards.
-   If you want to change borders, shadows, or rounded corners,
-   edit this section.
-   ========================================================= */
+.daily-focus-card   { background-color: var(--card-daily); }
+.weekly-tasks-card  { background-color: var(--card-weekly); }
+.streaks-dropdown-card { background-color: var(--card-streaks); }
+.brain-dump-card    { background-color: var(--card-braindump); }
 
 .dashboard-card {
-
-  border-radius: var(--card-radius); /* rounded corners for cards */
-
-  border: 1px solid var(--border-soft); /* soft border around cards */
-
-  box-shadow: 0 4px 10px var(--card-shadow); /* subtle shadow for depth */
-
+  border-radius: var(--card-radius);
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 4px 10px var(--card-shadow);
 }
-
-
-/* =========================================================
-   CARD TITLES
-   ---------------------------------------------------------
-   Styling for section titles like:
-   - Daily Focus
-   - Weekly Tasks
-   - Streaks
-   - Brain Dump
-   ========================================================= */
 
 .card-title {
-  color: var(--title-color); /* deeper brown for section headings */
+  color: var(--title-color);
 }
-
-
-/* =========================================================
-   PRIMARY BUTTON STYLE
-   ---------------------------------------------------------
-   Used for actions like the Brain Dump Submit button.
-   ========================================================= */
 
 .primary-action-button {
-
-  background-color: var(--button-primary); /* terracotta button color */
-
-  color: white; /* white text for contrast */
-
-  border-radius: var(--card-radius); /* rounded button edges */
-
-  border: none; /* removes default browser border */
-
+  background-color: var(--button-primary);
+  color: white;
+  border-radius: var(--card-radius);
+  border: none;
 }
-
-
-/* =========================================================
-   FUTURE DESIGN NOTES
-   ---------------------------------------------------------
-   This file can also later control:
-
-   - star icon color
-   - mascot colors
-   - dropdown background colors
-   - hover effects
-   - dark mode theme
-   ========================================================= */
