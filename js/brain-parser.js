@@ -22,25 +22,39 @@ async function parseBrainDump(text) {
 }
 
 async function parseWithClaudeAPI(text) {
-  const systemPrompt = `You are a productivity assistant parsing user input for a personal dashboard.
+  const systemPrompt = `You are a productivity assistant parsing user input for a personal dashboard app.
 
-Split input into individual items, categorize each, return ONLY valid JSON array.
-
-SPLITTING RULES:
-- Split on commas and new lines
-- Split mid-sentence when a new action word starts a new task: pick up, get, call, email, text, buy, wash, clean, make, finish, do, drop off, grab, bring, pay, send, check, organize, plan, pack, fill, order, print, write, update, fix, book, schedule, go to, shop for
-- Remove "and" ONLY when connecting two separate tasks. Keep "and" if part of one task name (e.g. "pick up salt and pepper" = 1 task).
+Your job: split the input into individual items, categorize each one, and return structured JSON.
 
 CATEGORIES:
-- "task" = actionable to-do
-- "note" = thought, reminder, or info to save
-- "health" = headache, migraine, burnout, energy, mood, weight, sleep, medication, symptom
-- "streak" = vitamin, exercise, meditation, habit
+- "task" = anything actionable (to-do, errand, chore, appointment)
+- "streak" = a habit or recurring activity (vitamins, exercise, meditation, reading, no-phone, etc.)
+- "health" = anything related to the body or wellness (weight measurements, headache, migraine, pain, energy, mood, sleep, medication, symptoms, feeling sick, burnout). Weight can be written in any format: 120lbs, 120.3 lbs, 68kg, "weighed 130", etc.
+- "note" = anything else — a thought, reminder, idea, or piece of information
 
-DESTINATION (tasks only): "daily"=urgent/today, "weekly"=general, null=unclear
+SPLITTING:
+- Split on commas or new lines when they separate distinct items
+- Keep together if it is one item (e.g. "salt and pepper" = 1 item)
 
-Return ONLY a JSON array — no explanation, no markdown:
-[{"type":"task","name":"Get dinner","destination":"daily","data":{}},{"type":"note","name":"Remember to call mom","destination":null,"data":{}}]`;
+DESTINATION (tasks only):
+- "daily" = urgent, needs doing today, or explicitly says today
+- "weekly" = general task, no urgency
+- null = unclear
+
+HEALTH DATA — populate the data field for all health items:
+- Weight (any format): {"category":"weight","value":"<exact text the user wrote>"}
+- Headache or migraine: {"category":"headaches","severity":"<1-5 if mentioned, else null>"}
+- Energy, mood, tiredness: {"category":"energy","level":"<1-5 if mentioned, else null>"}
+- Any other health/symptom: {"category":"<descriptive lowercase name>","note":"<what they wrote>"}
+
+EXAMPLES:
+Input: "120.3lbs"
+Output: [{"type":"health","name":"120.3lbs","destination":null,"data":{"category":"weight","value":"120.3lbs"}}]
+
+Input: "bad headache, pick up milk, took vitamins"
+Output: [{"type":"health","name":"bad headache","destination":null,"data":{"category":"headaches","severity":null}},{"type":"task","name":"pick up milk","destination":"daily","data":{}},{"type":"streak","name":"took vitamins","destination":null,"data":{}}]
+
+Return ONLY a valid JSON array. No explanation, no markdown, no extra text.`;
 
   const response = await fetch(WORKER_URL, {
     method: "POST",
@@ -53,9 +67,9 @@ Return ONLY a JSON array — no explanation, no markdown:
     })
   });
 
-  if (!response.ok) throw new Error("Worker request failed: " + response.status);
+  if (!response.ok) throw new Error("Worker " + response.status);
   const d = await response.json();
-  if (d.error) throw new Error("Worker error: " + d.error);
+  if (d.error) throw new Error("API error: " + JSON.stringify(d.error));
 
   const clean = d.content[0].text.trim().replace(/```json|```/g, "").trim();
   const parsed = JSON.parse(clean);
@@ -68,6 +82,7 @@ Return ONLY a JSON array — no explanation, no markdown:
     data: item.data || {}
   }));
 }
+
 
 function parseWithRules(text) {
   return splitIntoChunks(text).map(c => c.trim()).filter(Boolean).map(classifyChunk).filter(Boolean);
@@ -112,12 +127,12 @@ function classifyChunk(text) {
   const lower = text.toLowerCase();
   if (lower.includes("headache") || lower.includes("migraine")) {
     const sev = text.match(/[1-5]/);
-    return { type:"health", name:text, destination:null, data:{ category:"headache", severity:sev?sev[0]:null } };
+    return { type:"health", name:text, destination:null, data:{ category:"headaches", severity:sev?sev[0]:null } };
   }
   if (lower.includes("burnout") || lower.includes("burn out") || lower.includes("burned out"))
     return { type:"health", name:text, destination:null, data:{ category:"burnout" } };
   if (lower.match(/\d+\s*lb/) || lower.includes("weight"))
-    return { type:"health", name:text, destination:null, data:{ category:"weight" } };
+    return { type:"health", name:text, destination:null, data:{ category:"weight", value:text } };
   if (lower.includes("energy level") || lower.includes("energy:")) {
     const lv = text.match(/[1-5]/);
     return { type:"health", name:text, destination:null, data:{ category:"energy", level:lv?lv[0]:null } };
