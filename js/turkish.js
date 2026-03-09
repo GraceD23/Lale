@@ -38,7 +38,7 @@ async function generateStory() {
     const result = await callTurkishAPI(topic, tense, difficulty, extra);
     displayStoryResult(result);
   } catch (err) {
-    alert("Could not generate story. Please try again.");
+    alert("Could not generate story: " + err.message);
     console.error(err);
   } finally {
     btn.textContent = "Generate Story";
