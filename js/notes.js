@@ -7,12 +7,31 @@
 document.addEventListener("DOMContentLoaded", function () {
   if (document.getElementById("notes-list-container")) {
     initializeNotesPage();
+    initFullPageNoteSave(); /* Wire the full notes page entry box */
   }
   if (document.getElementById("recent-notes-list")) {
     renderRecentNotes();
     initQuickNoteSave();
   }
 });
+
+function initFullPageNoteSave() {
+  const btn = document.getElementById("new-note-save");
+  const input = document.getElementById("new-note-input");
+  if (!btn || !input) return;
+  btn.addEventListener("click", function () {
+    const text = input.value.trim();
+    if (!text) return;
+    const notes = typeof loadNotes === "function" ? loadNotes() : {};
+    const now = new Date();
+    const key = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0");
+    if (!notes[key]) notes[key] = [];
+    notes[key].unshift({ id: Date.now().toString(), text: text, date: now.toISOString() });
+    if (typeof saveNotes === "function") saveNotes(notes);
+    input.value = "";
+    initializeNotesPage(); /* Refresh the list */
+  });
+}
 
 function initQuickNoteSave() {
   const btn = document.getElementById("quick-note-save");
