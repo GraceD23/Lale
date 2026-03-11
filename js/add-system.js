@@ -89,7 +89,7 @@ SUPPORTED ACTIONS:
 - edit_item: rename something. Needs: itemType, oldName, newName
 - unknown: cannot determine intent
 
-KEY DISTINCTIONS:
+IMPORTANT NAME RULE: If the user puts a name in quotes (any quote style: "name", 'name', "name"), that quoted text IS the name — use it exactly, ignore the rest of the sentence for the name field.
 - If the user mentions "streak", "habit", "daily habit", "track habit" → use "create_streak"
 - If the user says anything about the Health Page, health tracking, symptoms, or adding a tracker → use "create_health_tracker"
 - Only use "create_page" if the user clearly wants a brand new standalone page unrelated to health or streaks
@@ -161,6 +161,11 @@ function parseAddCommandWithRules(text) {
 }
 
 function extractNameFromCommand(text, wordsToRemove) {
+  /* First: check for anything in quotes — "name" or 'name' */
+  const quoted = text.match(/["""''']([^"""''']+)["""''']/) || text.match(/"([^"]+)"/) || text.match(/'([^']+)'/);
+  if (quoted && quoted[1] && quoted[1].trim().length > 0) return quoted[1].trim();
+
+  /* Fallback: strip instruction words */
   let result = text;
   wordsToRemove.forEach(w => { result = result.replace(new RegExp("\\b" + w + "\\b", "gi"), ""); });
   return result.replace(/\s+/g, " ").trim() || text.trim();
@@ -203,7 +208,7 @@ function buildAddReviewHTML(parsed, originalText) {
   const action = parsed.action || "unknown";
 
   if (action === "create_streak") {
-    summary = "New streak: <strong>" + escH(parsed.name || "?") + "</strong>";
+    return `<p><strong>Create new streak:</strong></p><p>"${escSafe(parsed.name || "?")}"</p><p>Will appear on the Streaks page.</p>`;
   }
   if (action === "create_task_box") {
     return `<p><strong>Create new task box:</strong></p>
