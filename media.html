@@ -123,7 +123,13 @@
       color: var(--border-soft);
       transition: transform 0.2s;
     }
-    .genre-chevron.open { transform: rotate(180deg); }
+    .genre-grid .media-item img {
+      width: 100%;
+      aspect-ratio: 1/1 !important;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
 
     .genre-grid {
       display: none;
@@ -156,14 +162,15 @@
       margin-top: 5px;
       color: var(--text-main);
       line-height: 1.3;
-      max-width: 100%;
+      width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      width: 100%;
+      display: block;
+      height: 14px;
     }
 
-    /* Movies: 2 per row */
+    /* Movies: fixed 2 per row, always 2/3 poster ratio */
     .movie-grid {
       display: none;
       grid-template-columns: repeat(2, 1fr);
@@ -171,6 +178,14 @@
       padding: 12px 0 4px;
     }
     .movie-grid.open { display: grid; }
+
+    .movie-grid .media-item img {
+      aspect-ratio: 2/3 !important;
+      width: 100%;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
 
     .movie-item img {
       width: 100%;
@@ -1000,27 +1015,51 @@ function stopScanner() {
 document.addEventListener("DOMContentLoaded", function() {
   const captureBtn = document.getElementById("scanner-capture-btn");
   if (captureBtn) {
-    captureBtn.addEventListener("click", function() {
+    captureBtn.addEventListener("click", async function() {
+      const hint = document.getElementById("scanner-hint");
       const video = document.getElementById("scanner-video");
       const canvas = document.getElementById("scanner-canvas");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext("2d").drawImage(video, 0, 0);
-      if (typeof Quagga === "undefined") { stopScanner(); alert("Scanner library not loaded."); return; }
-      Quagga.decodeSingle({
-        decoder: { readers: ["ean_reader","ean_8_reader","upc_reader","upc_e_reader","code_128_reader"] },
-        locate: true,
-        src: canvas.toDataURL()
-      }, function(result) {
-        if (result && result.codeResult) {
-          stopScanner();
-          handleBarcode(result.codeResult.code);
-        } else {
-          const hint = document.getElementById("scanner-hint");
-          hint.textContent = "No barcode found — hold steady and try again.";
-          setTimeout(() => { hint.textContent = "Point camera at barcode, then tap Scan"; }, 2500);
-        }
-      });
+      hint.textContent = "Scanning...";
+
+      /* Method 1: Native BarcodeDetector (Chrome/Android) */
+      if ("BarcodeDetector" in window) {
+        try {
+          const detector = new BarcodeDetector({ formats: ["ean_13","ean_8","upc_a","upc_e","code_128"] });
+          const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.95));
+          const bitmap = await createImageBitmap(blob);
+          const codes = await detector.detect(bitmap);
+          if (codes.length > 0) {
+            stopScanner();
+            handleBarcode(codes[0].rawValue);
+            return;
+          }
+        } catch(e) {}
+      }
+
+      /* Method 2: Quagga decodeSingle */
+      if (typeof Quagga !== "undefined") {
+        Quagga.decodeSingle({
+          decoder: { readers: ["ean_reader","ean_8_reader","upc_reader","upc_e_reader","code_128_reader"] },
+          locate: true,
+          src: canvas.toDataURL("image/jpeg", 0.95)
+        }, function(result) {
+          if (result && result.codeResult && result.codeResult.code) {
+            stopScanner();
+            handleBarcode(result.codeResult.code);
+          } else {
+            hint.textContent = "No barcode found — reposition and try again.";
+            setTimeout(() => { hint.textContent = "Align barcode inside the box, then tap Scan"; }, 2500);
+          }
+        });
+        return;
+      }
+
+      /* Method 3: Give up gracefully */
+      hint.textContent = "Could not read barcode — try searching by title.";
+      setTimeout(() => { stopScanner(); openSearchPanel(currentMode); }, 1800);
     });
   }
 });
@@ -1347,7 +1386,10 @@ function renderCDGenres(filter) {
     header.innerHTML = `<span class="genre-title">${escH(genre)}</span><span class="genre-chevron">▼</span>`;
 
     const grid = document.createElement("div");
-    grid.className = "genre-grid";
+    if (filter) grid.className = "genre-grid open";
+    else grid.className = "genre-grid";
+
+    if (filter) header.querySelector = header.querySelector || function(){};
 
     genres[genre].forEach(function(cd) {
       const item = document.createElement("div");
@@ -1402,13 +1444,14 @@ function renderMovieFormats(filter) {
     header.innerHTML = `<span class="genre-title">${escH(fmt)}</span><span class="genre-chevron">▼</span>`;
 
     const grid = document.createElement("div");
-    grid.className = "movie-grid";
+    if (filter) grid.className = "movie-grid open";
+    else grid.className = "movie-grid";
 
     fmtMovies.forEach(function(movie) {
       const item = document.createElement("div");
       item.className = "media-item";
       item.innerHTML = `
-        <img src="${movie.poster || ""}" alt="${escH(movie.title)}" style="aspect-ratio:2/3;" onerror="this.src='';this.style.background='#e8ddd4';">
+        <img src="${movie.poster || ""}" alt="${escH(movie.title)}" onerror="this.src='';this.style.background='#e8ddd4';">
         <div class="media-item-title">${escH(movie.title)}</div>
       `;
       item.addEventListener("click", function() { openMovieDetail(movie); });
@@ -1616,13 +1659,14 @@ function renderTVFormats(filter) {
     header.innerHTML = `<span class="genre-title">${escH(fmt)}</span><span class="genre-chevron">▼</span>`;
 
     const grid = document.createElement("div");
-    grid.className = "movie-grid";
+    if (filter) grid.className = "movie-grid open";
+    else grid.className = "movie-grid";
 
     fmtItems.forEach(function(show) {
       const item = document.createElement("div");
       item.className = "media-item";
       item.innerHTML = `
-        <img src="${show.poster || ""}" alt="${escH(show.title)}" style="aspect-ratio:2/3;" onerror="this.src='';this.style.background='#e8ddd4';">
+        <img src="${show.poster || ""}" alt="${escH(show.title)}" onerror="this.src='';this.style.background='#e8ddd4';">
         <div class="media-item-title">${escH(show.title)}</div>
       `;
       item.addEventListener("click", function() { openTVDetail(show); });
