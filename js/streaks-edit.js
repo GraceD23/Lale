@@ -99,6 +99,19 @@ function openStreaksEditPanel() {
   const list = document.createElement("div");
   panel.appendChild(list);
 
+  /* Add new streak row */
+  const addRow = document.createElement("div");
+  addRow.style.cssText = "display:flex;gap:8px;margin-top:12px;";
+  addRow.innerHTML = `
+    <input type="text" id="streaks-new-name" placeholder="New streak name..."
+      style="flex:1;padding:8px;border-radius:8px;border:1px solid #CBB7A3;font-size:14px;font-family:'Josefin Sans',sans-serif;">
+    <button type="button" id="streaks-add-new"
+      style="padding:8px 14px;border-radius:8px;border:1px solid #b0977a;background:#b0977a;color:white;font-size:14px;cursor:pointer;font-family:'Josefin Sans',sans-serif;">
+      Add
+    </button>
+  `;
+  panel.appendChild(addRow);
+
   const doneBtn = document.createElement("button");
   doneBtn.type = "button";
   doneBtn.textContent = "Done";
@@ -166,6 +179,27 @@ function openStreaksEditPanel() {
   }
 
   document.body.appendChild(panel);
+
+  /* Wire Add button */
+  const addBtn = document.getElementById("streaks-add-new");
+  const addInput = document.getElementById("streaks-new-name");
+  if (addBtn && addInput) {
+    addBtn.addEventListener("click", function () {
+      const name = addInput.value.trim();
+      if (!name) return;
+      const streaks = typeof loadStreaks === "function" ? loadStreaks() : [];
+      if (streaks.find(s => s.name.toLowerCase() === name.toLowerCase())) {
+        alert("A streak called \"" + name + "\" already exists.");
+        return;
+      }
+      const id = "streak-" + name.toLowerCase().replace(/[^a-z0-9]/g, "-").replace(/-+/g, "-");
+      streaks.push({ id: id, name: name, count: 0, weeklyCount: 0, history: [] });
+      if (typeof saveStreaks === "function") saveStreaks(streaks);
+      if (typeof renderFullStreaksPage === "function") renderFullStreaksPage();
+      panel.remove();
+      openStreaksEditPanel();
+    });
+  }
 }
 
 
