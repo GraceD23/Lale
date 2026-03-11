@@ -138,8 +138,22 @@ function renderNotesList(monthKey) {
       deleteNote(monthKey, entry.date);
     });
 
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.style.cssText = "margin-left:4px;font-size:11px;opacity:0.5;background:none;border:none;cursor:pointer;color:inherit;";
+    editBtn.textContent = "✎";
+    editBtn.addEventListener("click", function () {
+      const newText = prompt("Edit note:", entry.text);
+      if (newText === null) return;
+      const notes = loadNotes();
+      if (!notes[monthKey]) return;
+      const n = notes[monthKey].find(n => n.date === entry.date);
+      if (n) { n.text = newText.trim(); saveNotes(notes); renderNotesList(monthKey); renderRecentNotes(); }
+    });
+
     item.appendChild(dateStr);
     item.appendChild(text);
+    item.appendChild(editBtn);
     item.appendChild(deleteBtn);
     list.appendChild(item);
   });
