@@ -123,13 +123,7 @@
       color: var(--border-soft);
       transition: transform 0.2s;
     }
-    .genre-grid .media-item img {
-      width: 100%;
-      aspect-ratio: 1/1 !important;
-      object-fit: cover;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-    }
+
 
     .genre-grid {
       display: none;
@@ -150,12 +144,17 @@
 
     .media-item img {
       width: 100%;
-      aspect-ratio: 1/1;
+      height: 110px;
       object-fit: cover;
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.12);
       background: #e8ddd4;
       flex-shrink: 0;
+      display: block;
+    }
+
+    .movie-grid .media-item img {
+      height: 160px;
     }
 
     .media-item-title {
@@ -182,13 +181,7 @@
     }
     .movie-grid.open { display: grid; }
 
-    .movie-grid .media-item img {
-      aspect-ratio: 2/3 !important;
-      width: 100%;
-      object-fit: cover;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-    }
+
 
     .movie-item img {
       width: 100%;
@@ -790,11 +783,11 @@
 
 <!-- ===================== SCANNER OVERLAY ===================== -->
 <div class="scanner-overlay" id="scanner-overlay">
-  <video id="scanner-video" autoplay muted playsinline></video>
-  <div class="scanner-frame"></div>
-  <div class="scanner-bottom">
-    <p class="scanner-hint" id="scanner-hint">Align barcode inside the box, then tap Scan</p>
-    <button class="scanner-capture-btn" id="scanner-capture-btn">Scan</button>
+  <div class="scanner-bottom" style="justify-content:center;height:100%;">
+    <p style="color:white;font-family:var(--font);font-size:18px;font-weight:600;margin:0;">Scan Barcode</p>
+    <p class="scanner-hint" id="scanner-hint">Take a photo of the barcode on your disc</p>
+    <label class="scanner-capture-btn" id="scanner-capture-btn" for="barcode-file-input">📷 Open Camera</label>
+    <input type="file" id="barcode-file-input" accept="image/*" capture="environment" style="display:none;">
     <button class="scanner-cancel" id="scanner-cancel-btn">Cancel</button>
   </div>
   <canvas id="scanner-canvas" style="display:none;"></canvas>
@@ -991,58 +984,54 @@ document.getElementById("add-scan-btn").addEventListener("click", function() {
   startScanner();
 });
 
-async function startScanner() {
-  const overlay = document.getElementById("scanner-overlay");
-  overlay.classList.add("open");
-  try {
-    scanStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    const video = document.getElementById("scanner-video");
-    video.srcObject = scanStream;
-    await video.play();
-  } catch(err) {
-    stopScanner();
-    alert("Camera not available: " + err.message);
-  }
+function startScanner() {
+  document.getElementById("scanner-overlay").classList.add("open");
+  document.getElementById("scanner-hint").textContent = "Take a photo of the barcode on your disc";
+  /* Reset file input so same file can be chosen again */
+  const input = document.getElementById("barcode-file-input");
+  input.value = "";
 }
 
 function startBarcodeDetection() { /* Not used */ }
 
 function stopScanner() {
-  try { if (typeof Quagga !== "undefined") { Quagga.offDetected(); Quagga.stop(); } } catch(e) {}
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   document.getElementById("scanner-overlay").classList.remove("open");
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  const captureBtn = document.getElementById("scanner-capture-btn");
-  if (captureBtn) {
-    captureBtn.addEventListener("click", async function() {
-      const hint = document.getElementById("scanner-hint");
-      const video = document.getElementById("scanner-video");
-      const canvas = document.getElementById("scanner-canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext("2d").drawImage(video, 0, 0);
-      hint.textContent = "Scanning...";
+  const fileInput = document.getElementById("barcode-file-input");
+  if (!fileInput) return;
 
-      /* Method 1: Native BarcodeDetector (Chrome/Android) */
+  fileInput.addEventListener("change", async function() {
+    const file = this.files[0];
+    if (!file) return;
+    stopScanner();
+
+    const hint = document.getElementById("scanner-hint");
+
+    /* Draw image to canvas */
+    const canvas = document.getElementById("scanner-canvas");
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = async function() {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+
+      /* Method 1: Native BarcodeDetector (best on Android Chrome) */
       if ("BarcodeDetector" in window) {
         try {
           const detector = new BarcodeDetector({ formats: ["ean_13","ean_8","upc_a","upc_e","code_128"] });
-          const blob = await new Promise(res => canvas.toBlob(res, "image/jpeg", 0.95));
-          const bitmap = await createImageBitmap(blob);
-          const codes = await detector.detect(bitmap);
+          const codes = await detector.detect(img);
           if (codes.length > 0) {
-            stopScanner();
             handleBarcode(codes[0].rawValue);
             return;
           }
         } catch(e) {}
       }
 
-      /* Method 2: Quagga decodeSingle */
+      /* Method 2: Quagga on the canvas image */
       if (typeof Quagga !== "undefined") {
         Quagga.decodeSingle({
           decoder: { readers: ["ean_reader","ean_8_reader","upc_reader","upc_e_reader","code_128_reader"] },
@@ -1050,21 +1039,23 @@ document.addEventListener("DOMContentLoaded", function() {
           src: canvas.toDataURL("image/jpeg", 0.95)
         }, function(result) {
           if (result && result.codeResult && result.codeResult.code) {
-            stopScanner();
             handleBarcode(result.codeResult.code);
           } else {
-            hint.textContent = "No barcode found — reposition and try again.";
-            setTimeout(() => { hint.textContent = "Align barcode inside the box, then tap Scan"; }, 2500);
+            /* Could not read — open search directly */
+            openSearchPanel(currentMode);
+            setTimeout(() => {
+              document.getElementById("search-input").placeholder = "Barcode unreadable — search by title";
+            }, 300);
           }
         });
         return;
       }
 
-      /* Method 3: Give up gracefully */
-      hint.textContent = "Could not read barcode — try searching by title.";
-      setTimeout(() => { stopScanner(); openSearchPanel(currentMode); }, 1800);
-    });
-  }
+      /* Fallback */
+      openSearchPanel(currentMode);
+    };
+    img.src = url;
+  });
 });
 
 document.getElementById("scanner-cancel-btn").addEventListener("click", stopScanner);
