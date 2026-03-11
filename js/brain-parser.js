@@ -92,75 +92,33 @@ Return ONLY a valid JSON array. No explanation, no markdown, no extra text.`;
 
 
 function parseWithRules(text) {
-  return splitIntoChunks(text).map(c => c.trim()).filter(Boolean).map(classifyChunk).filter(Boolean);
-}
+  /* Simple fallback — only runs if API fails completely.
+     Splits on newlines/commas only, no keyword splitting that mangles sentences. */
+  const chunks = text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+  return chunks.map(function(chunk) {
+    const lower = chunk.toLowerCase();
 
-function splitIntoChunks(text) {
-  const byLines = text.split(/\n+/).map(s => s.trim()).filter(Boolean);
-  const byCommas = [];
-  byLines.forEach(line => line.split(",").map(s => s.trim()).filter(Boolean).forEach(p => byCommas.push(p)));
-  const ACTION_STARTERS = [
-    "pick up","drop off","go to","shop for","get ","call ","email ","text ","buy ","wash ","clean ",
-    "make ","finish ","do ","grab ","bring ","pay ","send ","check ","organize ","plan ","pack ",
-    "fill ","order ","print ","write ","update ","fix ","book ","schedule "
-  ];
-  const final = [];
-  byCommas.forEach(chunk => splitByActionWords(chunk, ACTION_STARTERS).forEach(c => final.push(c)));
-  return final;
-}
-
-function splitByActionWords(text, actionWords) {
-  const lower = text.toLowerCase();
-  const splitPoints = [];
-  actionWords.forEach(word => {
-    const w = word.trim().toLowerCase();
-    let idx = lower.indexOf(w, w.length + 1);
-    while (idx !== -1) {
-      if (idx > 0 && lower[idx - 1] === " ") splitPoints.push(idx);
-      idx = lower.indexOf(w, idx + w.length);
+    /* Check existing streak names */
+    if (typeof loadStreaks === "function") {
+      const streaks = loadStreaks();
+      const match = streaks.find(s => lower.includes(s.name.toLowerCase()));
+      if (match) return { type:"streak", name:match.name, destination:null, data:{} };
     }
+
+    /* Health keywords */
+    if (lower.includes("headache") || lower.includes("migraine")) {
+      const sev = chunk.match(/[1-5]/);
+      return { type:"health", name:chunk, destination:null, data:{ category:"headaches", severity:sev?sev[0]:null } };
+    }
+    if (lower.match(/\d+\s*lb/) || lower.match(/\d+\s*kg/) || lower.includes("weigh"))
+      return { type:"health", name:chunk, destination:null, data:{ category:"weight", value:chunk } };
+
+    /* Task keywords — only match clear action verbs at the START of a sentence */
+    const taskStarters = ["pick up","drop off","go to","buy ","call ","email ","pay ","send ","book ","schedule ","wash ","clean ","fix ","finish ","order ","print ","vaccum","vacuum","mow ","take ","bring ","drop ","get "];
+    if (taskStarters.some(w => lower.startsWith(w) || lower.includes(" " + w.trim() + " ")))
+      return { type:"task", name:chunk, destination:"weekly", data:{} };
+
+    /* Default to note */
+    return { type:"note", name:chunk, destination:null, data:{} };
   });
-  if (splitPoints.length === 0) return [text];
-  const sorted = [...new Set(splitPoints)].sort((a, b) => a - b);
-  const chunks = [];
-  let last = 0;
-  sorted.forEach(point => { const c = text.slice(last, point).trim(); if (c) chunks.push(c); last = point; });
-  const rem = text.slice(last).trim();
-  if (rem) chunks.push(rem);
-  return chunks.map(c => c.replace(/^\s*and\s+/i,"").replace(/\s+and\s*$/i,"").trim()).filter(Boolean);
-}
-
-function classifyChunk(text) {
-  const lower = text.toLowerCase();
-
-  /* Check against user's existing streak names FIRST */
-  if (typeof loadStreaks === "function") {
-    const streaks = loadStreaks();
-    const matchedStreak = streaks.find(s =>
-      lower.includes(s.name.toLowerCase()) ||
-      s.name.toLowerCase().includes(lower)
-    );
-    if (matchedStreak) return { type:"streak", name:matchedStreak.name, destination:null, data:{} };
-  }
-
-  if (lower.includes("headache") || lower.includes("migraine")) {
-    const sev = text.match(/[1-5]/);
-    return { type:"health", name:text, destination:null, data:{ category:"headaches", severity:sev?sev[0]:null } };
-  }
-  if (lower.includes("burnout") || lower.includes("burn out") || lower.includes("burned out"))
-    return { type:"health", name:text, destination:null, data:{ category:"burnout" } };
-  if (lower.match(/\d+\s*lb/) || lower.includes("weight"))
-    return { type:"health", name:text, destination:null, data:{ category:"weight", value:text } };
-  if (lower.includes("energy level") || lower.includes("energy:")) {
-    const lv = text.match(/[1-5]/);
-    return { type:"health", name:text, destination:null, data:{ category:"energy", level:lv?lv[0]:null } };
-  }
-  if (lower.includes("vitamin") || lower.includes("meditat") || lower.includes("exercise"))
-    return { type:"streak", name:text, destination:null, data:{} };
-  const taskWords = ["wash","clean","pick up","buy","call","email","text","go to","schedule","make",
-    "finish","do ","drop off","grab","get ","bring","pay","send","check","organize","plan","pack",
-    "fill","order","print","write","update","fix","book","shop"];
-  if (taskWords.some(w => lower.includes(w)))
-    return { type:"task", name:text, destination:null, data:{} };
-  return { type:"note", name:text, destination:null, data:{} };
 }
