@@ -6,9 +6,29 @@
    - ESC to close
    ========================================================= */
 
+const NAV_LINKS = [
+  { label: "Home",     href: "index.html" },
+  { label: "Work",     href: "work.html" },
+  { label: "Streaks",  href: "streaks.html" },
+  { label: "Health",   href: "health.html" },
+  { label: "Notes",    href: "notes.html" },
+  { label: "Media",    href: "media.html" },
+  { label: "Learning", href: "learning.html" },
+  { label: "Export",   href: "history.html" },
+];
+
 document.addEventListener("DOMContentLoaded", function () {
+  injectNav();
   initMenu();
 });
+
+function injectNav() {
+  const list = document.querySelector(".mobile-navigation-list");
+  if (!list) return;
+  list.innerHTML = NAV_LINKS.map(function(link) {
+    return '<li><a href="' + link.href + '">' + link.label + '</a></li>';
+  }).join("\n");
+}
 
 function initMenu() {
   const hamburger = document.getElementById("hamburger-menu-button");
