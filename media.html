@@ -1078,51 +1078,16 @@ async function addCDFromRelease(release) {
   cds.push(cd);
   saveCDs(cds);
   renderCDGenres();
-  document.getElementById("cd-section-body").classList.add("open");
-  document.getElementById("cd-chevron").classList.add("open");
+  /* section stays as-is after adding */
   alert('"' + title + '" added to your collection!');
 }
 
-/* ===================== LOOKUP: Movie/TV Barcode via TMDB ===================== */
+/* ===================== LOOKUP: Movie/TV Barcode ===================== */
 async function lookupMovieBarcode(barcode) {
-  /* Step 1: Try TMDB find by EAN/UPC */
-  try {
-    const res = await fetch(`${TMDB_BASE}/find/${barcode}?external_source=imdb_id&language=en-US`, {
-      headers: { "Authorization": "Bearer " + TMDB_TOKEN }
-    });
-    const data = await res.json();
-    const movieResults = data.movie_results || [];
-    const tvResults = data.tv_results || [];
-    if (movieResults.length > 0) {
-      const details = await getTMDBDetails(movieResults[0].id, "movie");
-      await addMovieFromTMDB(details, "movie"); return;
-    }
-    if (tvResults.length > 0) {
-      const details = await getTMDBDetails(tvResults[0].id, "tv");
-      await addMovieFromTMDB(details, "tv"); return;
-    }
-  } catch(e) {}
-
-  /* Step 2: Try UPC Item DB to get title then search TMDB */
-  try {
-    const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`);
-    const data = await res.json();
-    if (data.items && data.items.length > 0 && data.items[0].title) {
-      stopScanner();
-      openSearchPanel(currentMode);
-      setTimeout(() => {
-        document.getElementById("search-input").value = data.items[0].title;
-        doSearch();
-      }, 400);
-      return;
-    }
-  } catch(e) {}
-
-  /* Step 3: Graceful fallback — open search with hint */
   stopScanner();
   openSearchPanel(currentMode);
   setTimeout(() => {
-    document.getElementById("search-input").placeholder = "Barcode " + barcode + " — search by title";
+    document.getElementById("search-input").placeholder = "Barcode " + barcode + " detected — search by title";
   }, 400);
 }
 
@@ -1161,21 +1126,20 @@ async function addMovieFromTMDB(tmdbData, type) {
   const plot = tmdbData.overview || "";
   const rating = tmdbData.vote_average ? tmdbData.vote_average.toFixed(1) + "/10" : "NR";
 
-  const entry = { id: String(tmdbData.id), title, year, director, cast, runtime, rating, plot, genre, poster, format: currentFormat || "DVD", addedAt: Date.now() };
+  const seasonsOwned = tmdbData._seasonsOwned || [];
+  const entry = { id: String(tmdbData.id), title, year, director, cast, runtime, rating, plot, genre, poster, format: currentFormat || "DVD", seasonsOwned, addedAt: Date.now() };
 
   if (currentMode === "tv") {
     const tv = loadTV();
     if (tv.find(m => m.id === entry.id && m.format === entry.format)) { alert('"' + title + '" (' + entry.format + ') is already in your collection.'); return; }
     tv.push(entry); saveTV(tv); renderTVFormats();
-    document.getElementById("tv-section-body").classList.add("open");
-    document.getElementById("tv-chevron").classList.add("open");
+    /* section stays as-is after adding */
     alert('"' + title + '" added to your TV Series collection!');
   } else {
     const movies = loadMovies();
     if (movies.find(m => m.id === entry.id && m.format === entry.format)) { alert('"' + title + '" (' + entry.format + ') is already in your collection.'); return; }
     movies.push(entry); saveMovies(movies); renderMovieFormats();
-    document.getElementById("movie-section-body").classList.add("open");
-    document.getElementById("movie-chevron").classList.add("open");
+    /* section stays as-is after adding */
     alert('"' + title + '" added to your ' + entry.format + ' collection!');
   }
 }
@@ -1265,13 +1229,93 @@ async function doSearch() {
       item.querySelector(".search-result-add").addEventListener("click", async function() {
         this.textContent = "...";
         this.disabled = true;
-        const details = await getTMDBDetails(r.id, tmdbType);
-        await addMovieFromTMDB(details, tmdbType);
-        document.getElementById("search-overlay").classList.remove("open");
+        if (currentMode === "tv") {
+          const details = await getTMDBDetails(r.id, "tv");
+          this.textContent = "Add";
+          this.disabled = false;
+          showSeasonPicker(details, container);
+        } else {
+          const details = await getTMDBDetails(r.id, tmdbType);
+          await addMovieFromTMDB(details, tmdbType);
+          document.getElementById("search-overlay").classList.remove("open");
+        }
       });
       container.appendChild(item);
     });
   }
+}
+
+/* ===================== SEASON PICKER ===================== */
+function showSeasonPicker(show, container) {
+  const seasons = (show.seasons || []).filter(s => s.season_number > 0);
+  if (!seasons.length) {
+    /* No season data — add as-is */
+    addMovieFromTMDB(show, "tv").then(() => {
+      document.getElementById("search-overlay").classList.remove("open");
+    });
+    return;
+  }
+
+  const picker = document.createElement("div");
+  picker.style.cssText = "background:#f7f0e8;border-radius:14px;padding:16px;margin-top:14px;";
+  picker.innerHTML = `
+    <p style="font-size:13px;font-weight:600;color:#3a2e28;margin:0 0 10px;font-family:'Josefin Sans',sans-serif;">
+      Select seasons you own:
+    </p>
+    <div id="season-picks" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+      ${seasons.map(s => `
+        <button type="button" data-season="${s.season_number}"
+          style="padding:6px 12px;border-radius:8px;border:1.5px solid #CBB7A3;background:white;
+          font-family:'Josefin Sans',sans-serif;font-size:13px;color:#4E4036;cursor:pointer;">
+          S${s.season_number}
+        </button>
+      `).join("")}
+    </div>
+    <button type="button" id="season-confirm-btn"
+      style="width:100%;padding:10px;border-radius:10px;border:none;background:#B88C6A;
+      color:white;font-family:'Josefin Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">
+      Add to Collection
+    </button>
+  `;
+
+  /* Clear previous picker if any */
+  const old = container.querySelector(".season-picker-wrap");
+  if (old) old.remove();
+
+  const wrap = document.createElement("div");
+  wrap.className = "season-picker-wrap";
+  wrap.appendChild(picker);
+  container.appendChild(wrap);
+
+  /* Toggle season selection */
+  const selected = new Set();
+  picker.querySelectorAll("[data-season]").forEach(function(btn) {
+    btn.addEventListener("click", function() {
+      const n = this.dataset.season;
+      if (selected.has(n)) {
+        selected.delete(n);
+        this.style.background = "white";
+        this.style.color = "#4E4036";
+        this.style.borderColor = "#CBB7A3";
+      } else {
+        selected.add(n);
+        this.style.background = "#b0977a";
+        this.style.color = "white";
+        this.style.borderColor = "#b0977a";
+      }
+    });
+  });
+
+  picker.querySelector("#season-confirm-btn").addEventListener("click", async function() {
+    if (selected.size === 0) { alert("Please select at least one season."); return; }
+    const seasonsOwned = Array.from(selected).map(Number).sort((a,b) => a-b);
+    show._seasonsOwned = seasonsOwned;
+    await addMovieFromTMDB(show, "tv");
+    document.getElementById("search-overlay").classList.remove("open");
+  });
+
+  /* Scroll to picker */
+  wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 /* ===================== RENDER: CDs ===================== */
@@ -1300,10 +1344,10 @@ function renderCDGenres(filter) {
 
     const header = document.createElement("div");
     header.className = "genre-header";
-    header.innerHTML = `<span class="genre-title">${escH(genre)}</span><span class="genre-chevron open">▼</span>`;
+    header.innerHTML = `<span class="genre-title">${escH(genre)}</span><span class="genre-chevron">▼</span>`;
 
     const grid = document.createElement("div");
-    grid.className = "genre-grid open";
+    grid.className = "genre-grid";
 
     genres[genre].forEach(function(cd) {
       const item = document.createElement("div");
@@ -1318,8 +1362,12 @@ function renderCDGenres(filter) {
 
     header.addEventListener("click", function() {
       const open = grid.classList.contains("open");
-      grid.classList.toggle("open", !open);
-      header.querySelector(".genre-chevron").classList.toggle("open", !open);
+      container.querySelectorAll(".movie-grid, .genre-grid").forEach(function(g) { g.classList.remove("open"); });
+      container.querySelectorAll(".genre-chevron").forEach(function(c) { c.classList.remove("open"); });
+      if (!open) {
+        grid.classList.add("open");
+        header.querySelector(".genre-chevron").classList.add("open");
+      }
     });
 
     block.appendChild(header);
@@ -1351,10 +1399,10 @@ function renderMovieFormats(filter) {
 
     const header = document.createElement("div");
     header.className = "genre-header";
-    header.innerHTML = `<span class="genre-title">${escH(fmt)}</span><span class="genre-chevron open">▼</span>`;
+    header.innerHTML = `<span class="genre-title">${escH(fmt)}</span><span class="genre-chevron">▼</span>`;
 
     const grid = document.createElement("div");
-    grid.className = "movie-grid open";
+    grid.className = "movie-grid";
 
     fmtMovies.forEach(function(movie) {
       const item = document.createElement("div");
@@ -1369,8 +1417,12 @@ function renderMovieFormats(filter) {
 
     header.addEventListener("click", function() {
       const open = grid.classList.contains("open");
-      grid.classList.toggle("open", !open);
-      header.querySelector(".genre-chevron").classList.toggle("open", !open);
+      container.querySelectorAll(".movie-grid, .genre-grid").forEach(function(g) { g.classList.remove("open"); });
+      container.querySelectorAll(".genre-chevron").forEach(function(c) { c.classList.remove("open"); });
+      if (!open) {
+        grid.classList.add("open");
+        header.querySelector(".genre-chevron").classList.add("open");
+      }
     });
 
     block.appendChild(header);
@@ -1561,10 +1613,10 @@ function renderTVFormats(filter) {
 
     const header = document.createElement("div");
     header.className = "genre-header";
-    header.innerHTML = `<span class="genre-title">${escH(fmt)}</span><span class="genre-chevron open">▼</span>`;
+    header.innerHTML = `<span class="genre-title">${escH(fmt)}</span><span class="genre-chevron">▼</span>`;
 
     const grid = document.createElement("div");
-    grid.className = "movie-grid open";
+    grid.className = "movie-grid";
 
     fmtItems.forEach(function(show) {
       const item = document.createElement("div");
@@ -1579,8 +1631,12 @@ function renderTVFormats(filter) {
 
     header.addEventListener("click", function() {
       const open = grid.classList.contains("open");
-      grid.classList.toggle("open", !open);
-      header.querySelector(".genre-chevron").classList.toggle("open", !open);
+      container.querySelectorAll(".movie-grid, .genre-grid").forEach(function(g) { g.classList.remove("open"); });
+      container.querySelectorAll(".genre-chevron").forEach(function(c) { c.classList.remove("open"); });
+      if (!open) {
+        grid.classList.add("open");
+        header.querySelector(".genre-chevron").classList.add("open");
+      }
     });
 
     block.appendChild(header);
@@ -1600,12 +1656,24 @@ function openTVDetail(show) {
     <h2 class="detail-title">${escH(show.title)}</h2>
     <p class="detail-subtitle">${escH(show.year)} <span class="format-badge">${escH(show.format)}</span></p>
     <div class="detail-meta">
-      <div class="detail-meta-row"><span class="detail-meta-label">Director</span><span class="detail-meta-value">${escH(show.director)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Creator</span><span class="detail-meta-value">${escH(show.director)}</span></div>
       <div class="detail-meta-row"><span class="detail-meta-label">Cast</span><span class="detail-meta-value">${escH(show.cast)}</span></div>
       <div class="detail-meta-row"><span class="detail-meta-label">Runtime</span><span class="detail-meta-value">${escH(show.runtime)}</span></div>
       <div class="detail-meta-row"><span class="detail-meta-label">Rating</span><span class="detail-meta-value">${escH(show.rating)}</span></div>
       <div class="detail-meta-row"><span class="detail-meta-label">Genre</span><span class="detail-meta-value">${escH(show.genre)}</span></div>
+      <div class="detail-meta-row">
+        <span class="detail-meta-label">Seasons Owned</span>
+        <span class="detail-meta-value" id="seasons-owned-display">
+          ${show.seasonsOwned && show.seasonsOwned.length ? show.seasonsOwned.map(s => "S" + s).join(", ") : "Not specified"}
+        </span>
+      </div>
     </div>
+    <button type="button" id="tv-edit-seasons-btn"
+      style="width:100%;margin:8px 0;padding:9px;border-radius:10px;border:1.5px solid #CBB7A3;
+      background:white;font-family:'Josefin Sans',sans-serif;font-size:13px;color:#4E4036;cursor:pointer;">
+      ✎ Edit Seasons Owned
+    </button>
+    <div id="tv-seasons-edit-area" style="display:none;background:#f7f0e8;border-radius:12px;padding:14px;margin-bottom:10px;"></div>
     ${show.plot ? `<p style="font-size:13px;line-height:1.6;opacity:0.8;margin:12px 0;">${escH(show.plot)}</p>` : ""}
     <div class="star-rating" id="tv-stars">
       ${[1,2,3,4,5].map(n => `<span class="star ${n <= myRating ? "filled" : ""}" data-n="${n}">★</span>`).join("")}
@@ -1625,6 +1693,60 @@ function openTVDetail(show) {
       saveRatings(ratings);
       document.querySelectorAll("#tv-stars .star").forEach(s => s.classList.toggle("filled", parseInt(s.dataset.n) <= n));
     });
+  });
+
+  /* Wire Edit Seasons */
+  document.getElementById("tv-edit-seasons-btn").addEventListener("click", async function() {
+    const editArea = document.getElementById("tv-seasons-edit-area");
+    if (editArea.style.display !== "none") { editArea.style.display = "none"; return; }
+    editArea.innerHTML = '<span class="spinner"></span> Loading seasons...';
+    editArea.style.display = "block";
+    try {
+      const details = await getTMDBDetails(show.id, "tv");
+      const allSeasons = (details.seasons || []).filter(s => s.season_number > 0);
+      const owned = new Set((show.seasonsOwned || []).map(Number));
+      editArea.innerHTML = `
+        <p style="font-size:12px;font-weight:600;opacity:0.6;margin:0 0 10px;font-family:'Josefin Sans',sans-serif;">TAP TO TOGGLE</p>
+        <div id="season-edit-btns" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+          ${allSeasons.map(s => `
+            <button type="button" data-s="${s.season_number}"
+              style="padding:6px 12px;border-radius:8px;border:1.5px solid ${owned.has(s.season_number) ? "#b0977a" : "#CBB7A3"};
+              background:${owned.has(s.season_number) ? "#b0977a" : "white"};
+              color:${owned.has(s.season_number) ? "white" : "#4E4036"};
+              font-family:'Josefin Sans',sans-serif;font-size:13px;cursor:pointer;">
+              S${s.season_number}
+            </button>
+          `).join("")}
+        </div>
+        <button type="button" id="season-save-btn"
+          style="width:100%;padding:9px;border-radius:10px;border:none;background:#B88C6A;
+          color:white;font-family:'Josefin Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">
+          Save
+        </button>
+      `;
+      editArea.querySelectorAll("[data-s]").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+          const n = Number(this.dataset.s);
+          if (owned.has(n)) {
+            owned.delete(n);
+            this.style.background = "white"; this.style.color = "#4E4036"; this.style.borderColor = "#CBB7A3";
+          } else {
+            owned.add(n);
+            this.style.background = "#b0977a"; this.style.color = "white"; this.style.borderColor = "#b0977a";
+          }
+        });
+      });
+      editArea.querySelector("#season-save-btn").addEventListener("click", function() {
+        const newSeasons = Array.from(owned).sort((a,b) => a-b);
+        const tv = loadTV();
+        const entry = tv.find(m => m.id === show.id && m.format === show.format);
+        if (entry) { entry.seasonsOwned = newSeasons; saveTV(tv); }
+        show.seasonsOwned = newSeasons;
+        document.getElementById("seasons-owned-display").textContent =
+          newSeasons.length ? newSeasons.map(s => "S" + s).join(", ") : "Not specified";
+        editArea.style.display = "none";
+      });
+    } catch(e) { editArea.innerHTML = "<p style='font-size:13px;opacity:0.5;'>Could not load seasons.</p>"; }
   });
 
   document.getElementById("tv-also-like-btn").addEventListener("click", async function() {
