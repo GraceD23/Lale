@@ -517,45 +517,75 @@
       display: none;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
     }
     .scanner-overlay.open { display: flex; }
 
     #scanner-video {
       width: 100%;
       max-width: 480px;
-      height: auto;
+      height: 65vh;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .scanner-bottom {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px 20px 32px;
+      gap: 12px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
     .scanner-hint {
       color: white;
       font-family: var(--font);
-      font-size: 14px;
-      margin-top: 16px;
+      font-size: 13px;
       opacity: 0.8;
       text-align: center;
-      padding: 0 20px;
+      margin: 0;
+    }
+
+    .scanner-capture-btn {
+      padding: 14px 48px;
+      border-radius: 50px;
+      border: none;
+      background: #B88C6A;
+      color: white;
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.5px;
     }
 
     .scanner-cancel {
-      margin-top: 20px;
-      padding: 10px 28px;
+      padding: 8px 24px;
       border-radius: 10px;
-      border: 1.5px solid rgba(255,255,255,0.5);
+      border: 1.5px solid rgba(255,255,255,0.4);
       background: none;
-      color: white;
+      color: rgba(255,255,255,0.7);
       font-family: var(--font);
-      font-size: 14px;
+      font-size: 13px;
       cursor: pointer;
     }
 
     .scanner-frame {
       position: absolute;
-      width: 220px;
-      height: 140px;
-      border: 2px solid rgba(255,255,255,0.7);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -70%);
+      width: 75%;
+      max-width: 320px;
+      height: 120px;
+      border: 2px solid rgba(255,255,255,0.85);
       border-radius: 12px;
       pointer-events: none;
+      box-shadow: 0 0 0 2000px rgba(0,0,0,0.4);
     }
 
     /* ---- Loading spinner ---- */
@@ -742,11 +772,13 @@
 
 <!-- ===================== SCANNER OVERLAY ===================== -->
 <div class="scanner-overlay" id="scanner-overlay">
-  <video id="scanner-video" autoplay muted playsinline style="width:100%;max-width:480px;"></video>
+  <video id="scanner-video" autoplay muted playsinline></video>
   <div class="scanner-frame"></div>
-  <p class="scanner-hint" id="scanner-hint">Point camera at barcode, then tap Scan</p>
-  <button class="scanner-cancel" id="scanner-capture-btn" style="background:#B88C6A;border-color:#B88C6A;color:white;margin-bottom:10px;">Scan</button>
-  <button class="scanner-cancel" id="scanner-cancel-btn">Cancel</button>
+  <div class="scanner-bottom">
+    <p class="scanner-hint" id="scanner-hint">Align barcode inside the box, then tap Scan</p>
+    <button class="scanner-capture-btn" id="scanner-capture-btn">Scan</button>
+    <button class="scanner-cancel" id="scanner-cancel-btn">Cancel</button>
+  </div>
   <canvas id="scanner-canvas" style="display:none;"></canvas>
 </div>
 
@@ -1051,22 +1083,47 @@ async function addCDFromRelease(release) {
   alert('"' + title + '" added to your collection!');
 }
 
-/* ===================== LOOKUP: Movie via OMDB ===================== */
+/* ===================== LOOKUP: Movie/TV Barcode via TMDB ===================== */
 async function lookupMovieBarcode(barcode) {
+  /* Step 1: Try TMDB find by EAN/UPC */
+  try {
+    const res = await fetch(`${TMDB_BASE}/find/${barcode}?external_source=imdb_id&language=en-US`, {
+      headers: { "Authorization": "Bearer " + TMDB_TOKEN }
+    });
+    const data = await res.json();
+    const movieResults = data.movie_results || [];
+    const tvResults = data.tv_results || [];
+    if (movieResults.length > 0) {
+      const details = await getTMDBDetails(movieResults[0].id, "movie");
+      await addMovieFromTMDB(details, "movie"); return;
+    }
+    if (tvResults.length > 0) {
+      const details = await getTMDBDetails(tvResults[0].id, "tv");
+      await addMovieFromTMDB(details, "tv"); return;
+    }
+  } catch(e) {}
+
+  /* Step 2: Try UPC Item DB to get title then search TMDB */
   try {
     const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`);
     const data = await res.json();
-    if (data.items && data.items.length > 0) {
-      const title = data.items[0].title || "";
-      if (title) {
-        openSearchPanel(currentMode);
-        setTimeout(() => { document.getElementById("search-input").value = title; doSearch(); }, 400);
-        return;
-      }
+    if (data.items && data.items.length > 0 && data.items[0].title) {
+      stopScanner();
+      openSearchPanel(currentMode);
+      setTimeout(() => {
+        document.getElementById("search-input").value = data.items[0].title;
+        doSearch();
+      }, 400);
+      return;
     }
   } catch(e) {}
-  alert("Barcode not found. Switching to title search.");
+
+  /* Step 3: Graceful fallback — open search with hint */
+  stopScanner();
   openSearchPanel(currentMode);
+  setTimeout(() => {
+    document.getElementById("search-input").placeholder = "Barcode " + barcode + " — search by title";
+  }, 400);
 }
 
 async function searchTMDB(query, type) {
