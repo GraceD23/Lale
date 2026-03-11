@@ -683,6 +683,26 @@
         </div>
       </div>
 
+      <!-- ===================== TV SERIES ===================== -->
+      <div class="media-section-card" id="tv-section-card">
+        <div class="media-section-header" id="tv-section-header">
+          <span class="media-section-title">TV Series</span>
+          <div class="media-section-actions">
+            <button class="media-icon-btn" id="tv-search-btn" title="Search collection" aria-label="Search TV Series">🔍</button>
+            <button class="media-icon-btn" id="tv-add-btn" title="Add TV Series" aria-label="Add TV Series">＋</button>
+            <span class="media-chevron" id="tv-chevron">▼</span>
+          </div>
+        </div>
+        <div class="media-section-body" id="tv-section-body">
+          <div class="collection-search-row" id="tv-search-bar" style="display:none;">
+            <input type="text" class="collection-search-input" id="tv-collection-search" placeholder="Search your TV series...">
+          </div>
+          <div id="tv-formats-container">
+            <div class="empty-state">No TV series yet. Tap ＋ to add your first one.</div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /media-page -->
   </main>
 </div><!-- /app-shell -->
@@ -761,6 +781,7 @@ const OMDB_KEY = "5c464d19";
 const WORKER_URL = "https://holy-wind-9442.doeppg.workers.dev";
 const STORAGE_KEY_CDS = "lale_cds";
 const STORAGE_KEY_MOVIES = "lale_movies";
+const STORAGE_KEY_TV = "lale_tv";
 const STORAGE_KEY_RATINGS = "lale_media_ratings";
 
 /* ---------- Storage helpers ---------- */
@@ -768,6 +789,8 @@ function loadCDs() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY_CD
 function saveCDs(data) { localStorage.setItem(STORAGE_KEY_CDS, JSON.stringify(data)); }
 function loadMovies() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY_MOVIES) || "[]"); } catch(e){ return []; } }
 function saveMovies(data) { localStorage.setItem(STORAGE_KEY_MOVIES, JSON.stringify(data)); }
+function loadTV() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY_TV) || "[]"); } catch(e){ return []; } }
+function saveTV(data) { localStorage.setItem(STORAGE_KEY_TV, JSON.stringify(data)); }
 function loadRatings() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY_RATINGS) || "{}"); } catch(e){ return {}; } }
 function saveRatings(data) { localStorage.setItem(STORAGE_KEY_RATINGS, JSON.stringify(data)); }
 
@@ -842,6 +865,46 @@ document.getElementById("movie-add-btn").addEventListener("click", function(e) {
   document.getElementById("add-options-title").textContent = "Add Movie";
   document.getElementById("format-selector").style.display = "block";
   // reset format selection
+  document.querySelectorAll(".format-pick-btn").forEach(b => {
+    b.style.background = "white";
+    b.style.color = "var(--text-main)";
+    b.style.borderColor = "var(--border-soft)";
+  });
+  const dvdBtn = document.querySelector('.format-pick-btn[data-format="DVD"]');
+  if (dvdBtn) { dvdBtn.style.background = "#b0977a"; dvdBtn.style.color = "white"; }
+  document.getElementById("add-options-overlay").classList.add("open");
+});
+
+/* ---- TV Series listeners ---- */
+document.getElementById("tv-section-header").addEventListener("click", function(e) {
+  if (e.target.closest(".media-icon-btn")) return;
+  const body = document.getElementById("tv-section-body");
+  const chev = document.getElementById("tv-chevron");
+  const isOpen = body.classList.contains("open");
+  body.classList.toggle("open", !isOpen);
+  chev.classList.toggle("open", !isOpen);
+});
+
+document.getElementById("tv-search-btn").addEventListener("click", function(e) {
+  e.stopPropagation();
+  const bar = document.getElementById("tv-search-bar");
+  const body = document.getElementById("tv-section-body");
+  body.classList.add("open");
+  document.getElementById("tv-chevron").classList.add("open");
+  bar.style.display = bar.style.display === "none" ? "flex" : "none";
+  if (bar.style.display === "flex") document.getElementById("tv-collection-search").focus();
+});
+
+document.getElementById("tv-collection-search").addEventListener("input", function() {
+  renderTVFormats(this.value.toLowerCase());
+});
+
+document.getElementById("tv-add-btn").addEventListener("click", function(e) {
+  e.stopPropagation();
+  currentMode = "tv";
+  currentFormat = "DVD";
+  document.getElementById("add-options-title").textContent = "Add TV Series";
+  document.getElementById("format-selector").style.display = "block";
   document.querySelectorAll(".format-pick-btn").forEach(b => {
     b.style.background = "white";
     b.style.color = "var(--text-main)";
@@ -990,7 +1053,7 @@ async function getMovieDetails(imdbID) {
 }
 
 async function addMovie(imdbData) {
-  const movie = {
+  const entry = {
     id: imdbData.imdbID,
     title: imdbData.Title,
     year: imdbData.Year,
@@ -1004,17 +1067,32 @@ async function addMovie(imdbData) {
     format: currentFormat || "DVD",
     addedAt: Date.now()
   };
-  const movies = loadMovies();
-  if (movies.find(m => m.id === movie.id && m.format === movie.format)) {
-    alert('"' + movie.title + '" (' + movie.format + ') is already in your collection.');
-    return;
+
+  if (currentMode === "tv") {
+    const tv = loadTV();
+    if (tv.find(m => m.id === entry.id && m.format === entry.format)) {
+      alert('"' + entry.title + '" (' + entry.format + ') is already in your collection.');
+      return;
+    }
+    tv.push(entry);
+    saveTV(tv);
+    renderTVFormats();
+    document.getElementById("tv-section-body").classList.add("open");
+    document.getElementById("tv-chevron").classList.add("open");
+    alert('"' + entry.title + '" added to your TV Series collection!');
+  } else {
+    const movies = loadMovies();
+    if (movies.find(m => m.id === entry.id && m.format === entry.format)) {
+      alert('"' + entry.title + '" (' + entry.format + ') is already in your collection.');
+      return;
+    }
+    movies.push(entry);
+    saveMovies(movies);
+    renderMovieFormats();
+    document.getElementById("movie-section-body").classList.add("open");
+    document.getElementById("movie-chevron").classList.add("open");
+    alert('"' + entry.title + '" added to your ' + entry.format + ' collection!');
   }
-  movies.push(movie);
-  saveMovies(movies);
-  renderMovieFormats();
-  document.getElementById("movie-section-body").classList.add("open");
-  document.getElementById("movie-chevron").classList.add("open");
-  alert('"' + movie.title + '" added to your ' + movie.format + ' collection!');
 }
 
 /* ===================== SEARCH PANEL ===================== */
@@ -1025,7 +1103,13 @@ document.getElementById("add-manual-btn").addEventListener("click", function() {
 
 function openSearchPanel(mode) {
   currentMode = mode;
-  document.getElementById("search-panel-title").textContent = mode === "cd" ? "Search for CD" : "Search for Movie";
+  if (currentMode === "cd") {
+    document.getElementById("search-panel-title").textContent = "Search for CD";
+  } else if (currentMode === "tv") {
+    document.getElementById("search-panel-title").textContent = "Search for TV Series";
+  } else {
+    document.getElementById("search-panel-title").textContent = "Search for Movie";
+  }
   document.getElementById("search-input").value = "";
   document.getElementById("search-results").innerHTML = "";
   document.getElementById("search-overlay").classList.add("open");
@@ -1367,7 +1451,113 @@ function renderAlsoLike(container, suggestions) {
   });
 }
 
-/* ===================== CLOSE DETAIL ===================== */
+/* ===================== RENDER: TV Series ===================== */
+function renderTVFormats(filter) {
+  const container = document.getElementById("tv-formats-container");
+  let tv = loadTV();
+  if (filter) tv = tv.filter(m => m.title.toLowerCase().includes(filter));
+
+  if (!tv.length) {
+    container.innerHTML = filter ? "<div class='empty-state'>No matches found.</div>" : "<div class='empty-state'>No TV series yet. Tap ＋ to add your first one.</div>";
+    return;
+  }
+
+  container.innerHTML = "";
+  MOVIE_FORMATS.forEach(function(fmt) {
+    const fmtItems = tv.filter(m => m.format === fmt);
+    if (!fmtItems.length) return;
+
+    const block = document.createElement("div");
+    block.className = "genre-block";
+
+    const header = document.createElement("div");
+    header.className = "genre-header";
+    header.innerHTML = `<span class="genre-title">${escH(fmt)}</span><span class="genre-chevron open">▼</span>`;
+
+    const grid = document.createElement("div");
+    grid.className = "movie-grid open";
+
+    fmtItems.forEach(function(show) {
+      const item = document.createElement("div");
+      item.className = "media-item";
+      item.innerHTML = `
+        <img src="${show.poster || ""}" alt="${escH(show.title)}" style="aspect-ratio:2/3;" onerror="this.src='';this.style.background='#e8ddd4';">
+        <div class="media-item-title">${escH(show.title)}</div>
+      `;
+      item.addEventListener("click", function() { openTVDetail(show); });
+      grid.appendChild(item);
+    });
+
+    header.addEventListener("click", function() {
+      const open = grid.classList.contains("open");
+      grid.classList.toggle("open", !open);
+      header.querySelector(".genre-chevron").classList.toggle("open", !open);
+    });
+
+    block.appendChild(header);
+    block.appendChild(grid);
+    container.appendChild(block);
+  });
+}
+
+/* ===================== TV DETAIL ===================== */
+function openTVDetail(show) {
+  const ratings = loadRatings();
+  const ratingKey = show.id + "_tv_" + show.format;
+  const myRating = ratings[ratingKey] || 0;
+
+  document.getElementById("detail-content").innerHTML = `
+    <img class="detail-art poster" src="${show.poster || ""}" alt="${escH(show.title)}" onerror="this.src='';this.style.background='#e8ddd4';">
+    <h2 class="detail-title">${escH(show.title)}</h2>
+    <p class="detail-subtitle">${escH(show.year)} <span class="format-badge">${escH(show.format)}</span></p>
+    <div class="detail-meta">
+      <div class="detail-meta-row"><span class="detail-meta-label">Director</span><span class="detail-meta-value">${escH(show.director)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Cast</span><span class="detail-meta-value">${escH(show.cast)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Runtime</span><span class="detail-meta-value">${escH(show.runtime)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Rating</span><span class="detail-meta-value">${escH(show.rating)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Genre</span><span class="detail-meta-value">${escH(show.genre)}</span></div>
+    </div>
+    ${show.plot ? `<p style="font-size:13px;line-height:1.6;opacity:0.8;margin:12px 0;">${escH(show.plot)}</p>` : ""}
+    <div class="star-rating" id="tv-stars">
+      ${[1,2,3,4,5].map(n => `<span class="star ${n <= myRating ? "filled" : ""}" data-n="${n}">★</span>`).join("")}
+    </div>
+    <div class="also-like-section">
+      <button class="also-like-btn" id="tv-also-like-btn">You may also like... ▾</button>
+      <div class="also-like-results" id="tv-also-like-results"></div>
+    </div>
+    <button class="detail-remove-btn" id="tv-remove-btn">Remove from Collection</button>
+  `;
+
+  document.querySelectorAll("#tv-stars .star").forEach(function(star) {
+    star.addEventListener("click", function() {
+      const n = parseInt(this.dataset.n);
+      const ratings = loadRatings();
+      ratings[ratingKey] = n;
+      saveRatings(ratings);
+      document.querySelectorAll("#tv-stars .star").forEach(s => s.classList.toggle("filled", parseInt(s.dataset.n) <= n));
+    });
+  });
+
+  document.getElementById("tv-also-like-btn").addEventListener("click", async function() {
+    const resultsEl = document.getElementById("tv-also-like-results");
+    if (resultsEl.classList.contains("open")) { resultsEl.classList.remove("open"); return; }
+    this.textContent = "Loading...";
+    const suggestions = await getAlsoLike("tv", show.title, show.director, show.genre);
+    renderAlsoLike(resultsEl, suggestions);
+    this.textContent = "You may also like... ▾";
+    resultsEl.classList.add("open");
+  });
+
+  document.getElementById("tv-remove-btn").addEventListener("click", function() {
+    if (!confirm('Remove "' + show.title + '" (' + show.format + ') from your collection?')) return;
+    const tv = loadTV().filter(m => !(m.id === show.id && m.format === show.format));
+    saveTV(tv);
+    renderTVFormats();
+    closeDetail();
+  });
+
+  document.getElementById("detail-overlay").classList.add("open");
+}
 document.getElementById("detail-close-btn").addEventListener("click", closeDetail);
 document.getElementById("detail-overlay").addEventListener("click", function(e) {
   if (e.target === this) closeDetail();
@@ -1388,6 +1578,7 @@ function capitalize(str) {
 /* ===================== INIT ===================== */
 renderCDGenres();
 renderMovieFormats();
+renderTVFormats();
 </script>
 <link rel="stylesheet" href="css/components-additions.css">
 </body>
