@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Media</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <style>
+    :root {
+      --text-main: #4E4036;
+      --title-color: #3C2F26;
+      --border-soft: #CBB7A3;
+      --card-bg: #FFFAF5;
+      --page-bg: #F3EADF;
+      --button-primary: #B88C6A;
+      --button-primary-dark: #9a7457;
+      --card-radius: 18px;
+      --card-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --font: 'Josefin Sans', sans-serif;
+    }
+
+    body {
+      background: var(--page-bg);
+      font-family: var(--font);
+      color: var(--text-main);
+      margin: 0;
+      padding: 0;
+    }
+
+    .media-page {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 16px;
+      padding-bottom: 60px;
+    }
+
+    /* ---- Section Card ---- */
+    .media-section-card {
+      background: var(--card-bg);
+      border-radius: var(--card-radius);
+      box-shadow: var(--card-shadow);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    /* ---- Section Header (toggle) ---- */
+    .media-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .media-section-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--title-color);
+      letter-spacing: 0.5px;
+    }
+
+    .media-section-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .media-icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      color: var(--text-main);
+      font-size: 18px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .media-chevron {
+      font-size: 13px;
+      color: var(--border-soft);
+      transition: transform 0.25s ease;
+    }
+
+    .media-chevron.open { transform: rotate(180deg); }
+
+    /* ---- Section Body ---- */
+    .media-section-body {
+      display: none;
+      padding: 0 14px 16px;
+    }
+    .media-section-body.open { display: block; }
+
+    /* ---- Genre Dropdown ---- */
+    .genre-block { margin-bottom: 12px; }
+
+    .genre-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 4px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .genre-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--button-primary);
+    }
+
+    .genre-chevron {
+      font-size: 11px;
+      color: var(--border-soft);
+      transition: transform 0.2s;
+    }
+    .genre-chevron.open { transform: rotate(180deg); }
+
+    .genre-grid {
+      display: none;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 12px 0 4px;
+    }
+    .genre-grid.open { display: grid; }
+
+    /* ---- Album / Movie Item ---- */
+    .media-item {
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .media-item img {
+      width: 100%;
+      aspect-ratio: 1/1;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      background: #e8ddd4;
+    }
+
+    .media-item-title {
+      font-size: 10px;
+      text-align: center;
+      margin-top: 5px;
+      color: var(--text-main);
+      line-height: 1.3;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width: 100%;
+    }
+
+    /* Movies: 2 per row */
+    .movie-grid {
+      display: none;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      padding: 12px 0 4px;
+    }
+    .movie-grid.open { display: grid; }
+
+    .movie-item img {
+      width: 100%;
+      aspect-ratio: 2/3;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      background: #e8ddd4;
+    }
+
+    /* ---- Detail Panel (full-screen overlay) ---- */
+    .detail-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(60,47,38,0.45);
+      z-index: 3000;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .detail-overlay.open { display: flex; }
+
+    .detail-panel {
+      background: var(--card-bg);
+      border-radius: 24px 24px 0 0;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px 20px 40px;
+      box-sizing: border-box;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(40px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .detail-close {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 22px;
+      color: var(--text-main);
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .detail-art {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      margin: 0 auto 16px;
+      display: block;
+      background: #e8ddd4;
+    }
+
+    .detail-art.poster {
+      width: 100px;
+      height: 150px;
+    }
+
+    .detail-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--title-color);
+      text-align: center;
+      margin: 0 0 4px;
+    }
+
+    .detail-subtitle {
+      font-size: 13px;
+      color: var(--button-primary);
+      text-align: center;
+      margin: 0 0 16px;
+    }
+
+    .detail-meta {
+      background: #f7f0e8;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .detail-meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 4px 0;
+      border-bottom: 1px solid #ecddd0;
+    }
+    .detail-meta-row:last-child { border-bottom: none; }
+
+    .detail-meta-label { opacity: 0.6; }
+    .detail-meta-value { font-weight: 600; text-align: right; max-width: 60%; }
+
+    /* ---- Star Rating ---- */
+    .star-rating {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin: 14px 0;
+    }
+
+    .star {
+      font-size: 26px;
+      cursor: pointer;
+      color: #ddd;
+      transition: color 0.15s, transform 0.1s;
+      line-height: 1;
+    }
+    .star.filled { color: #c9a96e; }
+    .star:active { transform: scale(1.3); }
+
+    /* ---- You May Also Like ---- */
+    .also-like-section {
+      margin-top: 16px;
+    }
+
+    .also-like-btn {
+      width: 100%;
+      padding: 11px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-soft);
+      background: white;
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+      letter-spacing: 0.3px;
+    }
+
+    .also-like-results {
+      margin-top: 10px;
+      display: none;
+    }
+    .also-like-results.open { display: block; }
+
+    .also-like-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #ecddd0;
+    }
+    .also-like-item:last-child { border-bottom: none; }
+
+    .also-like-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #e8ddd4;
+      flex-shrink: 0;
+    }
+
+    .also-like-info { flex: 1; }
+    .also-like-name { font-size: 13px; font-weight: 600; }
+    .also-like-artist { font-size: 11px; opacity: 0.6; }
+
+    /* ---- Edit / Remove button ---- */
+    .detail-remove-btn {
+      width: 100%;
+      margin-top: 20px;
+      padding: 11px;
+      border-radius: 10px;
+      border: 1.5px solid #c9877a;
+      background: white;
+      font-family: var(--font);
+      font-size: 13px;
+      color: #b05a4a;
+      cursor: pointer;
+    }
+
+    /* ---- Add Options Panel ---- */
+    .add-options-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(60,47,38,0.35);
+      z-index: 4000;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .add-options-overlay.open { display: flex; }
+
+    .add-options-panel {
+      background: var(--card-bg);
+      border-radius: 24px 24px 0 0;
+      width: 100%;
+      max-width: 480px;
+      padding: 24px 20px 40px;
+      box-sizing: border-box;
+      animation: slideUp 0.25s ease;
+    }
+
+    .add-options-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--title-color);
+      text-align: center;
+      margin: 0 0 20px;
+    }
+
+    .add-option-btn {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border-soft);
+      background: white;
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--text-main);
+      cursor: pointer;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+
+    .add-option-icon { font-size: 22px; }
+
+    .add-cancel-btn {
+      width: 100%;
+      padding: 11px;
+      border-radius: 10px;
+      border: none;
+      background: none;
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--border-soft);
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    /* ---- Search overlay ---- */
+    .search-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(60,47,38,0.45);
+      z-index: 4000;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .search-overlay.open { display: flex; }
+
+    .search-panel {
+      background: var(--card-bg);
+      border-radius: 24px 24px 0 0;
+      width: 100%;
+      max-width: 480px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 24px 20px 40px;
+      box-sizing: border-box;
+      animation: slideUp 0.25s ease;
+    }
+
+    .search-panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--title-color);
+      text-align: center;
+      margin: 0 0 16px;
+    }
+
+    .search-input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-soft);
+      font-family: var(--font);
+      font-size: 14px;
+      color: var(--text-main);
+      background: white;
+      outline: none;
+    }
+
+    .search-go-btn {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: none;
+      background: var(--button-primary);
+      color: white;
+      font-family: var(--font);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .search-results { margin-top: 4px; }
+
+    .search-result-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid #ecddd0;
+      cursor: pointer;
+    }
+
+    .search-result-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 6px;
+      object-fit: cover;
+      background: #e8ddd4;
+      flex-shrink: 0;
+    }
+
+    .search-result-info { flex: 1; }
+    .search-result-name { font-size: 13px; font-weight: 600; color: var(--title-color); }
+    .search-result-sub { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+
+    .search-result-add {
+      padding: 5px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--button-primary);
+      background: white;
+      color: var(--button-primary);
+      font-family: var(--font);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    /* ---- Scanner overlay ---- */
+    .scanner-overlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 5000;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .scanner-overlay.open { display: flex; }
+
+    #scanner-video {
+      width: 100%;
+      max-width: 480px;
+      height: auto;
+    }
+
+    .scanner-hint {
+      color: white;
+      font-family: var(--font);
+      font-size: 14px;
+      margin-top: 16px;
+      opacity: 0.8;
+      text-align: center;
+      padding: 0 20px;
+    }
+
+    .scanner-cancel {
+      margin-top: 20px;
+      padding: 10px 28px;
+      border-radius: 10px;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      background: none;
+      color: white;
+      font-family: var(--font);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .scanner-frame {
+      position: absolute;
+      width: 220px;
+      height: 140px;
+      border: 2px solid rgba(255,255,255,0.7);
+      border-radius: 12px;
+      pointer-events: none;
+    }
+
+    /* ---- Loading spinner ---- */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border-soft);
+      border-top-color: var(--button-primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Collection search bar ---- */
+    .collection-search-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .collection-search-input {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-soft);
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text-main);
+      background: white;
+      outline: none;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 24px 0;
+      font-size: 13px;
+      opacity: 0.5;
+    }
+
+    /* Movie format badge */
+    .format-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      background: #f0e6da;
+      color: var(--button-primary);
+      letter-spacing: 0.5px;
+      margin-left: 4px;
+    }
+
+    .detail-panel-wrap { position: relative; }
+  </style>
+</head>
+
+<body>
+<div id="global-overlay" class="global-overlay" hidden></div>
+
+<div id="app-shell" class="app-shell">
+  <header class="top-bar">
+    <div class="top-bar-left"></div>
+    <div class="top-bar-right">
+      <button id="hamburger-menu-button" class="hamburger-menu-button" type="button"
+        aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-navigation-drawer">
+        <span class="hamburger-line" style="display:block;width:100%;height:3px;background-color:#3a2e28;border-radius:2px;"></span>
+        <span class="hamburger-line" style="display:block;width:100%;height:3px;background-color:#3a2e28;border-radius:2px;"></span>
+        <span class="hamburger-line" style="display:block;width:100%;height:3px;background-color:#3a2e28;border-radius:2px;"></span>
+      </button>
+    </div>
+  </header>
+
+  <nav id="mobile-navigation-drawer" class="mobile-navigation-drawer" aria-label="Main navigation" hidden>
+    <div class="mobile-navigation-header">
+      <h2 class="mobile-navigation-title">Menu</h2>
+    </div>
+    <ul class="mobile-navigation-list">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="streaks.html">Streaks</a></li>
+      <li><a href="health.html">Health</a></li>
+      <li><a href="history.html">History</a></li>
+      <li><a href="notes.html">Notes</a></li>
+      <li><a href="add.html">Add</a></li>
+      <li><a href="media.html">Media</a></li>
+      <li><a href="spelling.html">Spelling Quiz</a></li>
+      <li><a href="turkish.html">Turkish Stories</a></li>
+      <li><a href="conversation.html">Turkish Chat</a></li>
+    </ul>
+  </nav>
+
+  <main style="padding: 0 0 20px;">
+    <div class="media-page">
+      <h1 style="font-size:22px;font-weight:600;color:var(--title-color);margin:8px 0 18px;letter-spacing:0.5px;">Media</h1>
+
+      <!-- ===================== CD DOWNLOADS ===================== -->
+      <div class="media-section-card" id="cd-section-card">
+        <div class="media-section-header" id="cd-section-header">
+          <span class="media-section-title">CD Downloads</span>
+          <div class="media-section-actions">
+            <button class="media-icon-btn" id="cd-search-btn" title="Search collection" aria-label="Search CDs">🔍</button>
+            <button class="media-icon-btn" id="cd-add-btn" title="Add CD" aria-label="Add CD">＋</button>
+            <span class="media-chevron" id="cd-chevron">▼</span>
+          </div>
+        </div>
+        <div class="media-section-body" id="cd-section-body">
+          <div class="collection-search-row" id="cd-search-bar" style="display:none;">
+            <input type="text" class="collection-search-input" id="cd-collection-search" placeholder="Search your CDs...">
+          </div>
+          <div id="cd-genres-container">
+            <div class="empty-state">No CDs yet. Tap ＋ to add your first one.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== MOVIES ===================== -->
+      <div class="media-section-card" id="movie-section-card">
+        <div class="media-section-header" id="movie-section-header">
+          <span class="media-section-title">Movies</span>
+          <div class="media-section-actions">
+            <button class="media-icon-btn" id="movie-search-btn" title="Search collection" aria-label="Search Movies">🔍</button>
+            <button class="media-icon-btn" id="movie-add-btn" title="Add Movie" aria-label="Add Movie">＋</button>
+            <span class="media-chevron" id="movie-chevron">▼</span>
+          </div>
+        </div>
+        <div class="media-section-body" id="movie-section-body">
+          <div class="collection-search-row" id="movie-search-bar" style="display:none;">
+            <input type="text" class="collection-search-input" id="movie-collection-search" placeholder="Search your movies...">
+          </div>
+          <div id="movie-formats-container">
+            <div class="empty-state">No movies yet. Tap ＋ to add your first one.</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /media-page -->
+  </main>
+</div><!-- /app-shell -->
+
+<!-- ===================== ADD OPTIONS PANEL ===================== -->
+<div class="add-options-overlay" id="add-options-overlay">
+  <div class="add-options-panel">
+    <p class="add-options-title" id="add-options-title">Add to Collection</p>
+    <button class="add-option-btn" id="add-scan-btn">
+      <span class="add-option-icon">📷</span>
+      <div>
+        <div style="font-weight:600;">Scan Barcode</div>
+        <div style="font-size:11px;opacity:0.6;margin-top:2px;">Use your camera to scan</div>
+      </div>
+    </button>
+    <button class="add-option-btn" id="add-manual-btn">
+      <span class="add-option-icon">🔎</span>
+      <div>
+        <div style="font-weight:600;">Search by Title</div>
+        <div style="font-size:11px;opacity:0.6;margin-top:2px;">Look up by name & year</div>
+      </div>
+    </button>
+    <!-- Format selector (movies only) -->
+    <div id="format-selector" style="display:none;margin-bottom:10px;">
+      <p style="font-size:12px;font-weight:600;letter-spacing:0.5px;opacity:0.6;margin:0 0 8px;">FORMAT</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <button class="format-pick-btn" data-format="4K" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border-soft);background:white;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--text-main);">4K</button>
+        <button class="format-pick-btn" data-format="Blu-ray" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border-soft);background:white;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--text-main);">Blu-ray</button>
+        <button class="format-pick-btn" data-format="DVD" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border-soft);background:white;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--text-main);">DVD</button>
+        <button class="format-pick-btn" data-format="Digital" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border-soft);background:white;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--text-main);">Digital</button>
+        <button class="format-pick-btn" data-format="VCR" style="padding:6px 12px;border-radius:8px;border:1.5px solid var(--border-soft);background:white;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--text-main);">VCR</button>
+      </div>
+    </div>
+    <button class="add-cancel-btn" id="add-cancel-btn">Cancel</button>
+  </div>
+</div>
+
+<!-- ===================== SCANNER OVERLAY ===================== -->
+<div class="scanner-overlay" id="scanner-overlay">
+  <video id="scanner-video" autoplay muted playsinline></video>
+  <div class="scanner-frame"></div>
+  <p class="scanner-hint">Point camera at barcode</p>
+  <button class="scanner-cancel" id="scanner-cancel-btn">Cancel</button>
+</div>
+
+<!-- ===================== SEARCH PANEL ===================== -->
+<div class="search-overlay" id="search-overlay">
+  <div class="search-panel">
+    <p class="search-panel-title" id="search-panel-title">Search</p>
+    <div class="search-input-row">
+      <input type="text" class="search-input" id="search-input" placeholder="Title or artist...">
+      <button class="search-go-btn" id="search-go-btn">Go</button>
+    </div>
+    <div class="search-results" id="search-results"></div>
+    <button class="add-cancel-btn" id="search-cancel-btn" style="width:100%;margin-top:12px;">Cancel</button>
+  </div>
+</div>
+
+<!-- ===================== DETAIL OVERLAY ===================== -->
+<div class="detail-overlay" id="detail-overlay">
+  <div class="detail-panel detail-panel-wrap" id="detail-panel">
+    <button class="detail-close" id="detail-close-btn">✕</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/menu.js"></script>
+<script>
+/* ============================================================
+   MEDIA.JS — inline script
+   ============================================================ */
+
+const OMDB_KEY = "5c464d19";
+const WORKER_URL = "https://holy-wind-9442.doeppg.workers.dev";
+const STORAGE_KEY_CDS = "lale_cds";
+const STORAGE_KEY_MOVIES = "lale_movies";
+const STORAGE_KEY_RATINGS = "lale_media_ratings";
+
+/* ---------- Storage helpers ---------- */
+function loadCDs() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY_CDS) || "[]"); } catch(e){ return []; } }
+function saveCDs(data) { localStorage.setItem(STORAGE_KEY_CDS, JSON.stringify(data)); }
+function loadMovies() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY_MOVIES) || "[]"); } catch(e){ return []; } }
+function saveMovies(data) { localStorage.setItem(STORAGE_KEY_MOVIES, JSON.stringify(data)); }
+function loadRatings() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY_RATINGS) || "{}"); } catch(e){ return {}; } }
+function saveRatings(data) { localStorage.setItem(STORAGE_KEY_RATINGS, JSON.stringify(data)); }
+
+/* ---------- State ---------- */
+let currentMode = "cd"; // "cd" or "movie"
+let currentFormat = "";
+let scanStream = null;
+let barcodeInterval = null;
+
+/* ===================== SECTION TOGGLES ===================== */
+document.getElementById("cd-section-header").addEventListener("click", function(e) {
+  if (e.target.closest(".media-icon-btn")) return;
+  const body = document.getElementById("cd-section-body");
+  const chev = document.getElementById("cd-chevron");
+  const isOpen = body.classList.contains("open");
+  body.classList.toggle("open", !isOpen);
+  chev.classList.toggle("open", !isOpen);
+});
+
+document.getElementById("movie-section-header").addEventListener("click", function(e) {
+  if (e.target.closest(".media-icon-btn")) return;
+  const body = document.getElementById("movie-section-body");
+  const chev = document.getElementById("movie-chevron");
+  const isOpen = body.classList.contains("open");
+  body.classList.toggle("open", !isOpen);
+  chev.classList.toggle("open", !isOpen);
+});
+
+/* ===================== COLLECTION SEARCH ===================== */
+document.getElementById("cd-search-btn").addEventListener("click", function(e) {
+  e.stopPropagation();
+  const bar = document.getElementById("cd-search-bar");
+  const body = document.getElementById("cd-section-body");
+  body.classList.add("open");
+  document.getElementById("cd-chevron").classList.add("open");
+  bar.style.display = bar.style.display === "none" ? "flex" : "none";
+  if (bar.style.display === "flex") document.getElementById("cd-collection-search").focus();
+});
+
+document.getElementById("movie-search-btn").addEventListener("click", function(e) {
+  e.stopPropagation();
+  const bar = document.getElementById("movie-search-bar");
+  const body = document.getElementById("movie-section-body");
+  body.classList.add("open");
+  document.getElementById("movie-chevron").classList.add("open");
+  bar.style.display = bar.style.display === "none" ? "flex" : "none";
+  if (bar.style.display === "flex") document.getElementById("movie-collection-search").focus();
+});
+
+document.getElementById("cd-collection-search").addEventListener("input", function() {
+  renderCDGenres(this.value.toLowerCase());
+});
+
+document.getElementById("movie-collection-search").addEventListener("input", function() {
+  renderMovieFormats(this.value.toLowerCase());
+});
+
+/* ===================== ADD BUTTON ===================== */
+document.getElementById("cd-add-btn").addEventListener("click", function(e) {
+  e.stopPropagation();
+  currentMode = "cd";
+  currentFormat = "";
+  document.getElementById("add-options-title").textContent = "Add CD";
+  document.getElementById("format-selector").style.display = "none";
+  document.getElementById("add-options-overlay").classList.add("open");
+});
+
+document.getElementById("movie-add-btn").addEventListener("click", function(e) {
+  e.stopPropagation();
+  currentMode = "movie";
+  currentFormat = "DVD";
+  document.getElementById("add-options-title").textContent = "Add Movie";
+  document.getElementById("format-selector").style.display = "block";
+  // reset format selection
+  document.querySelectorAll(".format-pick-btn").forEach(b => {
+    b.style.background = "white";
+    b.style.color = "var(--text-main)";
+    b.style.borderColor = "var(--border-soft)";
+  });
+  const dvdBtn = document.querySelector('.format-pick-btn[data-format="DVD"]');
+  if (dvdBtn) { dvdBtn.style.background = "#b0977a"; dvdBtn.style.color = "white"; }
+  document.getElementById("add-options-overlay").classList.add("open");
+});
+
+document.querySelectorAll(".format-pick-btn").forEach(function(btn) {
+  btn.addEventListener("click", function() {
+    currentFormat = this.dataset.format;
+    document.querySelectorAll(".format-pick-btn").forEach(b => {
+      b.style.background = "white"; b.style.color = "var(--text-main)"; b.style.borderColor = "var(--border-soft)";
+    });
+    this.style.background = "#b0977a";
+    this.style.color = "white";
+  });
+});
+
+document.getElementById("add-cancel-btn").addEventListener("click", function() {
+  document.getElementById("add-options-overlay").classList.remove("open");
+});
+
+/* ===================== SCAN ===================== */
+document.getElementById("add-scan-btn").addEventListener("click", function() {
+  document.getElementById("add-options-overlay").classList.remove("open");
+  startScanner();
+});
+
+async function startScanner() {
+  const overlay = document.getElementById("scanner-overlay");
+  const video = document.getElementById("scanner-video");
+  overlay.classList.add("open");
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = scanStream;
+    await video.play();
+    startBarcodeDetection(video);
+  } catch(err) {
+    stopScanner();
+    alert("Camera not available: " + err.message);
+  }
+}
+
+function startBarcodeDetection(video) {
+  if (!("BarcodeDetector" in window)) {
+    // Fallback: prompt manual entry
+    stopScanner();
+    const code = prompt("Barcode scanning not supported in this browser.\nEnter barcode number manually:");
+    if (code && code.trim()) handleBarcode(code.trim());
+    return;
+  }
+  const detector = new BarcodeDetector({ formats: ["ean_13","ean_8","upc_a","upc_e","code_128","code_39"] });
+  barcodeInterval = setInterval(async function() {
+    if (video.readyState < 2) return;
+    try {
+      const barcodes = await detector.detect(video);
+      if (barcodes.length > 0) {
+        const code = barcodes[0].rawValue;
+        stopScanner();
+        handleBarcode(code);
+      }
+    } catch(e) {}
+  }, 600);
+}
+
+function stopScanner() {
+  clearInterval(barcodeInterval);
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  document.getElementById("scanner-overlay").classList.remove("open");
+}
+
+document.getElementById("scanner-cancel-btn").addEventListener("click", stopScanner);
+
+async function handleBarcode(code) {
+  if (currentMode === "cd") {
+    await lookupCDBarcode(code);
+  } else {
+    await lookupMovieBarcode(code);
+  }
+}
+
+/* ===================== LOOKUP: CD via MusicBrainz ===================== */
+async function lookupCDBarcode(barcode) {
+  try {
+    const res = await fetch(`https://musicbrainz.org/ws/2/release?query=barcode:${barcode}&fmt=json`, {
+      headers: { "User-Agent": "LaleDashboard/1.0 (personal)" }
+    });
+    const data = await res.json();
+    if (!data.releases || data.releases.length === 0) { alert("CD not found for barcode: " + barcode); return; }
+    const release = data.releases[0];
+    await addCDFromRelease(release);
+  } catch(e) { alert("Lookup failed: " + e.message); }
+}
+
+async function lookupCDByTitle(title) {
+  const res = await fetch(`https://musicbrainz.org/ws/2/release?query=${encodeURIComponent(title)}&limit=8&fmt=json`, {
+    headers: { "User-Agent": "LaleDashboard/1.0 (personal)" }
+  });
+  const data = await res.json();
+  return data.releases || [];
+}
+
+async function getCoverArt(mbid) {
+  try {
+    const res = await fetch(`https://coverartarchive.org/release/${mbid}/front-250`, { redirect: "follow" });
+    if (res.ok) return res.url;
+  } catch(e) {}
+  return "";
+}
+
+async function addCDFromRelease(release) {
+  const id = release.id;
+  const title = release.title;
+  const artist = (release["artist-credit"] || []).map(a => a.name || (a.artist && a.artist.name) || "").join(", ") || "Unknown Artist";
+  const year = (release.date || "").slice(0, 4) || "Unknown";
+  const genre = (release.tags && release.tags[0] && release.tags[0].name) ? capitalize(release.tags[0].name) : "Other";
+  const cover = await getCoverArt(id);
+
+  const cd = { id, title, artist, year, genre, cover, addedAt: Date.now() };
+  const cds = loadCDs();
+  if (cds.find(c => c.id === id)) { alert('"' + title + '" is already in your collection.'); return; }
+  cds.push(cd);
+  saveCDs(cds);
+  renderCDGenres();
+  document.getElementById("cd-section-body").classList.add("open");
+  document.getElementById("cd-chevron").classList.add("open");
+  alert('"' + title + '" added to your collection!');
+}
+
+/* ===================== LOOKUP: Movie via OMDB ===================== */
+async function lookupMovieBarcode(barcode) {
+  // OMDB doesn't support barcodes — fall back to title search
+  alert("Movie barcode lookup isn't supported. Switching to title search.");
+  openSearchPanel("movie");
+}
+
+async function lookupMovieByTitle(title) {
+  const res = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(title)}&type=movie&apikey=${OMDB_KEY}`);
+  const data = await res.json();
+  return data.Search || [];
+}
+
+async function getMovieDetails(imdbID) {
+  const res = await fetch(`https://www.omdbapi.com/?i=${imdbID}&apikey=${OMDB_KEY}`);
+  return await res.json();
+}
+
+async function addMovie(imdbData) {
+  const movie = {
+    id: imdbData.imdbID,
+    title: imdbData.Title,
+    year: imdbData.Year,
+    director: imdbData.Director || "Unknown",
+    cast: imdbData.Actors || "Unknown",
+    runtime: imdbData.Runtime || "Unknown",
+    rating: imdbData.Rated || "NR",
+    plot: imdbData.Plot || "",
+    genre: imdbData.Genre || "Other",
+    poster: imdbData.Poster && imdbData.Poster !== "N/A" ? imdbData.Poster : "",
+    format: currentFormat || "DVD",
+    addedAt: Date.now()
+  };
+  const movies = loadMovies();
+  if (movies.find(m => m.id === movie.id && m.format === movie.format)) {
+    alert('"' + movie.title + '" (' + movie.format + ') is already in your collection.');
+    return;
+  }
+  movies.push(movie);
+  saveMovies(movies);
+  renderMovieFormats();
+  document.getElementById("movie-section-body").classList.add("open");
+  document.getElementById("movie-chevron").classList.add("open");
+  alert('"' + movie.title + '" added to your ' + movie.format + ' collection!');
+}
+
+/* ===================== SEARCH PANEL ===================== */
+document.getElementById("add-manual-btn").addEventListener("click", function() {
+  document.getElementById("add-options-overlay").classList.remove("open");
+  openSearchPanel(currentMode);
+});
+
+function openSearchPanel(mode) {
+  currentMode = mode;
+  document.getElementById("search-panel-title").textContent = mode === "cd" ? "Search for CD" : "Search for Movie";
+  document.getElementById("search-input").value = "";
+  document.getElementById("search-results").innerHTML = "";
+  document.getElementById("search-overlay").classList.add("open");
+  setTimeout(() => document.getElementById("search-input").focus(), 200);
+}
+
+document.getElementById("search-cancel-btn").addEventListener("click", function() {
+  document.getElementById("search-overlay").classList.remove("open");
+});
+
+document.getElementById("search-go-btn").addEventListener("click", doSearch);
+document.getElementById("search-input").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") doSearch();
+});
+
+async function doSearch() {
+  const q = document.getElementById("search-input").value.trim();
+  if (!q) return;
+  const container = document.getElementById("search-results");
+  container.innerHTML = '<span class="spinner"></span> Searching...';
+
+  if (currentMode === "cd") {
+    const results = await lookupCDByTitle(q);
+    if (!results.length) { container.innerHTML = "<p style='opacity:0.5;font-size:13px;'>No results found.</p>"; return; }
+    container.innerHTML = "";
+    results.slice(0, 8).forEach(function(r) {
+      const artist = (r["artist-credit"] || []).map(a => a.name || (a.artist && a.artist.name) || "").join(", ") || "Unknown";
+      const year = (r.date || "").slice(0,4) || "";
+      const item = document.createElement("div");
+      item.className = "search-result-item";
+      item.innerHTML = `
+        <img class="search-result-thumb" src="" alt="" onerror="this.style.visibility='hidden'">
+        <div class="search-result-info">
+          <div class="search-result-name">${escH(r.title)}</div>
+          <div class="search-result-sub">${escH(artist)}${year ? " · " + year : ""}</div>
+        </div>
+        <button class="search-result-add">Add</button>
+      `;
+      item.querySelector(".search-result-add").addEventListener("click", async function() {
+        this.textContent = "...";
+        this.disabled = true;
+        await addCDFromRelease(r);
+        document.getElementById("search-overlay").classList.remove("open");
+      });
+      // lazy load cover
+      getCoverArt(r.id).then(url => { if (url) item.querySelector("img").src = url; });
+      container.appendChild(item);
+    });
+  } else {
+    const results = await lookupMovieByTitle(q);
+    if (!results.length) { container.innerHTML = "<p style='opacity:0.5;font-size:13px;'>No results found.</p>"; return; }
+    container.innerHTML = "";
+    results.slice(0, 8).forEach(function(r) {
+      const item = document.createElement("div");
+      item.className = "search-result-item";
+      item.innerHTML = `
+        <img class="search-result-thumb" src="${r.Poster && r.Poster !== "N/A" ? r.Poster : ""}" alt="" onerror="this.style.visibility='hidden'">
+        <div class="search-result-info">
+          <div class="search-result-name">${escH(r.Title)}</div>
+          <div class="search-result-sub">${escH(r.Year || "")}</div>
+        </div>
+        <button class="search-result-add">Add</button>
+      `;
+      item.querySelector(".search-result-add").addEventListener("click", async function() {
+        this.textContent = "...";
+        this.disabled = true;
+        const details = await getMovieDetails(r.imdbID);
+        await addMovie(details);
+        document.getElementById("search-overlay").classList.remove("open");
+      });
+      container.appendChild(item);
+    });
+  }
+}
+
+/* ===================== RENDER: CDs ===================== */
+function renderCDGenres(filter) {
+  const container = document.getElementById("cd-genres-container");
+  let cds = loadCDs();
+  if (filter) cds = cds.filter(c => c.title.toLowerCase().includes(filter) || c.artist.toLowerCase().includes(filter));
+
+  if (!cds.length) {
+    container.innerHTML = filter ? "<div class='empty-state'>No matches found.</div>" : "<div class='empty-state'>No CDs yet. Tap ＋ to add your first one.</div>";
+    return;
+  }
+
+  // Group by genre
+  const genres = {};
+  cds.forEach(function(cd) {
+    const g = cd.genre || "Other";
+    if (!genres[g]) genres[g] = [];
+    genres[g].push(cd);
+  });
+
+  container.innerHTML = "";
+  Object.keys(genres).sort().forEach(function(genre) {
+    const block = document.createElement("div");
+    block.className = "genre-block";
+
+    const header = document.createElement("div");
+    header.className = "genre-header";
+    header.innerHTML = `<span class="genre-title">${escH(genre)}</span><span class="genre-chevron open">▼</span>`;
+
+    const grid = document.createElement("div");
+    grid.className = "genre-grid open";
+
+    genres[genre].forEach(function(cd) {
+      const item = document.createElement("div");
+      item.className = "media-item";
+      item.innerHTML = `
+        <img src="${cd.cover || ""}" alt="${escH(cd.title)}" onerror="this.src='';this.style.background='#e8ddd4';">
+        <div class="media-item-title">${escH(cd.title)}</div>
+      `;
+      item.addEventListener("click", function() { openCDDetail(cd); });
+      grid.appendChild(item);
+    });
+
+    header.addEventListener("click", function() {
+      const open = grid.classList.contains("open");
+      grid.classList.toggle("open", !open);
+      header.querySelector(".genre-chevron").classList.toggle("open", !open);
+    });
+
+    block.appendChild(header);
+    block.appendChild(grid);
+    container.appendChild(block);
+  });
+}
+
+/* ===================== RENDER: Movies ===================== */
+const MOVIE_FORMATS = ["4K", "Blu-ray", "DVD", "Digital", "VCR"];
+
+function renderMovieFormats(filter) {
+  const container = document.getElementById("movie-formats-container");
+  let movies = loadMovies();
+  if (filter) movies = movies.filter(m => m.title.toLowerCase().includes(filter));
+
+  if (!movies.length) {
+    container.innerHTML = filter ? "<div class='empty-state'>No matches found.</div>" : "<div class='empty-state'>No movies yet. Tap ＋ to add your first one.</div>";
+    return;
+  }
+
+  container.innerHTML = "";
+  MOVIE_FORMATS.forEach(function(fmt) {
+    const fmtMovies = movies.filter(m => m.format === fmt);
+    if (!fmtMovies.length) return;
+
+    const block = document.createElement("div");
+    block.className = "genre-block";
+
+    const header = document.createElement("div");
+    header.className = "genre-header";
+    header.innerHTML = `<span class="genre-title">${escH(fmt)}</span><span class="genre-chevron open">▼</span>`;
+
+    const grid = document.createElement("div");
+    grid.className = "movie-grid open";
+
+    fmtMovies.forEach(function(movie) {
+      const item = document.createElement("div");
+      item.className = "media-item";
+      item.innerHTML = `
+        <img src="${movie.poster || ""}" alt="${escH(movie.title)}" style="aspect-ratio:2/3;" onerror="this.src='';this.style.background='#e8ddd4';">
+        <div class="media-item-title">${escH(movie.title)}</div>
+      `;
+      item.addEventListener("click", function() { openMovieDetail(movie); });
+      grid.appendChild(item);
+    });
+
+    header.addEventListener("click", function() {
+      const open = grid.classList.contains("open");
+      grid.classList.toggle("open", !open);
+      header.querySelector(".genre-chevron").classList.toggle("open", !open);
+    });
+
+    block.appendChild(header);
+    block.appendChild(grid);
+    container.appendChild(block);
+  });
+}
+
+/* ===================== CD DETAIL ===================== */
+function openCDDetail(cd) {
+  const ratings = loadRatings();
+  const myRating = ratings[cd.id] || 0;
+
+  document.getElementById("detail-content").innerHTML = `
+    <img class="detail-art" src="${cd.cover || ""}" alt="${escH(cd.title)}" onerror="this.src='';this.style.background='#e8ddd4';">
+    <h2 class="detail-title">${escH(cd.title)}</h2>
+    <p class="detail-subtitle">${escH(cd.artist)}</p>
+    <div class="detail-meta">
+      <div class="detail-meta-row"><span class="detail-meta-label">Artist</span><span class="detail-meta-value">${escH(cd.artist)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Release Year</span><span class="detail-meta-value">${escH(cd.year)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Genre</span><span class="detail-meta-value">${escH(cd.genre)}</span></div>
+    </div>
+    <div class="star-rating" id="cd-stars">
+      ${[1,2,3,4,5].map(n => `<span class="star ${n <= myRating ? "filled" : ""}" data-n="${n}">★</span>`).join("")}
+    </div>
+    <div class="also-like-section">
+      <button class="also-like-btn" id="cd-also-like-btn">You may also like... ▾</button>
+      <div class="also-like-results" id="cd-also-like-results"></div>
+    </div>
+    <button class="detail-remove-btn" id="cd-remove-btn">Remove from Collection</button>
+  `;
+
+  // Wire stars
+  document.querySelectorAll("#cd-stars .star").forEach(function(star) {
+    star.addEventListener("click", function() {
+      const n = parseInt(this.dataset.n);
+      const ratings = loadRatings();
+      ratings[cd.id] = n;
+      saveRatings(ratings);
+      document.querySelectorAll("#cd-stars .star").forEach(s => s.classList.toggle("filled", parseInt(s.dataset.n) <= n));
+    });
+  });
+
+  // Wire Also Like
+  document.getElementById("cd-also-like-btn").addEventListener("click", async function() {
+    const resultsEl = document.getElementById("cd-also-like-results");
+    if (resultsEl.classList.contains("open")) { resultsEl.classList.remove("open"); return; }
+    this.textContent = "Loading...";
+    const suggestions = await getAlsoLike("cd", cd.title, cd.artist, cd.genre);
+    renderAlsoLike(resultsEl, suggestions);
+    this.textContent = "You may also like... ▾";
+    resultsEl.classList.add("open");
+  });
+
+  // Wire Remove
+  document.getElementById("cd-remove-btn").addEventListener("click", function() {
+    if (!confirm('Remove "' + cd.title + '" from your collection?')) return;
+    const cds = loadCDs().filter(c => c.id !== cd.id);
+    saveCDs(cds);
+    renderCDGenres();
+    closeDetail();
+  });
+
+  document.getElementById("detail-overlay").classList.add("open");
+}
+
+/* ===================== MOVIE DETAIL ===================== */
+function openMovieDetail(movie) {
+  const ratings = loadRatings();
+  const myRating = ratings[movie.id + "_" + movie.format] || 0;
+
+  document.getElementById("detail-content").innerHTML = `
+    <img class="detail-art poster" src="${movie.poster || ""}" alt="${escH(movie.title)}" onerror="this.src='';this.style.background='#e8ddd4';">
+    <h2 class="detail-title">${escH(movie.title)}</h2>
+    <p class="detail-subtitle">${escH(movie.year)} <span class="format-badge">${escH(movie.format)}</span></p>
+    <div class="detail-meta">
+      <div class="detail-meta-row"><span class="detail-meta-label">Director</span><span class="detail-meta-value">${escH(movie.director)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Cast</span><span class="detail-meta-value">${escH(movie.cast)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Runtime</span><span class="detail-meta-value">${escH(movie.runtime)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Rating</span><span class="detail-meta-value">${escH(movie.rating)}</span></div>
+      <div class="detail-meta-row"><span class="detail-meta-label">Genre</span><span class="detail-meta-value">${escH(movie.genre)}</span></div>
+    </div>
+    ${movie.plot ? `<p style="font-size:13px;line-height:1.6;opacity:0.8;margin:12px 0;">${escH(movie.plot)}</p>` : ""}
+    <div class="star-rating" id="movie-stars">
+      ${[1,2,3,4,5].map(n => `<span class="star ${n <= myRating ? "filled" : ""}" data-n="${n}">★</span>`).join("")}
+    </div>
+    <div class="also-like-section">
+      <button class="also-like-btn" id="movie-also-like-btn">You may also like... ▾</button>
+      <div class="also-like-results" id="movie-also-like-results"></div>
+    </div>
+    <button class="detail-remove-btn" id="movie-remove-btn">Remove from Collection</button>
+  `;
+
+  // Wire stars
+  const ratingKey = movie.id + "_" + movie.format;
+  document.querySelectorAll("#movie-stars .star").forEach(function(star) {
+    star.addEventListener("click", function() {
+      const n = parseInt(this.dataset.n);
+      const ratings = loadRatings();
+      ratings[ratingKey] = n;
+      saveRatings(ratings);
+      document.querySelectorAll("#movie-stars .star").forEach(s => s.classList.toggle("filled", parseInt(s.dataset.n) <= n));
+    });
+  });
+
+  // Wire Also Like
+  document.getElementById("movie-also-like-btn").addEventListener("click", async function() {
+    const resultsEl = document.getElementById("movie-also-like-results");
+    if (resultsEl.classList.contains("open")) { resultsEl.classList.remove("open"); return; }
+    this.textContent = "Loading...";
+    const suggestions = await getAlsoLike("movie", movie.title, movie.director, movie.genre);
+    renderAlsoLike(resultsEl, suggestions);
+    this.textContent = "You may also like... ▾";
+    resultsEl.classList.add("open");
+  });
+
+  // Wire Remove
+  document.getElementById("movie-remove-btn").addEventListener("click", function() {
+    if (!confirm('Remove "' + movie.title + '" (' + movie.format + ') from your collection?')) return;
+    const movies = loadMovies().filter(m => !(m.id === movie.id && m.format === movie.format));
+    saveMovies(movies);
+    renderMovieFormats();
+    closeDetail();
+  });
+
+  document.getElementById("detail-overlay").classList.add("open");
+}
+
+/* ===================== ALSO LIKE (AI) ===================== */
+async function getAlsoLike(type, title, creator, genre) {
+  try {
+    const prompt = type === "cd"
+      ? `Suggest exactly 3 albums similar to "${title}" by ${creator} (genre: ${genre}). Return ONLY a JSON array like: [{"title":"Album Name","artist":"Artist Name"}]. No explanation.`
+      : `Suggest exactly 3 movies similar to "${title}" directed by ${creator} (genre: ${genre}). Return ONLY a JSON array like: [{"title":"Movie Title","year":"Year"}]. No explanation.`;
+
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 200,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = (data.content && data.content[0] && data.content[0].text) || "[]";
+    const clean = text.replace(/```json|```/g, "").trim();
+    return JSON.parse(clean);
+  } catch(e) {
+    return [];
+  }
+}
+
+function renderAlsoLike(container, suggestions) {
+  if (!suggestions.length) { container.innerHTML = "<p style='font-size:13px;opacity:0.5;'>Could not load suggestions.</p>"; return; }
+  container.innerHTML = "";
+  suggestions.slice(0, 3).forEach(function(s) {
+    const item = document.createElement("div");
+    item.className = "also-like-item";
+    item.innerHTML = `
+      <div class="also-like-info">
+        <div class="also-like-name">${escH(s.title || "")}</div>
+        <div class="also-like-artist">${escH(s.artist || s.year || "")}</div>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+/* ===================== CLOSE DETAIL ===================== */
+document.getElementById("detail-close-btn").addEventListener("click", closeDetail);
+document.getElementById("detail-overlay").addEventListener("click", function(e) {
+  if (e.target === this) closeDetail();
+});
+
+function closeDetail() {
+  document.getElementById("detail-overlay").classList.remove("open");
+}
+
+/* ===================== UTILS ===================== */
+function escH(str) {
+  return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
+/* ===================== INIT ===================== */
+renderCDGenres();
+renderMovieFormats();
+</script>
+<link rel="stylesheet" href="css/components-additions.css">
+</body>
+</html>
