@@ -742,9 +742,9 @@
 
 <!-- ===================== SCANNER OVERLAY ===================== -->
 <div class="scanner-overlay" id="scanner-overlay">
-  <video id="scanner-video" autoplay muted playsinline></video>
+  <div id="scanner-video-container" style="width:100%;max-width:480px;position:relative;"></div>
   <div class="scanner-frame"></div>
-  <p class="scanner-hint">Point camera at barcode</p>
+  <p class="scanner-hint">Point camera at barcode — it will scan automatically</p>
   <button class="scanner-cancel" id="scanner-cancel-btn">Cancel</button>
 </div>
 
@@ -769,7 +769,7 @@
   </div>
 </div>
 
-<script src="https://unpkg.com/@zxing/browser@latest"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/menu.js"></script>
 <script>
@@ -938,40 +938,51 @@ document.getElementById("add-scan-btn").addEventListener("click", function() {
 
 async function startScanner() {
   const overlay = document.getElementById("scanner-overlay");
-  const video = document.getElementById("scanner-video");
   overlay.classList.add("open");
-  try {
-    const codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-    window._zxingReader = codeReader;
 
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-    /* Prefer back camera on iPhone */
-    const backCamera = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
-    const deviceId = backCamera ? backCamera.deviceId : undefined;
-
-    const controls = await codeReader.decodeFromVideoDevice(deviceId, video, function(result, err) {
-      if (result) {
-        const code = result.getText();
-        controls.stop();
-        window._zxingReader = null;
-        stopScanner();
-        handleBarcode(code);
-      }
-    });
-    window._zxingControls = controls;
-  } catch(err) {
+  if (typeof Quagga === "undefined") {
     stopScanner();
-    alert("Camera not available: " + err.message);
+    alert("Scanner library failed to load. Please check your connection and try again.");
+    return;
   }
+
+  Quagga.init({
+    inputStream: {
+      name: "Live",
+      type: "LiveStream",
+      target: document.getElementById("scanner-video-container"),
+      constraints: {
+        facingMode: "environment",
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      }
+    },
+    decoder: {
+      readers: ["ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader", "code_128_reader"]
+    },
+    locate: true
+  }, function(err) {
+    if (err) {
+      stopScanner();
+      alert("Camera error: " + err.message);
+      return;
+    }
+    Quagga.start();
+  });
+
+  Quagga.onDetected(function(result) {
+    const code = result.codeResult.code;
+    stopScanner();
+    handleBarcode(code);
+  });
 }
 
 function startBarcodeDetection(video) {
-  /* Not used — scanning handled in startScanner() with ZXing */
+  /* Not used — scanning handled by Quagga in startScanner() */
 }
 
 function stopScanner() {
-  if (window._zxingControls) { try { window._zxingControls.stop(); } catch(e){} window._zxingControls = null; }
-  if (window._zxingReader) { window._zxingReader = null; }
+  try { if (typeof Quagga !== "undefined") { Quagga.offDetected(); Quagga.stop(); } } catch(e) {}
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   document.getElementById("scanner-overlay").classList.remove("open");
 }
