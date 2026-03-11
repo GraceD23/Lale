@@ -636,16 +636,7 @@
     <div class="mobile-navigation-header">
       <h2 class="mobile-navigation-title">Menu</h2>
     </div>
-          <ul class="mobile-navigation-list">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="work.html">Work</a></li>
-        <li><a href="streaks.html">Streaks</a></li>
-        <li><a href="health.html">Health</a></li>
-        <li><a href="notes.html">Notes</a></li>
-        <li><a href="media.html">Media</a></li>
-        <li><a href="learning.html">Learning</a></li>
-        <li><a href="history.html">Export</a></li>
-      </ul>
+          <ul class="mobile-navigation-list"></ul>
   </nav>
 
   <main style="padding: 0 0 20px;">
@@ -758,6 +749,7 @@
   </div>
 </div>
 
+<script src="https://unpkg.com/@zxing/browser@latest"></script>
 <script src="js/auth.js"></script>
 <script src="js/menu.js"></script>
 <script>
@@ -886,10 +878,24 @@ async function startScanner() {
   const video = document.getElementById("scanner-video");
   overlay.classList.add("open");
   try {
-    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-    video.srcObject = scanStream;
-    await video.play();
-    startBarcodeDetection(video);
+    const codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+    window._zxingReader = codeReader;
+
+    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+    /* Prefer back camera on iPhone */
+    const backCamera = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+    const deviceId = backCamera ? backCamera.deviceId : undefined;
+
+    const controls = await codeReader.decodeFromVideoDevice(deviceId, video, function(result, err) {
+      if (result) {
+        const code = result.getText();
+        controls.stop();
+        window._zxingReader = null;
+        stopScanner();
+        handleBarcode(code);
+      }
+    });
+    window._zxingControls = controls;
   } catch(err) {
     stopScanner();
     alert("Camera not available: " + err.message);
@@ -897,29 +903,12 @@ async function startScanner() {
 }
 
 function startBarcodeDetection(video) {
-  if (!("BarcodeDetector" in window)) {
-    // Fallback: prompt manual entry
-    stopScanner();
-    const code = prompt("Barcode scanning not supported in this browser.\nEnter barcode number manually:");
-    if (code && code.trim()) handleBarcode(code.trim());
-    return;
-  }
-  const detector = new BarcodeDetector({ formats: ["ean_13","ean_8","upc_a","upc_e","code_128","code_39"] });
-  barcodeInterval = setInterval(async function() {
-    if (video.readyState < 2) return;
-    try {
-      const barcodes = await detector.detect(video);
-      if (barcodes.length > 0) {
-        const code = barcodes[0].rawValue;
-        stopScanner();
-        handleBarcode(code);
-      }
-    } catch(e) {}
-  }, 600);
+  /* Not used — scanning handled in startScanner() with ZXing */
 }
 
 function stopScanner() {
-  clearInterval(barcodeInterval);
+  if (window._zxingControls) { try { window._zxingControls.stop(); } catch(e){} window._zxingControls = null; }
+  if (window._zxingReader) { window._zxingReader = null; }
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   document.getElementById("scanner-overlay").classList.remove("open");
 }
