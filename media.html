@@ -742,10 +742,12 @@
 
 <!-- ===================== SCANNER OVERLAY ===================== -->
 <div class="scanner-overlay" id="scanner-overlay">
-  <div id="scanner-video-container" style="width:100%;max-width:480px;position:relative;"></div>
+  <video id="scanner-video" autoplay muted playsinline style="width:100%;max-width:480px;"></video>
   <div class="scanner-frame"></div>
-  <p class="scanner-hint">Point camera at barcode — it will scan automatically</p>
+  <p class="scanner-hint" id="scanner-hint">Point camera at barcode, then tap Scan</p>
+  <button class="scanner-cancel" id="scanner-capture-btn" style="background:#B88C6A;border-color:#B88C6A;color:white;margin-bottom:10px;">Scan</button>
   <button class="scanner-cancel" id="scanner-cancel-btn">Cancel</button>
+  <canvas id="scanner-canvas" style="display:none;"></canvas>
 </div>
 
 <!-- ===================== SEARCH PANEL ===================== -->
@@ -778,6 +780,9 @@
    ============================================================ */
 
 const OMDB_KEY = "5c464d19";
+const TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI1ZDY0YjU3MjliZDQ2NDg0MzlmNWZhYTA4NmExNWJjMCIsIm5iZiI6MTc3MzI1ODE2My43MDUsInN1YiI6IjY5YjFjNWIzYWIzMjMzYjc3YTY4NTZlNiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.sgpjZgOsuvidgw3rT4ot9EYdPEoLy8GApzVSVSp4R8I";
+const TMDB_BASE = "https://api.themoviedb.org/3";
+const TMDB_IMG = "https://image.tmdb.org/t/p/w300";
 const WORKER_URL = "https://holy-wind-9442.doeppg.workers.dev";
 const STORAGE_KEY_CDS = "lale_cds";
 const STORAGE_KEY_MOVIES = "lale_movies";
@@ -939,53 +944,54 @@ document.getElementById("add-scan-btn").addEventListener("click", function() {
 async function startScanner() {
   const overlay = document.getElementById("scanner-overlay");
   overlay.classList.add("open");
-
-  if (typeof Quagga === "undefined") {
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = document.getElementById("scanner-video");
+    video.srcObject = scanStream;
+    await video.play();
+  } catch(err) {
     stopScanner();
-    alert("Scanner library failed to load. Please check your connection and try again.");
-    return;
+    alert("Camera not available: " + err.message);
   }
-
-  Quagga.init({
-    inputStream: {
-      name: "Live",
-      type: "LiveStream",
-      target: document.getElementById("scanner-video-container"),
-      constraints: {
-        facingMode: "environment",
-        width: { ideal: 640 },
-        height: { ideal: 480 }
-      }
-    },
-    decoder: {
-      readers: ["ean_reader", "ean_8_reader", "upc_reader", "upc_e_reader", "code_128_reader"]
-    },
-    locate: true
-  }, function(err) {
-    if (err) {
-      stopScanner();
-      alert("Camera error: " + err.message);
-      return;
-    }
-    Quagga.start();
-  });
-
-  Quagga.onDetected(function(result) {
-    const code = result.codeResult.code;
-    stopScanner();
-    handleBarcode(code);
-  });
 }
 
-function startBarcodeDetection(video) {
-  /* Not used — scanning handled by Quagga in startScanner() */
-}
+function startBarcodeDetection() { /* Not used */ }
 
 function stopScanner() {
   try { if (typeof Quagga !== "undefined") { Quagga.offDetected(); Quagga.stop(); } } catch(e) {}
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   document.getElementById("scanner-overlay").classList.remove("open");
 }
+
+document.addEventListener("DOMContentLoaded", function() {
+  const captureBtn = document.getElementById("scanner-capture-btn");
+  if (captureBtn) {
+    captureBtn.addEventListener("click", function() {
+      const video = document.getElementById("scanner-video");
+      const canvas = document.getElementById("scanner-canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d").drawImage(video, 0, 0);
+      if (typeof Quagga === "undefined") { stopScanner(); alert("Scanner library not loaded."); return; }
+      Quagga.decodeSingle({
+        decoder: { readers: ["ean_reader","ean_8_reader","upc_reader","upc_e_reader","code_128_reader"] },
+        locate: true,
+        src: canvas.toDataURL()
+      }, function(result) {
+        if (result && result.codeResult) {
+          stopScanner();
+          handleBarcode(result.codeResult.code);
+        } else {
+          const hint = document.getElementById("scanner-hint");
+          hint.textContent = "No barcode found — hold steady and try again.";
+          setTimeout(() => { hint.textContent = "Point camera at barcode, then tap Scan"; }, 2500);
+        }
+      });
+    });
+  }
+});
 
 document.getElementById("scanner-cancel-btn").addEventListener("click", stopScanner);
 
@@ -1047,62 +1053,73 @@ async function addCDFromRelease(release) {
 
 /* ===================== LOOKUP: Movie via OMDB ===================== */
 async function lookupMovieBarcode(barcode) {
-  // OMDB doesn't support barcodes — fall back to title search
-  alert("Movie barcode lookup isn't supported. Switching to title search.");
-  openSearchPanel("movie");
+  try {
+    const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`);
+    const data = await res.json();
+    if (data.items && data.items.length > 0) {
+      const title = data.items[0].title || "";
+      if (title) {
+        openSearchPanel(currentMode);
+        setTimeout(() => { document.getElementById("search-input").value = title; doSearch(); }, 400);
+        return;
+      }
+    }
+  } catch(e) {}
+  alert("Barcode not found. Switching to title search.");
+  openSearchPanel(currentMode);
 }
 
-async function lookupMovieByTitle(title) {
-  const res = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(title)}&type=movie&apikey=${OMDB_KEY}`);
+async function searchTMDB(query, type) {
+  const res = await fetch(`${TMDB_BASE}/search/${type}?query=${encodeURIComponent(query)}&language=en-US&page=1`, {
+    headers: { "Authorization": "Bearer " + TMDB_TOKEN, "Content-Type": "application/json" }
+  });
   const data = await res.json();
-  return data.Search || [];
+  return data.results || [];
 }
 
-async function getMovieDetails(imdbID) {
-  const res = await fetch(`https://www.omdbapi.com/?i=${imdbID}&apikey=${OMDB_KEY}`);
+async function getTMDBDetails(id, type) {
+  const res = await fetch(`${TMDB_BASE}/${type}/${id}?language=en-US&append_to_response=credits`, {
+    headers: { "Authorization": "Bearer " + TMDB_TOKEN, "Content-Type": "application/json" }
+  });
   return await res.json();
 }
 
-async function addMovie(imdbData) {
-  const entry = {
-    id: imdbData.imdbID,
-    title: imdbData.Title,
-    year: imdbData.Year,
-    director: imdbData.Director || "Unknown",
-    cast: imdbData.Actors || "Unknown",
-    runtime: imdbData.Runtime || "Unknown",
-    rating: imdbData.Rated || "NR",
-    plot: imdbData.Plot || "",
-    genre: imdbData.Genre || "Other",
-    poster: imdbData.Poster && imdbData.Poster !== "N/A" ? imdbData.Poster : "",
-    format: currentFormat || "DVD",
-    addedAt: Date.now()
-  };
+/* addMovieFromTMDB is defined above in the TMDB lookup section */
+/* Legacy addMovie kept as alias for any remaining calls */
+async function addMovie(data) { await addMovieFromTMDB(data, currentMode === "tv" ? "tv" : "movie"); }
+
+async function addMovieFromTMDB(tmdbData, type) {
+  const isTV = type === "tv";
+  const title = isTV ? tmdbData.name : tmdbData.title;
+  const year = isTV ? (tmdbData.first_air_date || "").slice(0,4) : (tmdbData.release_date || "").slice(0,4);
+  const director = isTV
+    ? ((tmdbData.created_by || []).map(c => c.name).join(", ") || "Unknown")
+    : ((tmdbData.credits && tmdbData.credits.crew ? tmdbData.credits.crew.filter(c => c.job === "Director").map(c => c.name).join(", ") : "") || "Unknown");
+  const cast = tmdbData.credits && tmdbData.credits.cast ? tmdbData.credits.cast.slice(0,4).map(c => c.name).join(", ") : "Unknown";
+  const runtime = isTV
+    ? ((tmdbData.episode_run_time && tmdbData.episode_run_time[0]) ? tmdbData.episode_run_time[0] + " min/ep" : "Unknown")
+    : (tmdbData.runtime ? tmdbData.runtime + " min" : "Unknown");
+  const genre = tmdbData.genres && tmdbData.genres[0] ? tmdbData.genres[0].name : "Other";
+  const poster = tmdbData.poster_path ? TMDB_IMG + tmdbData.poster_path : "";
+  const plot = tmdbData.overview || "";
+  const rating = tmdbData.vote_average ? tmdbData.vote_average.toFixed(1) + "/10" : "NR";
+
+  const entry = { id: String(tmdbData.id), title, year, director, cast, runtime, rating, plot, genre, poster, format: currentFormat || "DVD", addedAt: Date.now() };
 
   if (currentMode === "tv") {
     const tv = loadTV();
-    if (tv.find(m => m.id === entry.id && m.format === entry.format)) {
-      alert('"' + entry.title + '" (' + entry.format + ') is already in your collection.');
-      return;
-    }
-    tv.push(entry);
-    saveTV(tv);
-    renderTVFormats();
+    if (tv.find(m => m.id === entry.id && m.format === entry.format)) { alert('"' + title + '" (' + entry.format + ') is already in your collection.'); return; }
+    tv.push(entry); saveTV(tv); renderTVFormats();
     document.getElementById("tv-section-body").classList.add("open");
     document.getElementById("tv-chevron").classList.add("open");
-    alert('"' + entry.title + '" added to your TV Series collection!');
+    alert('"' + title + '" added to your TV Series collection!');
   } else {
     const movies = loadMovies();
-    if (movies.find(m => m.id === entry.id && m.format === entry.format)) {
-      alert('"' + entry.title + '" (' + entry.format + ') is already in your collection.');
-      return;
-    }
-    movies.push(entry);
-    saveMovies(movies);
-    renderMovieFormats();
+    if (movies.find(m => m.id === entry.id && m.format === entry.format)) { alert('"' + title + '" (' + entry.format + ') is already in your collection.'); return; }
+    movies.push(entry); saveMovies(movies); renderMovieFormats();
     document.getElementById("movie-section-body").classList.add("open");
     document.getElementById("movie-chevron").classList.add("open");
-    alert('"' + entry.title + '" added to your ' + entry.format + ' collection!');
+    alert('"' + title + '" added to your ' + entry.format + ' collection!');
   }
 }
 
@@ -1170,25 +1187,29 @@ async function doSearch() {
       container.appendChild(item);
     });
   } else {
-    const results = await lookupMovieByTitle(q);
+    const tmdbType = currentMode === "tv" ? "tv" : "movie";
+    const results = await searchTMDB(q, tmdbType);
     if (!results.length) { container.innerHTML = "<p style='opacity:0.5;font-size:13px;'>No results found.</p>"; return; }
     container.innerHTML = "";
     results.slice(0, 8).forEach(function(r) {
+      const title = r.title || r.name || "";
+      const year = (r.release_date || r.first_air_date || "").slice(0,4);
+      const poster = r.poster_path ? TMDB_IMG + r.poster_path : "";
       const item = document.createElement("div");
       item.className = "search-result-item";
       item.innerHTML = `
-        <img class="search-result-thumb" src="${r.Poster && r.Poster !== "N/A" ? r.Poster : ""}" alt="" onerror="this.style.visibility='hidden'">
+        <img class="search-result-thumb" src="${poster}" alt="" onerror="this.style.visibility='hidden'">
         <div class="search-result-info">
-          <div class="search-result-name">${escH(r.Title)}</div>
-          <div class="search-result-sub">${escH(r.Year || "")}</div>
+          <div class="search-result-name">${escH(title)}</div>
+          <div class="search-result-sub">${escH(year)}</div>
         </div>
         <button class="search-result-add">Add</button>
       `;
       item.querySelector(".search-result-add").addEventListener("click", async function() {
         this.textContent = "...";
         this.disabled = true;
-        const details = await getMovieDetails(r.imdbID);
-        await addMovie(details);
+        const details = await getTMDBDetails(r.id, tmdbType);
+        await addMovieFromTMDB(details, tmdbType);
         document.getElementById("search-overlay").classList.remove("open");
       });
       container.appendChild(item);
