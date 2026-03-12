@@ -152,7 +152,12 @@
              When a Daily Focus task is completed, it disappears immediately.
              If left unfinished, that task can later move into Weekly Tasks. -->
         <section id="daily-focus-card" class="dashboard-card daily-focus-card" aria-labelledby="daily-focus-title">
-          <h2 id="daily-focus-title" class="card-title">Daily Focus</h2> <!-- Title for today's scheduled unfinished tasks -->
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <h2 id="daily-focus-title" class="card-title">Daily Focus</h2>
+            <button onclick="openRecurringManager()" style="background:none;border:none;font-size:11px;
+              color:#b0977a;font-family:'Josefin Sans',sans-serif;cursor:pointer;padding:2px 6px;
+              border:1px solid #CBB7A3;border-radius:8px;">↻ Recurring</button>
+          </div>
 
           <!-- Daily task list container.
                JavaScript will later add task rows into this area automatically. -->
