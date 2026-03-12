@@ -41,6 +41,32 @@
   gap: 10px;
   padding: 6px 0;
   min-height: 36px;
+  cursor: grab;
+  touch-action: none;
+  transition: opacity 0.15s, background 0.15s;
+  border-radius: 8px;
+}
+
+.task-row.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.task-row.drag-over {
+  background: rgba(184,140,106,0.12);
+}
+
+.task-list {
+  min-height: 36px;
+  transition: background 0.15s;
+  border-radius: 10px;
+  padding: 2px 0;
+}
+
+.task-list.drop-target {
+  background: rgba(184,140,106,0.08);
+  outline: 2px dashed #B88C6A;
+  outline-offset: 2px;
 }
 
 .task-check-button,
