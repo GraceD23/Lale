@@ -1,4 +1,3 @@
-
 /* =========================================================
    TASKS-SYSTEM.JS
    ---------------------------------------------------------
@@ -35,6 +34,7 @@ function initializeTasks() {
 
   renderDailyTasks();
   renderWeeklyTasks();
+  wireDropZones();
 
 }
 
@@ -119,6 +119,8 @@ function buildTaskRow(task) {
 
   const row = document.createElement("div");
   row.className = "task-row";
+  row.setAttribute("draggable", "true");
+  row.dataset.taskId = task.id;
 
   const label = document.createElement("span");
   label.className = "task-text";
@@ -129,15 +131,135 @@ function buildTaskRow(task) {
   button.textContent = "";
 
   button.addEventListener("click", function () {
-
     completeTask(task.id);
-
   });
 
   row.appendChild(label);
   row.appendChild(button);
 
+  /* ---- Desktop drag events ---- */
+  row.addEventListener("dragstart", function (e) {
+    e.dataTransfer.setData("taskId", task.id);
+    setTimeout(() => row.classList.add("dragging"), 0);
+  });
+
+  row.addEventListener("dragend", function () {
+    row.classList.remove("dragging");
+    document.querySelectorAll(".task-list").forEach(l => l.classList.remove("drop-target"));
+    document.querySelectorAll(".task-row").forEach(r => r.classList.remove("drag-over"));
+  });
+
+  /* ---- Touch drag events (mobile) ---- */
+  let touchClone = null;
+  let touchOffsetX = 0;
+  let touchOffsetY = 0;
+
+  row.addEventListener("touchstart", function (e) {
+    const touch = e.touches[0];
+    touchOffsetX = touch.clientX - row.getBoundingClientRect().left;
+    touchOffsetY = touch.clientY - row.getBoundingClientRect().top;
+
+    touchClone = row.cloneNode(true);
+    touchClone.style.cssText = `
+      position: fixed; z-index: 9999; pointer-events: none;
+      width: ${row.offsetWidth}px; opacity: 0.85;
+      background: white; border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      left: ${touch.clientX - touchOffsetX}px;
+      top: ${touch.clientY - touchOffsetY}px;
+    `;
+    document.body.appendChild(touchClone);
+    row.classList.add("dragging");
+  }, { passive: true });
+
+  row.addEventListener("touchmove", function (e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+
+    if (touchClone) {
+      touchClone.style.left = (touch.clientX - touchOffsetX) + "px";
+      touchClone.style.top  = (touch.clientY - touchOffsetY) + "px";
+    }
+
+    /* Highlight the list under the finger */
+    document.querySelectorAll(".task-list").forEach(l => l.classList.remove("drop-target"));
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetList = el && el.closest(".task-list");
+    if (targetList) targetList.classList.add("drop-target");
+
+  }, { passive: false });
+
+  row.addEventListener("touchend", function (e) {
+    if (touchClone) { touchClone.remove(); touchClone = null; }
+    row.classList.remove("dragging");
+    document.querySelectorAll(".task-list").forEach(l => l.classList.remove("drop-target"));
+
+    const touch = e.changedTouches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetList = el && el.closest(".task-list");
+
+    if (targetList) {
+      const newSchedule = targetList.dataset.schedule;
+      if (newSchedule && newSchedule !== task.schedule) {
+        moveTask(task.id, newSchedule);
+      }
+    }
+  }, { passive: true });
+
   return row;
+
+}
+
+
+/* =========================================================
+   MOVE TASK BETWEEN SECTIONS
+   ========================================================= */
+
+function moveTask(taskId, newSchedule) {
+
+  const tasks = getTasks();
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  task.schedule = newSchedule;
+  setTasks(tasks);
+
+  renderDailyTasks();
+  renderWeeklyTasks();
+
+}
+
+
+/* =========================================================
+   WIRE DROP ZONES
+   ========================================================= */
+
+function wireDropZones() {
+
+  document.querySelectorAll(".task-list").forEach(function (list) {
+
+    list.addEventListener("dragover", function (e) {
+      e.preventDefault();
+      list.classList.add("drop-target");
+    });
+
+    list.addEventListener("dragleave", function (e) {
+      if (!list.contains(e.relatedTarget)) {
+        list.classList.remove("drop-target");
+      }
+    });
+
+    list.addEventListener("drop", function (e) {
+      e.preventDefault();
+      list.classList.remove("drop-target");
+      const taskId = e.dataTransfer.getData("taskId");
+      const newSchedule = list.dataset.schedule;
+      if (taskId && newSchedule) {
+        moveTask(taskId, newSchedule);
+      }
+    });
+
+  });
 
 }
 
