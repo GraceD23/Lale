@@ -32,7 +32,13 @@ async function handleBrainDumpSubmit() {
   if (submitButton) { submitButton.textContent = "Thinking..."; submitButton.disabled = true; }
 
   try {
-    const parsedItems = await parseBrainDump(text); /* From brain-parser.js */
+    /* Pre-check: if every line is clearly an etsy command, skip the AI entirely */
+    const chunks = text.split(/[\n,]+/).map(function(s){return s.trim();}).filter(Boolean);
+    const etsyVerbs = /^(sold?|painted?|made?|add(ed)?|bought?)\b/i;
+    const allEtsy = chunks.length > 0 && chunks.every(function(c){ return etsyVerbs.test(c); });
+    const parsedItems = allEtsy
+      ? chunks.map(function(c){ return { type:"etsy", name:c, destination:null, data:{} }; })
+      : await parseBrainDump(text); /* From brain-parser.js */
     openBrainDumpReviewPanel(parsedItems, text);
   } catch (err) {
     console.error("Brain dump error:", err);
