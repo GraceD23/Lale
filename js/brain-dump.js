@@ -148,7 +148,7 @@ function openBrainDumpReviewPanel(parsedItems, originalText) {
   /* Wire confirm button to brain-confirm.js handler */
   const confirmBtn = document.getElementById("review-confirm-button");
   if (confirmBtn) {
-    confirmBtn.onclick = function () { handleBrainDumpConfirm(); };
+    confirmBtn.onclick = async function () { await handleBrainDumpConfirm(); };
   }
 
   /* Wire cancel button */
