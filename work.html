@@ -885,10 +885,10 @@
     for (const line of lines) {
       const lower = line.toLowerCase();
 
-      /* ---- PAINTED BEADS: "painted 5 Tridents" ---- */
-      const paintMatch = lower.match(/painted?\s+(\d+)\s+(.+)/);
+      /* ---- PAINTED BEADS: "painted 5 Tridents" or "painted Tridents" ---- */
+      const paintMatch = lower.match(/painted?\s+(?:(\d+)\s+)?(.+)/);
       if (paintMatch) {
-        const qty = parseInt(paintMatch[1]);
+        const qty = paintMatch[1] ? parseInt(paintMatch[1]) : 1;
         const beadRaw = paintMatch[2].replace(/s$/, ""); /* remove trailing s */
         const bead = normalizeBead(beadRaw);
         if (!bead) { alert("Couldn't find bead: " + paintMatch[2]); continue; }
@@ -904,10 +904,10 @@
         continue;
       }
 
-      /* ---- SALE: "sold 2 10-01 Classic" ---- */
-      const saleMatch = lower.match(/sold?\s+(\d+)\s+(.+)/);
+      /* ---- SALE: "sold 2 10-01 Classic" or "sold 20-01 Classic" ---- */
+      const saleMatch = lower.match(/sold?\s+(?:(\d+)\s+)?(.+)/);
       if (saleMatch) {
-        const qty = parseInt(saleMatch[1]);
+        const qty = saleMatch[1] ? parseInt(saleMatch[1]) : 1;
         const rest = saleMatch[2].trim();
         const useRing = /\bring\b|\bR\b/.test(line);
 
@@ -945,10 +945,10 @@
         continue;
       }
 
-      /* ---- BOUGHT SUPPLIES: "bought 50 necklace strings" ---- */
-      const buyMatch = lower.match(/bought?\s+(\d+)\s+(.+)/);
+      /* ---- BOUGHT SUPPLIES: "bought 50 necklace strings" or "bought necklace strings" ---- */
+      const buyMatch = lower.match(/bought?\s+(?:(\d+)\s+)?(.+)/);
       if (buyMatch) {
-        const qty = parseInt(buyMatch[1]);
+        const qty = buyMatch[1] ? parseInt(buyMatch[1]) : 1;
         const supplyRaw = buyMatch[2].trim();
         /* Try to match existing supply (case-insensitive) */
         const supplyKey = Object.keys(data.supplies).find(k => k.toLowerCase() === supplyRaw) || supplyRaw;
