@@ -50,16 +50,22 @@ DESTINATION (tasks only):
 
 HEALTH DATA — populate the data field for all health items:
 - Weight (any format): {"category":"weight","value":"<exact text the user wrote>"}
-- Headache or migraine: {"category":"headaches","severity":"<1-5 if mentioned, else null>"}
-- Energy, mood, tiredness: {"category":"energy","level":"<1-5 if mentioned, else null>"}
-- Any other health/symptom: {"category":"<descriptive lowercase name>","note":"<what they wrote>"}
+- Headache or migraine: {"category":"headaches","severity":"<1-5 if mentioned, else null>","note":"<any associated notes e.g. trigger foods, context — NOT the severity text>"}
+- Energy, mood, tiredness: {"category":"energy","level":"<1-5 if mentioned, else null>","note":"<any context>"}
+- Any other health/symptom: {"category":"<descriptive lowercase name>","severity":"<X if written as X/5 or X out of 5, else null>","note":"<any context or associated detail that is NOT the severity>"}
+
+SEVERITY: if the user writes something like "3/5" or "4 out of 5" near a health item, that is the severity (1-5 scale). Extract it into "severity". Do NOT include the severity text in the note.
+NOTE: anything else written alongside a health item that gives context (e.g. "ate strawberries", "after coffee", "no sleep") goes into "note".
 
 EXAMPLES:
 Input: "120.3lbs"
 Output: [{"type":"health","name":"120.3lbs","destination":null,"data":{"category":"weight","value":"120.3lbs"}}]
 
+Input: "headache. ate strawberries 3/5"
+Output: [{"type":"health","name":"headache","destination":null,"data":{"category":"headaches","severity":"3","note":"ate strawberries"}}]
+
 Input: "bad headache, pick up milk, took vitamins"
-Output: [{"type":"health","name":"bad headache","destination":null,"data":{"category":"headaches","severity":null}},{"type":"task","name":"pick up milk","destination":"daily","data":{}},{"type":"streak","name":"took vitamins","destination":null,"data":{}}]${streakHint}
+Output: [{"type":"health","name":"bad headache","destination":null,"data":{"category":"headaches","severity":null,"note":null}},{"type":"task","name":"pick up milk","destination":"daily","data":{}},{"type":"streak","name":"took vitamins","destination":null,"data":{}}]${streakHint}
 
 Return ONLY a valid JSON array. No explanation, no markdown, no extra text.`;
 
