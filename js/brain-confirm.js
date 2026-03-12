@@ -63,15 +63,14 @@ function saveConfirmedHealth(item) {
 
   const entry = {
     day: dayKey,
-    date: now.toISOString(), /* full ISO timestamp — used for HH:MM display */
-    note: item.name
+    date: now.toISOString(),
+    note: (item.data && item.data.note) ? item.data.note : item.name
   };
 
   if (cat === "weight" && item.data && item.data.value) entry.value = item.data.value;
   if (item.data && item.data.severity) entry.severity = item.data.severity;
   if (item.data && item.data.level) entry.level = item.data.level;
 
-  /* Always push — multiple entries per day are allowed (e.g. two headaches, two weight logs) */
   health[mk][cat].push(entry);
   if (typeof saveHealth === "function") saveHealth(health);
 }
