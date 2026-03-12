@@ -3,21 +3,76 @@
    Saves ALL confirmed Brain Dump items at once.
    ========================================================= */
 
-function handleBrainDumpConfirm() {
+async function handleBrainDumpConfirm() {
   const reviewData = window.currentBrainDumpReview;
   if (!reviewData || !reviewData.items || reviewData.items.length === 0) return;
 
-  reviewData.items.forEach(function (item) {
+  const etsyItems = reviewData.items.filter(function(i) { return i.type === "etsy"; });
+  const otherItems = reviewData.items.filter(function(i) { return i.type !== "etsy"; });
+
+  otherItems.forEach(function (item) {
     if (item.type === "task")        saveConfirmedTask(item);
     else if (item.type === "streak") saveConfirmedStreak(item);
     else if (item.type === "health") saveConfirmedHealth(item);
     else                             saveConfirmedNote(item);
   });
 
+  /* Handle etsy BEFORE clearing the panel so the Classic/Neon overlay can show */
+  if (etsyItems.length > 0) {
+    await saveConfirmedEtsy(etsyItems);
+  }
+
   clearBrainDumpInput();
   window.currentBrainDumpReview = null;
   closeBrainDumpPanel();
   rerenderAll();
+}
+
+async function saveConfirmedEtsy(items) {
+  /* Build a combined text string so the processor handles line-ask once */
+  const combined = items.map(function(i) { return i.name; }).join("\n");
+
+  /* Provide an askLine function that uses a simple browser prompt
+     (index.html doesn't have the work-page overlay, so we use a custom one) */
+  function askLineFn(context) {
+    return new Promise(function(resolve) {
+      /* Try to use the work-page overlay if available (user has work.html open in another tab — unlikely)
+         Fall back to a styled modal injected into the current page */
+      var existing = document.getElementById("bd-etsy-line-overlay");
+      if (!existing) {
+        existing = document.createElement("div");
+        existing.id = "bd-etsy-line-overlay";
+        existing.style.cssText = "position:fixed;inset:0;background:rgba(60,47,38,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;";
+        existing.innerHTML = '<div style="background:#fdf8f3;border-radius:18px;padding:24px 20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">' +
+          '<p id="bd-etsy-line-title" style="font-family:Josefin Sans,sans-serif;font-size:15px;font-weight:600;color:#3C2F26;margin:0 0 6px;"></p>' +
+          '<p id="bd-etsy-line-sub" style="font-family:Josefin Sans,sans-serif;font-size:13px;color:#4E4036;opacity:0.7;margin:0 0 16px;"></p>' +
+          '<div style="display:flex;gap:10px;">' +
+            '<button id="bd-etsy-classic-btn" style="flex:1;padding:11px;border-radius:12px;border:none;background:#B88C6A;color:white;font-family:Josefin Sans,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Classic</button>' +
+            '<button id="bd-etsy-neon-btn" style="flex:1;padding:11px;border-radius:12px;border:1.5px solid #CBB7A3;background:white;color:#3C2F26;font-family:Josefin Sans,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Neon</button>' +
+          '</div>' +
+        '</div>';
+        document.body.appendChild(existing);
+      }
+
+      document.getElementById("bd-etsy-line-title").textContent = "Classic or Neon?";
+      document.getElementById("bd-etsy-line-sub").textContent = context || "Which inventory line?";
+      existing.style.display = "flex";
+
+      function onClassic() { cleanup(); resolve("classic"); }
+      function onNeon()    { cleanup(); resolve("neon"); }
+      function cleanup() {
+        existing.style.display = "none";
+        document.getElementById("bd-etsy-classic-btn").removeEventListener("click", onClassic);
+        document.getElementById("bd-etsy-neon-btn").removeEventListener("click", onNeon);
+      }
+      document.getElementById("bd-etsy-classic-btn").addEventListener("click", onClassic);
+      document.getElementById("bd-etsy-neon-btn").addEventListener("click", onNeon);
+    });
+  }
+
+  if (typeof processEtsyInput === "function") {
+    await processEtsyInput(combined, askLineFn);
+  }
 }
 
 function saveConfirmedTask(item) {
