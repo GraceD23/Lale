@@ -585,7 +585,7 @@
      ========================================================= */
 
   const BEAD_NAMES = ["Tree","Centaur","Boat","Trident","Glowing Trident","Sheep","Bow","Maze","Building","Cage","Eagle","Owl","Hel","Camp"];
-  const NECKLACE_NAMES = ["10-01 Classic","10-01 Glow","10-02 Classic","10-02 Glow","10-03 Classic","10-03 Glow","10-04 Classic","10-04 Glow","10-05 Classic","10-05 Glow","20-01 Classic","20-01 Glow","20-02 Classic","20-02 Glow","30-01 Classic","30-02 Glow"];
+  const NECKLACE_NAMES = ["10-01 Classic","10-01 Glow","10-02 Classic","10-02 Glow","10-03 Classic","10-03 Glow","10-04 Classic","10-04 Glow","10-05 Classic","10-05 Glow","20-01 Classic","20-01 Glow","20-02 Classic","20-02 Glow","30-01 Classic","30-01 Glow"];
 
   /* Beads shared between Classic and Neon (same count) */
   const SHARED_BEADS = ["Trident","Glowing Trident","Sheep","Maze","Owl","Hel"];
@@ -610,7 +610,7 @@
     "20-02 Classic": ["Tree","Centaur","Boat","Trident","Sheep","Maze","Building","Camp"],
     "20-02 Glow":    ["Tree","Centaur","Boat","Glowing Trident","Sheep","Maze","Building","Camp"],
     "30-01 Classic": ["Tree","Centaur","Boat","Trident","Sheep","Maze","Building","Cage","Eagle","Owl","Hel","Camp"],
-    "30-02 Glow":    ["Tree","Centaur","Boat","Glowing Trident","Sheep","Maze","Building","Cage","Eagle","Owl","Hel","Camp"]
+    "30-01 Glow":    ["Tree","Centaur","Boat","Glowing Trident","Sheep","Maze","Building","Cage","Eagle","Owl","Hel","Camp"]
   };
 
   /* Beads used per necklace — Neon line */
@@ -630,7 +630,7 @@
     "20-02 Classic": ["Tree","Centaur","Boat","Trident","Sheep","Bow","Maze","Building","Camp"],
     "20-02 Glow":    ["Tree","Centaur","Boat","Glowing Trident","Sheep","Bow","Maze","Building","Camp"],
     "30-01 Classic": ["Tree","Centaur","Boat","Trident","Sheep","Bow","Maze","Building","Cage","Eagle","Owl","Hel","Camp"],
-    "30-02 Glow":    ["Tree","Centaur","Boat","Glowing Trident","Sheep","Bow","Maze","Building","Cage","Eagle","Owl","Hel","Camp"]
+    "30-01 Glow":    ["Tree","Centaur","Boat","Glowing Trident","Sheep","Bow","Maze","Building","Cage","Eagle","Owl","Hel","Camp"]
   };
 
   const LOW_STOCK_THRESHOLD = 30;
@@ -855,27 +855,43 @@
     return found || null;
   }
 
+  function normalizeLineAlias(str) {
+    /* Returns "classic", "neon", or null */
+    const s = str.trim().toLowerCase();
+    if (["classic","clt"].includes(s)) return "classic";
+    if (["neon","n"].includes(s)) return "neon";
+    return null;
+  }
+
   function normalizeNecklace(str) {
-    const lower = str.trim().toLowerCase();
-    const found = NECKLACE_NAMES.find(n => n.toLowerCase() === lower);
+    let s = str.trim().toLowerCase();
+
+    /* Expand line aliases at the end: "20-1 clt" → "20-01 classic" */
+    s = s.replace(/\s+(clt|classic)$/i, " classic");
+    s = s.replace(/\s+(neon|n)$/i, " neon");
+
+    /* Expand shorthand numbers: "20-1" → "20-01", "10-1" → "10-01" */
+    s = s.replace(/\b(\d+)-(\d)\b/g, function(_, prefix, digit) {
+      return prefix + "-0" + digit;
+    });
+
+    const found = NECKLACE_NAMES.find(n => n.toLowerCase() === s.trim());
     return found || null;
   }
 
   function detectLineFromText(text) {
     const lower = text.toLowerCase();
-    if (lower.includes(" neon")) return "neon";
-    if (lower.includes(" classic") && !lower.match(/\d+-\d+\s+classic/)) return "classic";
+    /* Check for line aliases anywhere in the text */
+    if (/\b(neon|n)\b/.test(lower)) return "neon";
+    if (/\b(classic|clt)\b/.test(lower) && !lower.match(/\d+-\d+\s+(classic|clt)/)) return "classic";
     return null;
   }
 
   function detectLine(text) {
     const lower = text.toLowerCase();
-    if (lower.includes(" classic ") || lower.includes(" neon ") ||
-        lower.endsWith(" classic") || lower.endsWith(" neon")) {
-      if (lower.includes(" neon")) return "neon";
-      if (lower.includes(" classic")) return "classic";
-    }
-    return null; /* ambiguous */
+    if (/\b(neon|n)\b/.test(lower)) return "neon";
+    if (/\b(classic|clt)\b/.test(lower)) return "classic";
+    return null;
   }
 
   async function processEtsyInput(rawText) {
@@ -911,7 +927,7 @@
         const rest = saleMatch[2].trim();
         const useRing = /\bring\b|\bR\b/.test(line);
 
-        /* Strip "ring" / "R" from necklace name */
+        /* Strip "ring" / "R" and line aliases from necklace name */
         const neckRaw = rest.replace(/\s*\bring\b|\s*\bR\b/gi, "").trim();
         const neck = normalizeNecklace(neckRaw);
         if (!neck) { alert("Couldn't find necklace: " + neckRaw); continue; }
