@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/theme.css" />
   <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
   <link rel="stylesheet" href="css/components-additions.css" />
   <style>
     /* ---- Work page specific ---- */
@@ -516,13 +517,13 @@
 
           <!-- SUPPLIES DROPDOWN -->
           <div class="inner-dropdown">
-            <button class="inner-toggle" type="button" data-target="supplies-body">
-              <div class="supplies-header" style="width:100%;display:flex;align-items:center;justify-content:space-between;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <button class="inner-toggle" type="button" data-target="supplies-body" style="flex:1;">
                 <span>Supplies</span>
-                <button type="button" class="supplies-add-btn" id="supplies-add-btn" onclick="event.stopPropagation(); openAddSupply();">＋</button>
-              </div>
-              <span class="inner-chevron">▼</span>
-            </button>
+                <span class="inner-chevron">▼</span>
+              </button>
+              <button type="button" class="supplies-add-btn" id="supplies-add-btn" onclick="openAddSupply();">＋</button>
+            </div>
             <div class="inner-body" id="supplies-body">
               <ul class="inv-list" id="supplies-list"></ul>
               <button type="button" class="supply-edit-btn" id="supply-edit-btn">Edit</button>
@@ -587,7 +588,7 @@
   const NECKLACE_NAMES = ["10-01 Classic","10-01 Glow","10-02 Classic","10-02 Glow","10-03 Classic","10-03 Glow","10-04 Classic","10-04 Glow","10-05 Classic","10-05 Glow","20-01 Classic","20-01 Glow","20-02 Classic","20-02 Glow","30-01 Classic","30-02 Glow"];
 
   /* Beads shared between Classic and Neon (same count) */
-  const SHARED_BEADS = ["Trident","Glowing Trident","Sheep","Maze","Owl"];
+  const SHARED_BEADS = ["Trident","Glowing Trident","Sheep","Maze","Owl","Hel"];
 
   /* Alternate names */
   const BEAD_ALIASES = { "trident glow": "Glowing Trident", "glowing trident": "Glowing Trident" };
@@ -860,6 +861,13 @@
     return found || null;
   }
 
+  function detectLineFromText(text) {
+    const lower = text.toLowerCase();
+    if (lower.includes(" neon")) return "neon";
+    if (lower.includes(" classic") && !lower.match(/\d+-\d+\s+classic/)) return "classic";
+    return null;
+  }
+
   function detectLine(text) {
     const lower = text.toLowerCase();
     if (lower.includes(" classic ") || lower.includes(" neon ") ||
@@ -909,7 +917,8 @@
         if (!neck) { alert("Couldn't find necklace: " + neckRaw); continue; }
 
         /* Always ask Classic or Neon for sales */
-        const inv = await askLine("Classic or Neon?", `Was "${neck}" sold from Classic or Neon inventory?`);
+        resolvedLine = null; /* Sales always ask fresh */
+        const inv = await getLine(`Was "${neck}" sold from Classic or Neon inventory?`);
         const recipes = inv === "classic" ? CLASSIC_RECIPES : NEON_RECIPES;
         const beadsUsed = recipes[neck] || [];
 
@@ -956,10 +965,8 @@
         const beadRaw = directMatch[2].replace(/s$/, "");
         const bead = normalizeBead(beadRaw);
         if (bead) {
-          let line_type = SHARED_BEADS.includes(bead) ? "shared" : detectLine(line);
-          if (!line_type) {
-            line_type = await askLine("Classic or Neon?", `Which line are you adding "${bead}" to?`);
-          }
+          const isSharedDirect = SHARED_BEADS.includes(bead);
+          const line_type = isSharedDirect ? "classic" : await getLine(`Which line are you adding "${bead}" to?`);
           setBeadCount(data, bead, line_type, getBeadCount(data, bead, line_type) + qty);
           saveEtsy(data);
           renderAll();
