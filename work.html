@@ -858,7 +858,7 @@
   function normalizeLineAlias(str) {
     /* Returns "classic", "neon", or null */
     const s = str.trim().toLowerCase();
-    if (["classic","clt"].includes(s)) return "classic";
+    if (["classic","clt","c"].includes(s)) return "classic";
     if (["neon","n"].includes(s)) return "neon";
     return null;
   }
@@ -866,9 +866,12 @@
   function normalizeNecklace(str) {
     let s = str.trim().toLowerCase();
 
-    /* Expand line aliases at the end: "20-1 clt" → "20-01 classic" */
-    s = s.replace(/\s+(clt|classic)$/i, " classic");
-    s = s.replace(/\s+(neon|n)$/i, " neon");
+    /* Expand line aliases at the end: "20-1 clt" or "20-1clt" → "20-01 classic" */
+    s = s.replace(/\s*(clt|classic|c)$/i, " classic");
+    s = s.replace(/\s*(neon|n)$/i, " neon");
+
+    /* Expand glow aliases: "10-01g" / "10-01 glowing" → "10-01 glow" */
+    s = s.replace(/\s*(glowing|g)$/i, " glow");
 
     /* Expand shorthand numbers: "20-1" → "20-01", "10-1" → "10-01" */
     s = s.replace(/\b(\d+)-(\d)\b/g, function(_, prefix, digit) {
@@ -881,16 +884,15 @@
 
   function detectLineFromText(text) {
     const lower = text.toLowerCase();
-    /* Check for line aliases anywhere in the text */
     if (/\b(neon|n)\b/.test(lower)) return "neon";
-    if (/\b(classic|clt)\b/.test(lower) && !lower.match(/\d+-\d+\s+(classic|clt)/)) return "classic";
+    if (/\b(classic|clt|c)\b/.test(lower) && !lower.match(/\d+-\d+\s+(classic|clt|c)/)) return "classic";
     return null;
   }
 
   function detectLine(text) {
     const lower = text.toLowerCase();
     if (/\b(neon|n)\b/.test(lower)) return "neon";
-    if (/\b(classic|clt)\b/.test(lower)) return "classic";
+    if (/\b(classic|clt|c)\b/.test(lower)) return "classic";
     return null;
   }
 
@@ -972,6 +974,22 @@
         saveEtsy(data);
         renderAll();
         continue;
+      }
+
+      /* ---- MADE/ADD NECKLACE: "made 20-01 glow" or "add 2 10-01 classic" ---- */
+      const madeMatch = lower.match(/(?:made?|add(?:ed)?)\s+(?:(\d+)\s+)?(.+)/);
+      if (madeMatch) {
+        const qty = madeMatch[1] ? parseInt(madeMatch[1]) : 1;
+        const neckRaw = madeMatch[2].trim();
+        const neck = normalizeNecklace(neckRaw);
+        if (neck) {
+          const inv = await getLine(`Was "${neck}" made for Classic or Neon inventory?`);
+          if (inv === "classic") data.neckClassic[neck] = (data.neckClassic[neck] || 0) + qty;
+          else data.neckNeon[neck] = (data.neckNeon[neck] || 0) + qty;
+          saveEtsy(data);
+          renderAll();
+          continue;
+        }
       }
 
       /* ---- ADD BEAD COUNT directly: "5 Trident" ---- */
