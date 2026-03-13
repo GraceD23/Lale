@@ -83,9 +83,9 @@ function getBeadCount(data, bead, line) {
 }
 
 function setBeadCount(data, bead, line, val) {
-  if (SHARED_BEADS.includes(bead)) data.beadsShared[bead] = Math.max(0, val);
-  else if (line === "classic") data.beadsClassic[bead] = Math.max(0, val);
-  else data.beadsNeon[bead] = Math.max(0, val);
+  if (SHARED_BEADS.includes(bead)) data.beadsShared[bead] = val;
+  else if (line === "classic") data.beadsClassic[bead] = val;
+  else data.beadsNeon[bead] = val;
 }
 
 /* =========================================================
