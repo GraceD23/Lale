@@ -170,11 +170,12 @@ function etsyCheckLowStock(data) {
 
 /* =========================================================
    CORE PROCESSOR
-   Accepts an askLineFn(context) → Promise<"classic"|"neon">
-   so it works from both the Work page UI and Brain Dump.
+   askLineFn(context)     → Promise<"classic"|"neon">
+   askSubtractFn(context) → Promise<"necklace"|"beads">
+   Both injected so it works from Work page and Brain Dump.
    ========================================================= */
 
-async function processEtsyInput(rawText, askLineFn) {
+async function processEtsyInput(rawText, askLineFn, askSubtractFn) {
   const lines = rawText.split(/\n|,/).map(function(s) { return s.trim(); }).filter(Boolean);
   const data = loadEtsy();
 
@@ -214,21 +215,33 @@ async function processEtsyInput(rawText, askLineFn) {
       const neckRaw = rest.replace(/\s*\bring\b|\s*\bR\b/gi, "").trim();
       const neck = etsyNormalizeNecklace(neckRaw);
       if (!neck) { alert("Couldn't find necklace: " + neckRaw); continue; }
-      resolvedLine = null; /* sales always ask fresh */
+
+      /* Ask Classic/Neon first */
+      resolvedLine = null;
       const inv = await getLine('Was "' + neck + '" sold from Classic or Neon inventory?');
-      const recipes = inv === "classic" ? CLASSIC_RECIPES : NEON_RECIPES;
-      const beadsUsed = recipes[neck] || [];
-      if (inv === "classic") data.neckClassic[neck] = (data.neckClassic[neck] || 0) - qty;
-      else data.neckNeon[neck] = (data.neckNeon[neck] || 0) - qty;
-      beadsUsed.forEach(function(bead) {
-        setBeadCount(data, bead, inv, getBeadCount(data, bead, inv) - qty);
-      });
-      if (data.supplies["Necklace String"] !== undefined)
-        data.supplies["Necklace String"] = Math.max(0, (data.supplies["Necklace String"] || 0) - qty);
-      if (data.supplies["Package"] !== undefined)
-        data.supplies["Package"] = Math.max(0, (data.supplies["Package"] || 0) - qty);
-      if (useRing && data.supplies["Ring"] !== undefined)
-        data.supplies["Ring"] = Math.max(0, (data.supplies["Ring"] || 0) - qty);
+
+      /* Ask Necklace or Beads */
+      const subtractFrom = await askSubtractFn('Subtract from Necklace or Beads for "' + neck + '"?');
+
+      if (subtractFrom === "necklace") {
+        if (inv === "classic") data.neckClassic[neck] = (data.neckClassic[neck] || 0) - qty;
+        else data.neckNeon[neck] = (data.neckNeon[neck] || 0) - qty;
+        /* Subtract supplies */
+        if (data.supplies["Necklace String"] !== undefined)
+          data.supplies["Necklace String"] = Math.max(0, (data.supplies["Necklace String"] || 0) - qty);
+        if (data.supplies["Package"] !== undefined)
+          data.supplies["Package"] = Math.max(0, (data.supplies["Package"] || 0) - qty);
+        if (useRing && data.supplies["Ring"] !== undefined)
+          data.supplies["Ring"] = Math.max(0, (data.supplies["Ring"] || 0) - qty);
+      } else {
+        /* Subtract beads only */
+        const recipes = inv === "classic" ? CLASSIC_RECIPES : NEON_RECIPES;
+        const beadsUsed = recipes[neck] || [];
+        beadsUsed.forEach(function(bead) {
+          setBeadCount(data, bead, inv, getBeadCount(data, bead, inv) - qty);
+        });
+      }
+
       saveEtsy(data);
       etsyCheckLowStock(data);
       continue;
