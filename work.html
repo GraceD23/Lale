@@ -548,6 +548,18 @@
     </div>
   </div>
 
+  <!-- NECKLACE OR BEADS PROMPT -->
+  <div class="etsy-prompt-overlay" id="subtract-prompt-overlay">
+    <div class="etsy-prompt-box">
+      <p class="etsy-prompt-title" id="subtract-prompt-title">Subtract from?</p>
+      <p class="etsy-prompt-sub" id="subtract-prompt-sub">Which inventory should be reduced?</p>
+      <div class="etsy-prompt-btns">
+        <button type="button" class="etsy-prompt-btn primary" id="subtract-prompt-necklace">Necklace</button>
+        <button type="button" class="etsy-prompt-btn secondary" id="subtract-prompt-beads">Beads</button>
+      </div>
+    </div>
+  </div>
+
   <!-- SUPPLIES EDIT OVERLAY -->
   <div class="edit-overlay" id="supply-edit-overlay">
     <div class="edit-box">
@@ -600,6 +612,24 @@
       }
       document.getElementById("line-prompt-classic").addEventListener("click", onClassic);
       document.getElementById("line-prompt-neon").addEventListener("click", onNeon);
+    });
+  }
+
+  function askSubtract(title, sub) {
+    return new Promise(function(resolve) {
+      const overlay = document.getElementById("subtract-prompt-overlay");
+      document.getElementById("subtract-prompt-title").textContent = title || "Subtract from?";
+      document.getElementById("subtract-prompt-sub").textContent = sub || "Which inventory should be reduced?";
+      overlay.classList.add("open");
+      function onNecklace() { cleanup(); resolve("necklace"); }
+      function onBeads()    { cleanup(); resolve("beads"); }
+      function cleanup() {
+        overlay.classList.remove("open");
+        document.getElementById("subtract-prompt-necklace").removeEventListener("click", onNecklace);
+        document.getElementById("subtract-prompt-beads").removeEventListener("click", onBeads);
+      }
+      document.getElementById("subtract-prompt-necklace").addEventListener("click", onNecklace);
+      document.getElementById("subtract-prompt-beads").addEventListener("click", onBeads);
     });
   }
 
@@ -736,7 +766,7 @@
     document.getElementById("etsy-submit-btn").addEventListener("click", function() {
       var val = document.getElementById("etsy-input-field").value.trim();
       if (!val) return;
-      processEtsyInput(val, askLine).then(function() {
+      processEtsyInput(val, askLine, askSubtract).then(function() {
         document.getElementById("etsy-input-field").value = "";
         renderAll();
       });
