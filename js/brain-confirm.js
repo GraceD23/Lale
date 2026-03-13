@@ -10,14 +10,14 @@ async function handleBrainDumpConfirm() {
   const etsyItems = reviewData.items.filter(function(i) { return i.type === "etsy"; });
   const otherItems = reviewData.items.filter(function(i) { return i.type !== "etsy"; });
 
-  otherItems.forEach(function (item) {
+  otherItems.forEach(function(item) {
     if (item.type === "task")        saveConfirmedTask(item);
     else if (item.type === "streak") saveConfirmedStreak(item);
     else if (item.type === "health") saveConfirmedHealth(item);
     else                             saveConfirmedNote(item);
   });
 
-  /* Handle etsy BEFORE clearing the panel so the Classic/Neon overlay can show */
+  /* Handle etsy BEFORE clearing so the Classic/Neon overlay can show */
   if (etsyItems.length > 0) {
     await saveConfirmedEtsy(etsyItems);
   }
@@ -28,52 +28,61 @@ async function handleBrainDumpConfirm() {
   rerenderAll();
 }
 
-async function saveConfirmedEtsy(items) {
-  /* Build a combined text string so the processor handles line-ask once */
-  const combined = items.map(function(i) { return i.name; }).join("\n");
+/* =========================================================
+   ETSY — inject a Classic/Neon overlay into the current page
+   ========================================================= */
 
-  /* Provide an askLine function that uses a simple browser prompt
-     (index.html doesn't have the work-page overlay, so we use a custom one) */
-  function askLineFn(context) {
+function getBrainDumpAskLine() {
+  return function askLineFn(context) {
     return new Promise(function(resolve) {
-      /* Try to use the work-page overlay if available (user has work.html open in another tab — unlikely)
-         Fall back to a styled modal injected into the current page */
-      var existing = document.getElementById("bd-etsy-line-overlay");
-      if (!existing) {
-        existing = document.createElement("div");
-        existing.id = "bd-etsy-line-overlay";
-        existing.style.cssText = "position:fixed;inset:0;background:rgba(60,47,38,0.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;";
-        existing.innerHTML = '<div style="background:#fdf8f3;border-radius:18px;padding:24px 20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">' +
-          '<p id="bd-etsy-line-title" style="font-family:Josefin Sans,sans-serif;font-size:15px;font-weight:600;color:#3C2F26;margin:0 0 6px;"></p>' +
-          '<p id="bd-etsy-line-sub" style="font-family:Josefin Sans,sans-serif;font-size:13px;color:#4E4036;opacity:0.7;margin:0 0 16px;"></p>' +
-          '<div style="display:flex;gap:10px;">' +
-            '<button id="bd-etsy-classic-btn" style="flex:1;padding:11px;border-radius:12px;border:none;background:#B88C6A;color:white;font-family:Josefin Sans,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Classic</button>' +
-            '<button id="bd-etsy-neon-btn" style="flex:1;padding:11px;border-radius:12px;border:1.5px solid #CBB7A3;background:white;color:#3C2F26;font-family:Josefin Sans,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Neon</button>' +
-          '</div>' +
-        '</div>';
-        document.body.appendChild(existing);
+      var overlay = document.getElementById("bd-etsy-line-overlay");
+      if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "bd-etsy-line-overlay";
+        overlay.style.cssText = "position:fixed;inset:0;background:rgba(60,47,38,0.5);z-index:9000;display:none;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;";
+        overlay.innerHTML =
+          '<div style="background:#fdf8f3;border-radius:18px;padding:24px 20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">' +
+            '<p id="bd-etsy-line-title" style="font-family:\'Josefin Sans\',sans-serif;font-size:15px;font-weight:600;color:#3C2F26;margin:0 0 6px;"></p>' +
+            '<p id="bd-etsy-line-sub" style="font-family:\'Josefin Sans\',sans-serif;font-size:13px;color:#4E4036;opacity:0.7;margin:0 0 16px;"></p>' +
+            '<div style="display:flex;gap:10px;">' +
+              '<button id="bd-etsy-classic-btn" style="flex:1;padding:11px;border-radius:12px;border:none;background:#B88C6A;color:white;font-family:\'Josefin Sans\',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Classic</button>' +
+              '<button id="bd-etsy-neon-btn" style="flex:1;padding:11px;border-radius:12px;border:1.5px solid #CBB7A3;background:white;color:#3C2F26;font-family:\'Josefin Sans\',sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Neon</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(overlay);
       }
 
       document.getElementById("bd-etsy-line-title").textContent = "Classic or Neon?";
-      document.getElementById("bd-etsy-line-sub").textContent = context || "Which inventory line?";
-      existing.style.display = "flex";
+      document.getElementById("bd-etsy-line-sub").textContent = context || "Which inventory line does this belong to?";
+      overlay.style.display = "flex";
 
       function onClassic() { cleanup(); resolve("classic"); }
       function onNeon()    { cleanup(); resolve("neon"); }
       function cleanup() {
-        existing.style.display = "none";
+        overlay.style.display = "none";
         document.getElementById("bd-etsy-classic-btn").removeEventListener("click", onClassic);
         document.getElementById("bd-etsy-neon-btn").removeEventListener("click", onNeon);
       }
       document.getElementById("bd-etsy-classic-btn").addEventListener("click", onClassic);
       document.getElementById("bd-etsy-neon-btn").addEventListener("click", onNeon);
     });
-  }
+  };
+}
+
+async function saveConfirmedEtsy(items) {
+  const combined = items.map(function(i) { return i.name; }).join("\n");
+  const askLineFn = getBrainDumpAskLine();
 
   if (typeof processEtsyInput === "function") {
     await processEtsyInput(combined, askLineFn);
+  } else {
+    console.error("processEtsyInput not available — is etsy-system.js loaded?");
   }
 }
+
+/* =========================================================
+   OTHER SAVE FUNCTIONS
+   ========================================================= */
 
 function saveConfirmedTask(item) {
   const tasks = typeof loadTasks === "function" ? loadTasks() : [];
@@ -93,7 +102,7 @@ function saveConfirmedTask(item) {
 function saveConfirmedStreak(item) {
   const streaks = typeof loadStreaks === "function" ? loadStreaks() : [];
   const name = item.name.trim();
-  let match = streaks.find(s => s.name === name);
+  let match = streaks.find(function(s) { return s.name === name; });
   if (!match) {
     match = { id: makeConfirmId(name), name: name, count: 0, weeklyCount: 0, history: [] };
     streaks.push(match);
@@ -113,8 +122,8 @@ function saveConfirmedHealth(item) {
 
   const now = new Date();
   const dayKey = now.getFullYear() + "-" +
-    String(now.getMonth()+1).padStart(2,"0") + "-" +
-    String(now.getDate()).padStart(2,"0");
+    String(now.getMonth() + 1).padStart(2, "0") + "-" +
+    String(now.getDate()).padStart(2, "0");
 
   const entry = {
     day: dayKey,
@@ -167,7 +176,7 @@ function clearBrainDumpInput() {
 }
 
 function makeConfirmId(text) {
-  return String(text).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") + "-" + Date.now();
+  return String(text).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") + "-" + Date.now();
 }
 
 function getConfirmMonthKey() {
