@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Work</title>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/components-additions.css" />
+  <style>
+    /* ---- Work page specific ---- */
+    .work-section { margin-bottom: 12px; }
+
+    .etsy-toggle {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: none;
+      border: none;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--title-color);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .etsy-chevron {
+      font-size: 14px;
+      transition: transform 0.2s;
+      color: var(--button-primary);
+    }
+    .etsy-chevron.open { transform: rotate(180deg); }
+
+    .etsy-body { display: none; }
+    .etsy-body.open { display: block; }
+
+    /* ---- Beads to Paint box ---- */
+    .beads-to-paint {
+      background: rgba(255,255,255,0.5);
+      border: 1.5px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+    }
+
+    .beads-to-paint-title {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--title-color);
+      margin: 0 0 10px;
+      letter-spacing: 0.03em;
+    }
+
+    .beads-to-paint-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .beads-col-label {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--button-primary);
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .beads-to-paint ul {
+      list-style: disc;
+      padding-left: 16px;
+      margin: 0;
+    }
+
+    .beads-to-paint li {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-main);
+      margin-bottom: 3px;
+      line-height: 1.4;
+    }
+
+    /* ---- Inner dropdowns ---- */
+    .inner-dropdown {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 10px 0;
+    }
+
+    .inner-dropdown:last-child { border-bottom: none; }
+
+    .inner-toggle {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: none;
+      border: none;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--title-color);
+      cursor: pointer;
+      padding: 2px 0;
+    }
+
+    .inner-chevron {
+      font-size: 12px;
+      transition: transform 0.2s;
+      color: var(--button-primary);
+    }
+    .inner-chevron.open { transform: rotate(180deg); }
+
+    .inner-body { display: none; padding-top: 8px; }
+    .inner-body.open { display: block; }
+
+    /* ---- Sub-dropdowns (Classic / Neon inside Bead/Necklace) ---- */
+    .sub-dropdown { padding: 6px 0; }
+
+    .sub-toggle {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: none;
+      border: none;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--button-primary);
+      cursor: pointer;
+      padding: 2px 0;
+    }
+
+    .sub-chevron {
+      font-size: 11px;
+      transition: transform 0.2s;
+    }
+    .sub-chevron.open { transform: rotate(180deg); }
+
+    .sub-body { display: none; padding-top: 6px; }
+    .sub-body.open { display: block; }
+
+    /* ---- Inventory lists ---- */
+    .inv-list {
+      list-style: disc;
+      padding-left: 18px;
+      margin: 0;
+    }
+
+    .inv-list li {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-main);
+      margin-bottom: 4px;
+      line-height: 1.5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      list-style: disc;
+    }
+
+    .inv-name { flex: 1; }
+    .inv-count {
+      font-weight: 600;
+      color: var(--title-color);
+      margin-left: 8px;
+      min-width: 28px;
+      text-align: right;
+    }
+
+    /* ---- Supplies ---- */
+    .supplies-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .supplies-add-btn {
+      background: none;
+      border: 1.5px solid var(--border-soft);
+      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      font-size: 18px;
+      color: var(--button-primary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Josefin Sans', sans-serif;
+      line-height: 1;
+    }
+
+    .supply-edit-btn {
+      width: 100%;
+      margin-top: 12px;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-soft);
+      background: none;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    /* ---- Input box ---- */
+    .etsy-input-area {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-top: 8px;
+    }
+
+    .etsy-input-field {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-soft);
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 14px;
+      color: var(--text-main);
+      background: white;
+      box-sizing: border-box;
+      resize: none;
+    }
+
+    .etsy-input-field:focus {
+      outline: none;
+      border-color: var(--button-primary);
+    }
+
+    .etsy-submit-btn {
+      align-self: flex-end;
+      padding: 9px 24px;
+      border-radius: 12px;
+      border: none;
+      background: var(--button-primary);
+      color: white;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* ---- Prompt overlay ---- */
+    .etsy-prompt-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(60,47,38,0.5);
+      z-index: 4000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .etsy-prompt-overlay.open { display: flex; }
+
+    .etsy-prompt-box {
+      background: #fdf8f3;
+      border-radius: 18px;
+      padding: 24px 20px;
+      width: 100%;
+      max-width: 340px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+
+    .etsy-prompt-title {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--title-color);
+      margin: 0 0 6px;
+    }
+
+    .etsy-prompt-sub {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-main);
+      opacity: 0.7;
+      margin: 0 0 16px;
+    }
+
+    .etsy-prompt-btns {
+      display: flex;
+      gap: 10px;
+    }
+
+    .etsy-prompt-btn {
+      flex: 1;
+      padding: 11px;
+      border-radius: 12px;
+      border: none;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .etsy-prompt-btn.primary { background: var(--button-primary); color: white; }
+    .etsy-prompt-btn.secondary { background: white; border: 1.5px solid var(--border-soft); color: var(--text-main); }
+
+    /* ---- Low stock warning ---- */
+    .inv-count.low { color: #c0392b; }
+
+    /* ---- Edit overlay ---- */
+    .edit-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(60,47,38,0.5);
+      z-index: 4000;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .edit-overlay.open { display: flex; }
+
+    .edit-box {
+      background: #fdf8f3;
+      border-radius: 20px 20px 0 0;
+      padding: 24px 20px 40px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 70vh;
+      overflow-y: auto;
+      box-sizing: border-box;
+    }
+
+    .edit-box-title {
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--title-color);
+      margin: 0 0 16px;
+    }
+
+    .edit-item-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #e8ddd4;
+    }
+
+    .edit-item-name {
+      flex: 1;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 14px;
+      color: var(--text-main);
+    }
+
+    .edit-remove-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      color: #b0977a;
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .edit-close-btn {
+      width: 100%;
+      margin-top: 16px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border-soft);
+      background: none;
+      font-family: 'Josefin Sans', sans-serif;
+      font-size: 13px;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="global-overlay" class="global-overlay" hidden></div>
+  <div id="app-shell" class="app-shell">
+
+    <header class="top-bar">
+      <div class="top-bar-left"></div>
+      <div class="top-bar-right">
+        <button id="hamburger-menu-button" class="hamburger-menu-button" type="button"
+          aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-navigation-drawer">
+          <span class="hamburger-line" style="display:block;width:100%;height:3px;background-color:#3a2e28;border-radius:2px;"></span>
+          <span class="hamburger-line" style="display:block;width:100%;height:3px;background-color:#3a2e28;border-radius:2px;"></span>
+          <span class="hamburger-line" style="display:block;width:100%;height:3px;background-color:#3a2e28;border-radius:2px;"></span>
+        </button>
+      </div>
+    </header>
+
+    <nav id="mobile-navigation-drawer" class="mobile-navigation-drawer" aria-label="Main navigation" hidden>
+      <div class="mobile-navigation-header">
+        <h2 class="mobile-navigation-title">Menu</h2>
+      </div>
+      <ul class="mobile-navigation-list"></ul>
+    </nav>
+
+    <main class="home-page-main-content">
+
+      <!-- Page title -->
+      <section class="dashboard-card work-section">
+        <h1 class="card-title">Work</h1>
+      </section>
+
+      <!-- ETSY MAIN DROPDOWN -->
+      <section class="dashboard-card work-section">
+        <button class="etsy-toggle" id="etsy-main-toggle" type="button">
+          <span>Etsy</span>
+          <span class="etsy-chevron" id="etsy-main-chevron">▼</span>
+        </button>
+
+        <div class="etsy-body" id="etsy-main-body">
+
+          <!-- BEADS TO PAINT -->
+          <div class="beads-to-paint" style="margin-top:16px;">
+            <p class="beads-to-paint-title">Beads to Paint</p>
+            <div class="beads-to-paint-cols">
+              <div>
+                <div class="beads-col-label">CLASSIC</div>
+                <ul id="beads-to-paint-classic" class="beads-to-paint ul"></ul>
+              </div>
+              <div>
+                <div class="beads-col-label">NEON</div>
+                <ul id="beads-to-paint-neon" class="beads-to-paint ul"></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- BEAD QUANTITY DROPDOWN -->
+          <div class="inner-dropdown">
+            <button class="inner-toggle" type="button" data-target="bead-qty-body">
+              <span>Bead Quantity</span>
+              <span class="inner-chevron">▼</span>
+            </button>
+            <div class="inner-body" id="bead-qty-body">
+
+              <!-- Classic Beads -->
+              <div class="sub-dropdown">
+                <button class="sub-toggle" type="button" data-target="bead-classic-body">
+                  <span>Etsy Classic</span>
+                  <span class="sub-chevron">▼</span>
+                </button>
+                <div class="sub-body" id="bead-classic-body">
+                  <ul class="inv-list" id="bead-classic-list"></ul>
+                </div>
+              </div>
+
+              <!-- Neon Beads -->
+              <div class="sub-dropdown">
+                <button class="sub-toggle" type="button" data-target="bead-neon-body">
+                  <span>Etsy Neon</span>
+                  <span class="sub-chevron">▼</span>
+                </button>
+                <div class="sub-body" id="bead-neon-body">
+                  <ul class="inv-list" id="bead-neon-list"></ul>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- NECKLACE QUANTITY DROPDOWN -->
+          <div class="inner-dropdown">
+            <button class="inner-toggle" type="button" data-target="neck-qty-body">
+              <span>Necklace Quantity</span>
+              <span class="inner-chevron">▼</span>
+            </button>
+            <div class="inner-body" id="neck-qty-body">
+
+              <!-- Classic Necklaces -->
+              <div class="sub-dropdown">
+                <button class="sub-toggle" type="button" data-target="neck-classic-body">
+                  <span>Etsy Classic</span>
+                  <span class="sub-chevron">▼</span>
+                </button>
+                <div class="sub-body" id="neck-classic-body">
+                  <ul class="inv-list" id="neck-classic-list"></ul>
+                </div>
+              </div>
+
+              <!-- Neon Necklaces -->
+              <div class="sub-dropdown">
+                <button class="sub-toggle" type="button" data-target="neck-neon-body">
+                  <span>Etsy Neon</span>
+                  <span class="sub-chevron">▼</span>
+                </button>
+                <div class="sub-body" id="neck-neon-body">
+                  <ul class="inv-list" id="neck-neon-list"></ul>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- INPUT DROPDOWN -->
+          <div class="inner-dropdown">
+            <button class="inner-toggle" type="button" data-target="input-body">
+              <span>Input</span>
+              <span class="inner-chevron">▼</span>
+            </button>
+            <div class="inner-body" id="input-body">
+              <div class="etsy-input-area">
+                <textarea id="etsy-input-field" class="etsy-input-field" rows="3"
+                  placeholder="e.g. painted 5 Tridents&#10;sold 2 10-01 Classic&#10;bought 50 necklace strings"></textarea>
+                <button type="button" class="etsy-submit-btn" id="etsy-submit-btn">Submit</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- SUPPLIES DROPDOWN -->
+          <div class="inner-dropdown">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <button class="inner-toggle" type="button" data-target="supplies-body" style="flex:1;">
+                <span>Supplies</span>
+                <span class="inner-chevron">▼</span>
+              </button>
+              <button type="button" class="supplies-add-btn" id="supplies-add-btn" onclick="openAddSupply();">＋</button>
+            </div>
+            <div class="inner-body" id="supplies-body">
+              <ul class="inv-list" id="supplies-list"></ul>
+              <button type="button" class="supply-edit-btn" id="supply-edit-btn">Edit</button>
+            </div>
+          </div>
+
+        </div><!-- /etsy-body -->
+      </section>
+
+    </main>
+  </div>
+
+  <!-- CLASSIC/NEON PROMPT -->
+  <div class="etsy-prompt-overlay" id="line-prompt-overlay">
+    <div class="etsy-prompt-box">
+      <p class="etsy-prompt-title" id="line-prompt-title">Classic or Neon?</p>
+      <p class="etsy-prompt-sub" id="line-prompt-sub">Which inventory line does this belong to?</p>
+      <div class="etsy-prompt-btns">
+        <button type="button" class="etsy-prompt-btn primary" id="line-prompt-classic">Classic</button>
+        <button type="button" class="etsy-prompt-btn secondary" id="line-prompt-neon">Neon</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUPPLIES EDIT OVERLAY -->
+  <div class="edit-overlay" id="supply-edit-overlay">
+    <div class="edit-box">
+      <p class="edit-box-title">Edit Supplies</p>
+      <div id="supply-edit-list"></div>
+      <button type="button" class="edit-close-btn" id="supply-edit-close">Close</button>
+    </div>
+  </div>
+
+  <!-- ADD SUPPLY OVERLAY -->
+  <div class="etsy-prompt-overlay" id="add-supply-overlay">
+    <div class="etsy-prompt-box">
+      <p class="etsy-prompt-title">Add Supply</p>
+      <input type="text" id="add-supply-input" placeholder="Supply name..."
+        style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #CBB7A3;
+        font-family:'Josefin Sans',sans-serif;font-size:14px;box-sizing:border-box;margin-bottom:14px;">
+      <div class="etsy-prompt-btns">
+        <button type="button" class="etsy-prompt-btn primary" id="add-supply-confirm">Add</button>
+        <button type="button" class="etsy-prompt-btn secondary" id="add-supply-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/labels.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/dropdowns.js"></script>
+  <script src="js/storage.js"></script>
+  <script>
+
+  /* =========================================================
+     askLine — uses the on-page Classic/Neon overlay
+     ========================================================= */
+  function askLine(title, sub) {
+    return new Promise(function(resolve) {
+      const overlay = document.getElementById("line-prompt-overlay");
+      document.getElementById("line-prompt-title").textContent = title || "Classic or Neon?";
+      document.getElementById("line-prompt-sub").textContent = sub || "Which inventory line does this belong to?";
+      overlay.classList.add("open");
+      function onClassic() { cleanup(); resolve("classic"); }
+      function onNeon()    { cleanup(); resolve("neon"); }
+      function cleanup() {
+        overlay.classList.remove("open");
+        document.getElementById("line-prompt-classic").removeEventListener("click", onClassic);
+        document.getElementById("line-prompt-neon").removeEventListener("click", onNeon);
+      }
+      document.getElementById("line-prompt-classic").addEventListener("click", onClassic);
+      document.getElementById("line-prompt-neon").addEventListener("click", onNeon);
+    });
+  }
+
+  /* =========================================================
+     RENDER
+     ========================================================= */
+  function renderAll() {
+    renderBeadLists();
+    renderNecklaceLists();
+    renderSuppliesList();
+    renderBeadsToPaint();
+  }
+
+  function renderBeadLists() {
+    const data = loadEtsy();
+    const classicList = document.getElementById("bead-classic-list");
+    const neonList = document.getElementById("bead-neon-list");
+    if (!classicList || !neonList) return;
+    classicList.innerHTML = "";
+    neonList.innerHTML = "";
+    BEAD_NAMES.forEach(function(bead) {
+      const cCount = getBeadCount(data, bead, "classic");
+      const nCount = getBeadCount(data, bead, "neon");
+      const cLi = document.createElement("li");
+      cLi.innerHTML = '<span class="inv-name">' + bead + '</span><span class="inv-count' + (cCount <= LOW_STOCK_THRESHOLD ? ' low' : '') + '">' + cCount + '</span>';
+      classicList.appendChild(cLi);
+      const nLi = document.createElement("li");
+      nLi.innerHTML = '<span class="inv-name">' + bead + '</span><span class="inv-count' + (nCount <= LOW_STOCK_THRESHOLD ? ' low' : '') + '">' + nCount + '</span>';
+      neonList.appendChild(nLi);
+    });
+  }
+
+  function renderNecklaceLists() {
+    const data = loadEtsy();
+    const classicList = document.getElementById("neck-classic-list");
+    const neonList = document.getElementById("neck-neon-list");
+    if (!classicList || !neonList) return;
+    classicList.innerHTML = "";
+    neonList.innerHTML = "";
+    NECKLACE_NAMES.forEach(function(neck) {
+      const cCount = data.neckClassic[neck] || 0;
+      const nCount = data.neckNeon[neck] || 0;
+      const cLi = document.createElement("li");
+      cLi.innerHTML = '<span class="inv-name">' + neck + '</span><span class="inv-count">' + cCount + '</span>';
+      classicList.appendChild(cLi);
+      const nLi = document.createElement("li");
+      nLi.innerHTML = '<span class="inv-name">' + neck + '</span><span class="inv-count">' + nCount + '</span>';
+      neonList.appendChild(nLi);
+    });
+  }
+
+  function renderSuppliesList() {
+    const data = loadEtsy();
+    const list = document.getElementById("supplies-list");
+    if (!list) return;
+    list.innerHTML = "";
+    const supplies = data.supplies || {};
+    const keys = Object.keys(supplies);
+    if (!keys.length) {
+      list.innerHTML = '<li style="list-style:none;font-family:\'Josefin Sans\',sans-serif;font-size:13px;opacity:0.5;">No supplies added yet.</li>';
+      return;
+    }
+    keys.forEach(function(name) {
+      const count = supplies[name] || 0;
+      const li = document.createElement("li");
+      li.innerHTML = '<span class="inv-name">' + name + '</span><span class="inv-count' + (count <= LOW_STOCK_THRESHOLD ? ' low' : '') + '">' + count + '</span>';
+      list.appendChild(li);
+    });
+  }
+
+  function renderBeadsToPaint() {
+    const data = loadEtsy();
+    const classicCounts = BEAD_NAMES.map(function(b) { return { bead: b, count: getBeadCount(data, b, "classic") }; });
+    classicCounts.sort(function(a, b) { return a.count - b.count; });
+    const neonCounts = BEAD_NAMES.map(function(b) { return { bead: b, count: getBeadCount(data, b, "neon") }; });
+    neonCounts.sort(function(a, b) { return a.count - b.count; });
+    const cList = document.getElementById("beads-to-paint-classic");
+    const nList = document.getElementById("beads-to-paint-neon");
+    if (!cList || !nList) return;
+    cList.innerHTML = classicCounts.slice(0, 5).map(function(x) { return "<li>" + x.bead + " <strong>(" + x.count + ")</strong></li>"; }).join("");
+    nList.innerHTML = neonCounts.slice(0, 5).map(function(x) { return "<li>" + x.bead + " <strong>(" + x.count + ")</strong></li>"; }).join("");
+  }
+
+  /* =========================================================
+     SUPPLIES
+     ========================================================= */
+  function openAddSupply() {
+    document.getElementById("add-supply-input").value = "";
+    document.getElementById("add-supply-overlay").classList.add("open");
+    setTimeout(function() { document.getElementById("add-supply-input").focus(); }, 100);
+  }
+
+  /* =========================================================
+     INIT — single DOMContentLoaded
+     ========================================================= */
+  document.addEventListener("DOMContentLoaded", function() {
+
+    /* Render inventory on load */
+    renderAll();
+
+    /* ---- Main Etsy toggle ---- */
+    document.getElementById("etsy-main-toggle").addEventListener("click", function() {
+      document.getElementById("etsy-main-body").classList.toggle("open");
+      document.getElementById("etsy-main-chevron").classList.toggle("open");
+    });
+
+    /* ---- Inner toggles (Bead Qty, Necklace Qty, Input, Supplies) ---- */
+    document.querySelectorAll(".inner-toggle").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        var targetId = this.dataset.target;
+        if (!targetId) return;
+        var body = document.getElementById(targetId);
+        var chevron = this.querySelector(".inner-chevron");
+        if (!body) return;
+        body.classList.toggle("open");
+        if (chevron) chevron.classList.toggle("open");
+      });
+    });
+
+    /* ---- Sub-toggles (Etsy Classic / Etsy Neon) ---- */
+    document.querySelectorAll(".sub-toggle").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        var targetId = this.dataset.target;
+        if (!targetId) return;
+        var body = document.getElementById(targetId);
+        var chevron = this.querySelector(".sub-chevron");
+        if (!body) return;
+        body.classList.toggle("open");
+        if (chevron) chevron.classList.toggle("open");
+      });
+    });
+
+    /* ---- Input submit ---- */
+    document.getElementById("etsy-submit-btn").addEventListener("click", function() {
+      var val = document.getElementById("etsy-input-field").value.trim();
+      if (!val) return;
+      processEtsyInput(val, askLine).then(function() {
+        document.getElementById("etsy-input-field").value = "";
+        renderAll();
+      });
+    });
+
+    document.getElementById("etsy-input-field").addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById("etsy-submit-btn").click();
+      }
+    });
+
+    /* ---- Add supply ---- */
+    document.getElementById("add-supply-confirm").addEventListener("click", function() {
+      var name = document.getElementById("add-supply-input").value.trim();
+      if (!name) return;
+      var data = loadEtsy();
+      if (!data.supplies[name]) data.supplies[name] = 0;
+      saveEtsy(data);
+      renderSuppliesList();
+      document.getElementById("add-supply-overlay").classList.remove("open");
+    });
+
+    document.getElementById("add-supply-cancel").addEventListener("click", function() {
+      document.getElementById("add-supply-overlay").classList.remove("open");
+    });
+
+    /* ---- Edit supplies ---- */
+    document.getElementById("supply-edit-btn").addEventListener("click", function() {
+      var data = loadEtsy();
+      var list = document.getElementById("supply-edit-list");
+      list.innerHTML = "";
+      var keys = Object.keys(data.supplies || {});
+      if (!keys.length) {
+        list.innerHTML = '<p style="font-size:13px;opacity:0.5;font-family:\'Josefin Sans\',sans-serif;">No supplies to edit.</p>';
+      } else {
+        keys.forEach(function(name) {
+          var row = document.createElement("div");
+          row.className = "edit-item-row";
+          row.innerHTML = '<span class="edit-item-name">' + name + ' <span style="opacity:0.5;">(' + data.supplies[name] + ')</span></span><button class="edit-remove-btn" data-name="' + name + '">✕</button>';
+          row.querySelector(".edit-remove-btn").addEventListener("click", function() {
+            var d = loadEtsy();
+            delete d.supplies[this.dataset.name];
+            saveEtsy(d);
+            renderSuppliesList();
+            row.remove();
+          });
+          list.appendChild(row);
+        });
+      }
+      document.getElementById("supply-edit-overlay").classList.add("open");
+    });
+
+    document.getElementById("supply-edit-close").addEventListener("click", function() {
+      document.getElementById("supply-edit-overlay").classList.remove("open");
+    });
+
+  }); /* end DOMContentLoaded */
+
+  </script>
+</body>
+</html>
