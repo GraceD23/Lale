@@ -72,12 +72,47 @@ function getBrainDumpAskLine() {
 async function saveConfirmedEtsy(items) {
   const combined = items.map(function(i) { return i.name; }).join("\n");
   const askLineFn = getBrainDumpAskLine();
+  const askSubtractFn = getBrainDumpAskSubtract();
 
   if (typeof processEtsyInput === "function") {
-    await processEtsyInput(combined, askLineFn);
+    await processEtsyInput(combined, askLineFn, askSubtractFn);
   } else {
     console.error("processEtsyInput not available — is etsy-system.js loaded?");
   }
+}
+
+function getBrainDumpAskSubtract() {
+  return function askSubtractFn(context) {
+    return new Promise(function(resolve) {
+      var overlay = document.getElementById("bd-etsy-subtract-overlay");
+      if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "bd-etsy-subtract-overlay";
+        overlay.style.cssText = "position:fixed;inset:0;background:rgba(60,47,38,0.5);z-index:9000;display:none;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;";
+        overlay.innerHTML =
+          '<div style="background:#fdf8f3;border-radius:18px;padding:24px 20px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.15);">' +
+            '<p id="bd-etsy-subtract-title" style="font-family:Josefin Sans,sans-serif;font-size:15px;font-weight:600;color:#3C2F26;margin:0 0 6px;"></p>' +
+            '<p id="bd-etsy-subtract-sub" style="font-family:Josefin Sans,sans-serif;font-size:13px;color:#4E4036;opacity:0.7;margin:0 0 16px;">Which inventory should be reduced?</p>' +
+            '<div style="display:flex;gap:10px;">' +
+              '<button id="bd-etsy-necklace-btn" style="flex:1;padding:11px;border-radius:12px;border:none;background:#B88C6A;color:white;font-family:Josefin Sans,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Necklace</button>' +
+              '<button id="bd-etsy-beads-btn" style="flex:1;padding:11px;border-radius:12px;border:1.5px solid #CBB7A3;background:white;color:#3C2F26;font-family:Josefin Sans,sans-serif;font-size:14px;font-weight:600;cursor:pointer;">Beads</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(overlay);
+      }
+      document.getElementById("bd-etsy-subtract-title").textContent = context || "Subtract from?";
+      overlay.style.display = "flex";
+      function onNecklace() { cleanup(); resolve("necklace"); }
+      function onBeads()    { cleanup(); resolve("beads"); }
+      function cleanup() {
+        overlay.style.display = "none";
+        document.getElementById("bd-etsy-necklace-btn").removeEventListener("click", onNecklace);
+        document.getElementById("bd-etsy-beads-btn").removeEventListener("click", onBeads);
+      }
+      document.getElementById("bd-etsy-necklace-btn").addEventListener("click", onNecklace);
+      document.getElementById("bd-etsy-beads-btn").addEventListener("click", onBeads);
+    });
+  };
 }
 
 /* =========================================================
