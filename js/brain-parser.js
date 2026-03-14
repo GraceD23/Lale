@@ -73,16 +73,26 @@ Output: [{"type":"etsy","name":"sold 20-01 glow","destination":null,"data":{}}]
 
 Return ONLY a valid JSON array. No explanation, no markdown, no extra text.`;
 
-  const response = await fetch(WORKER_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [{ role: "user", content: text }]
-    })
-  });
+  /* Abort after 6s so offline fallback triggers cleanly */
+  const controller = new AbortController();
+  const timeout = setTimeout(function() { controller.abort(); }, 6000);
+
+  let response;
+  try {
+    response = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [{ role: "user", content: text }]
+      })
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) throw new Error("Worker " + response.status);
   const d = await response.json();
