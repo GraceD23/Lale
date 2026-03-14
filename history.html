@@ -60,16 +60,7 @@
       <div class="mobile-navigation-header">
         <h2 class="mobile-navigation-title">Menu</h2>
       </div>
-            <ul class="mobile-navigation-list">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="work.html">Work</a></li>
-        <li><a href="streaks.html">Streaks</a></li>
-        <li><a href="health.html">Health</a></li>
-        <li><a href="notes.html">Notes</a></li>
-        <li><a href="media.html">Media</a></li>
-        <li><a href="learning.html">Learning</a></li>
-        <li><a href="history.html">Export</a></li>
-      </ul>
+            <ul class="mobile-navigation-list"></ul>
     </nav>
 
     <main class="home-page-main-content">
@@ -119,5 +110,12 @@
   <script src="js/storage.js"></script>
   <script src="js/history.js"></script>
   <link rel="stylesheet" href="css/components-additions.css" />
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./service-worker.js")
+        .then(function() { console.log("[SW] Registered"); })
+        .catch(function(err) { console.warn("[SW] Registration failed:", err); });
+    }
+  </script>
 </body>
 </html>
