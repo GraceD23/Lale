@@ -313,10 +313,18 @@
   <script src="js/tasks.js"></script>
   <script src="js/streaks.js"></script>
   <script src="js/notes.js"></script>
+  <script src="js/etsy-system.js"></script>
   <script src="js/brain-parser.js"></script>
   <script src="js/brain-dump.js"></script>
   <script src="js/brain-confirm.js"></script>
  
   <link rel="stylesheet" href="css/components-additions.css" />
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./service-worker.js")
+        .then(function() { console.log("[SW] Registered"); })
+        .catch(function(err) { console.warn("[SW] Registration failed:", err); });
+    }
+  </script>
 </body>
 </html>
