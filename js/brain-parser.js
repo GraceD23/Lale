@@ -37,6 +37,7 @@ CATEGORIES:
 - "task" = anything actionable (to-do, errand, chore, appointment)
 - "streak" = a habit or recurring activity (vitamins, exercise, meditation, reading, no-phone, etc.)
 - "health" = anything related to the body or wellness (weight measurements, headache, migraine, pain, energy, mood, sleep, medication, symptoms, feeling sick, burnout). Weight can be written in any format: 120lbs, 120.3 lbs, 68kg, "weighed 130", etc.
+- "etsy" = anything related to Etsy shop inventory: selling necklaces (e.g. "sold 20-01 glow"), painting beads (e.g. "painted 5 tridents"), making necklaces (e.g. "made 10-02 classic"), adding inventory (e.g. "add 20-02g"), or buying supplies (e.g. "bought 50 strings"). These start with sold/painted/made/add/bought followed by a product name or code.
 - "note" = anything else — a thought, reminder, idea, or piece of information
 
 SPLITTING:
@@ -66,6 +67,9 @@ Output: [{"type":"health","name":"headache","destination":null,"data":{"category
 
 Input: "bad headache, pick up milk, took vitamins"
 Output: [{"type":"health","name":"bad headache","destination":null,"data":{"category":"headaches","severity":null,"note":null}},{"type":"task","name":"pick up milk","destination":"daily","data":{}},{"type":"streak","name":"took vitamins","destination":null,"data":{}}]${streakHint}
+
+Input: "sold 20-01 glow"
+Output: [{"type":"etsy","name":"sold 20-01 glow","destination":null,"data":{}}]
 
 Return ONLY a valid JSON array. No explanation, no markdown, no extra text.`;
 
@@ -98,33 +102,112 @@ Return ONLY a valid JSON array. No explanation, no markdown, no extra text.`;
 
 
 function parseWithRules(text) {
-  /* Simple fallback — only runs if API fails completely.
-     Splits on newlines/commas only, no keyword splitting that mangles sentences. */
-  const chunks = text.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
-  return chunks.map(function(chunk) {
-    const lower = chunk.toLowerCase();
+  /* Improved fallback — runs when API is unavailable.
+     Matches the AI behaviour as closely as possible. */
+  const chunks = text.split(/[\n,]+/).map(function(s) { return s.trim(); }).filter(Boolean);
 
-    /* Check existing streak names */
+  return chunks.map(function(chunk) {
+    const lower = chunk.toLowerCase().trim();
+
+    /* ---- 1. ETSY ---- */
+    if (/^(sold?|painted?|made?|add(ed)?|bought?)\b/i.test(lower)) {
+      return { type: "etsy", name: chunk, destination: null, data: {} };
+    }
+
+    /* ---- 2. STREAKS — saved names first ---- */
     if (typeof loadStreaks === "function") {
       const streaks = loadStreaks();
-      const match = streaks.find(s => lower.includes(s.name.toLowerCase()));
-      if (match) return { type:"streak", name:match.name, destination:null, data:{} };
+      const match = streaks.find(function(s) { return lower.includes(s.name.toLowerCase()); });
+      if (match) return { type: "streak", name: match.name, destination: null, data: {} };
     }
 
-    /* Health keywords */
+    /* Common habit phrases — whole-word matching to avoid false positives */
+    const streakPhrases = [
+      "vitamins","vitamin","supplements","supplement",
+      "meditation","meditated","meditating",
+      "exercise","exercised","workout","worked out",
+      "\bran\b","running","walked","walking",
+      "\bread\b","reading","journaling","journaled",
+      "no phone","no instagram","no social media","no alcohol","no sugar","no caffeine",
+      "drank water","water intake","skincare","stretched","stretching",
+      "prayed","prayer","studied","studying"
+    ];
+    if (streakPhrases.some(function(p) { return new RegExp(p, "i").test(lower); })) {
+      return { type: "streak", name: chunk, destination: null, data: {} };
+    }
+
+    /* ---- 3. HEALTH ---- */
+
+    /* Weight */
+    if (lower.match(/\d+(\.\.\d+)?\s*(lb|lbs|kg|pounds?)/) || lower.match(/^weigh(ed|s)?\s+\d/)) {
+      return { type: "health", name: chunk, destination: null, data: { category: "weight", value: chunk } };
+    }
+
+    /* Severity extractor */
+    function extractSeverity(str) {
+      const m = str.match(/\b([1-5])\s*\/\s*5\b/) || str.match(/\b([1-5])\s+out\s+of\s+5\b/i);
+      return m ? m[1] : null;
+    }
+
+    /* Note extractor */
+    function extractNote(str, stripWords) {
+      let s = str;
+      stripWords.forEach(function(w) { s = s.replace(new RegExp(w, "gi"), ""); });
+      s = s.replace(/\b[1-5]\s*\/\s*5\b/, "").replace(/\b[1-5]\s+out\s+of\s+5\b/gi, "");
+      s = s.replace(/[.,!?]+/g, " ").replace(/\s+/g, " ").trim();
+      return s || null;
+    }
+
     if (lower.includes("headache") || lower.includes("migraine")) {
-      const sev = chunk.match(/[1-5]/);
-      return { type:"health", name:chunk, destination:null, data:{ category:"headaches", severity:sev?sev[0]:null } };
+      const sev = extractSeverity(lower);
+      const note = extractNote(chunk, ["headache","migraine","bad","terrible","horrible","awful","slight","mild"]);
+      return { type: "health", name: lower.includes("migraine") ? "migraine" : "headache", destination: null, data: { category: "headaches", severity: sev, note: note } };
     }
-    if (lower.match(/\d+\s*lb/) || lower.match(/\d+\s*kg/) || lower.includes("weigh"))
-      return { type:"health", name:chunk, destination:null, data:{ category:"weight", value:chunk } };
+    if (lower.includes("nausea") || lower.includes("nauseous") || lower.includes("vomit") || lower.includes("threw up")) {
+      return { type: "health", name: chunk, destination: null, data: { category: "nausea", severity: extractSeverity(lower), note: null } };
+    }
+    if (lower.includes("cramp") || lower.includes("\bperiod\b") || lower.includes("bloat")) {
+      return { type: "health", name: chunk, destination: null, data: { category: "cramps", severity: extractSeverity(lower), note: null } };
+    }
+    if (lower.includes("anxious") || lower.includes("anxiety") || lower.includes("panic") || lower.includes("stressed") || lower.includes("\bstress\b")) {
+      return { type: "health", name: chunk, destination: null, data: { category: "anxiety", severity: extractSeverity(lower), note: null } };
+    }
+    if (lower.includes("tired") || lower.includes("fatigue") || lower.includes("exhausted") || lower.includes("no energy") || lower.includes("low energy") || lower.includes("burnout")) {
+      return { type: "health", name: chunk, destination: null, data: { category: "energy", level: extractSeverity(lower), note: null } };
+    }
+    if (lower.includes("\bmood\b") || lower.includes("\bsad\b") || lower.includes("depressed") || lower.includes("emotional")) {
+      return { type: "health", name: chunk, destination: null, data: { category: "mood", level: extractSeverity(lower), note: null } };
+    }
+    if (lower.includes("sleep") || lower.includes("insomnia") || lower.includes("couldn't sleep") || lower.includes("slept")) {
+      return { type: "health", name: chunk, destination: null, data: { category: "sleep", severity: null, note: null } };
+    }
+    if (lower.includes("\bpain\b") || lower.includes("\bache\b") || lower.includes("\bsore\b") || lower.includes("\bhurt\b")) {
+      return { type: "health", name: chunk, destination: null, data: { category: "pain", severity: extractSeverity(lower), note: null } };
+    }
+    if (lower.includes("sick") || lower.includes("fever") || lower.includes("\bcold\b") || lower.includes("\bflu\b") || lower.includes("cough") || lower.includes("sore throat")) {
+      return { type: "health", name: chunk, destination: null, data: { category: "illness", severity: null, note: null } };
+    }
+    if (lower.includes("medication") || lower.includes("medicine") || lower.includes("\bpill\b") || lower.includes("ibuprofen") || lower.includes("tylenol") || lower.includes("advil")) {
+      return { type: "health", name: chunk, destination: null, data: { category: "medication", severity: null, note: null } };
+    }
 
-    /* Task keywords — only match clear action verbs at the START of a sentence */
-    const taskStarters = ["pick up","drop off","go to","buy ","call ","email ","pay ","send ","book ","schedule ","wash ","clean ","fix ","finish ","order ","print ","vaccum","vacuum","mow ","take ","bring ","drop ","get "];
-    if (taskStarters.some(w => lower.startsWith(w) || lower.includes(" " + w.trim() + " ")))
-      return { type:"task", name:chunk, destination:"weekly", data:{} };
+    /* ---- 4. TASKS ---- */
+    const dailyWords = ["today","tonight","this morning","asap","urgent","\bnow\b","immediately","before "];
+    const isUrgent = dailyWords.some(function(w) { return new RegExp(w, "i").test(lower); });
 
-    /* Default to note */
-    return { type:"note", name:chunk, destination:null, data:{} };
+    const taskStarters = [
+      "pick up","drop off","go to","go pick","call ","email ","text ",
+      "pay ","send ","book ","schedule ","wash ","clean ","fix ","finish ",
+      "order ","print ","vacuum","vaccum","mow ","bring ","get ",
+      "return ","submit ","apply ","fill out","sign ","renew ","cancel ",
+      "check ","respond ","reply ","follow up","research ","look up",
+      "make appointment","set up","don't forget","need to","have to","must ","should "
+    ];
+    if (taskStarters.some(function(w) { return lower.startsWith(w) || lower.includes(" " + w.trim() + " "); })) {
+      return { type: "task", name: chunk, destination: isUrgent ? "daily" : "weekly", data: {} };
+    }
+
+    /* ---- 5. DEFAULT → NOTE ---- */
+    return { type: "note", name: chunk, destination: null, data: {} };
   });
 }
