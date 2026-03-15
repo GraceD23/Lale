@@ -1,4 +1,4 @@
-/* =========================================================
+  /* =========================================================
    HEALTH-SYSTEM.JS
    ---------------------------------------------------------
    Fully dynamic Health Page controller.
@@ -696,4 +696,255 @@ function openTrackerEditPanel() {
   });
 
   document.body.appendChild(panel);
+}
+
+/* =========================================================
+   COMPARISON CALENDAR
+   Shows a monthly calendar where each day circle is split
+   into color slices — one per selected tracker.
+   ========================================================= */
+
+/* Tracker colors for comparison — matches storage.js colors */
+const COMPARISON_COLORS = {
+  headaches: "#b0977a",
+  energy:    "#a09fc0",
+  moon:      "#7a9cbf",
+  annoyance: "#b07a9c",
+  weight:    "#8fa98f"
+};
+
+function initComparisonSection() {
+  const section = document.getElementById("comparison-section");
+  if (!section) return;
+
+  /* Build checklist */
+  buildComparisonChecklist();
+
+  /* Default month */
+  section.dataset.currentMonth = getCurrentMonthKey();
+
+  renderComparisonCalendar();
+}
+
+function buildComparisonChecklist() {
+  const container = document.getElementById("comparison-checklist");
+  if (!container) return;
+
+  const trackers = loadHealthTrackers().filter(function(t) {
+    return t.type === "calendar" || t.type === "scale";
+  });
+
+  container.innerHTML = "";
+
+  trackers.forEach(function(tracker) {
+    const color = COMPARISON_COLORS[tracker.id] || tracker.color || "#b0977a";
+    const label = document.createElement("label");
+    label.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;font-family:'Josefin Sans',sans-serif;font-size:13px;color:#3C2F26;padding:4px 10px;border-radius:20px;border:1.5px solid " + color + ";background:white;user-select:none;";
+
+    const dot = document.createElement("span");
+    dot.style.cssText = "width:10px;height:10px;border-radius:50%;background:" + color + ";flex-shrink:0;display:inline-block;";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.dataset.trackerId = tracker.id;
+    cb.style.display = "none";
+    cb.checked = true; /* All selected by default */
+
+    label.appendChild(dot);
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(tracker.name));
+
+    /* Style selected state */
+    function updateStyle() {
+      label.style.background = cb.checked ? color + "22" : "white";
+      label.style.fontWeight = cb.checked ? "600" : "400";
+    }
+    updateStyle();
+
+    label.addEventListener("click", function() {
+      cb.checked = !cb.checked;
+      updateStyle();
+      renderComparisonCalendar();
+    });
+
+    container.appendChild(label);
+  });
+
+  /* Month navigation */
+  const navRow = document.createElement("div");
+  navRow.style.cssText = "display:flex;align-items:center;gap:8px;width:100%;margin-top:6px;";
+  navRow.innerHTML =
+    '<button type="button" id="comp-prev-btn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;">‹</button>' +
+    '<span id="comp-month-label" style="font-size:13px;flex:1;text-align:center;font-family:\'Josefin Sans\',sans-serif;color:#3C2F26;font-weight:600;"></span>' +
+    '<button type="button" id="comp-next-btn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;">›</button>';
+
+  const section = document.getElementById("comparison-section");
+  if (section) section.insertBefore(navRow, document.getElementById("comparison-calendar-wrap"));
+
+  document.getElementById("comp-prev-btn").addEventListener("click", function() {
+    const s = document.getElementById("comparison-section");
+    s.dataset.currentMonth = shiftMonth(s.dataset.currentMonth, -1);
+    document.getElementById("comp-month-label").textContent = formatMonthLabel(s.dataset.currentMonth);
+    renderComparisonCalendar();
+  });
+  document.getElementById("comp-next-btn").addEventListener("click", function() {
+    const s = document.getElementById("comparison-section");
+    s.dataset.currentMonth = shiftMonth(s.dataset.currentMonth, 1);
+    document.getElementById("comp-month-label").textContent = formatMonthLabel(s.dataset.currentMonth);
+    renderComparisonCalendar();
+  });
+}
+
+function getSelectedTrackers() {
+  const checks = document.querySelectorAll("#comparison-checklist input[type=checkbox]");
+  const selected = [];
+  checks.forEach(function(cb) {
+    if (cb.checked) selected.push(cb.dataset.trackerId);
+  });
+  return selected;
+}
+
+function renderComparisonCalendar() {
+  const wrap = document.getElementById("comparison-calendar-wrap");
+  const section = document.getElementById("comparison-section");
+  if (!wrap || !section) return;
+
+  const monthKey = section.dataset.currentMonth || getCurrentMonthKey();
+  const label = document.getElementById("comp-month-label");
+  if (label) label.textContent = formatMonthLabel(monthKey);
+
+  const selectedIds = getSelectedTrackers();
+  const health = loadHealth();
+  const monthData = health[monthKey] || {};
+
+  const [year, month] = monthKey.split("-").map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  const startOffset = (firstDay + 6) % 7;
+
+  wrap.innerHTML = "";
+
+  const grid = document.createElement("div");
+  grid.style.cssText = "display:grid;grid-template-columns:repeat(7,1fr);gap:4px;";
+
+  /* Day labels */
+  ["M","T","W","T","F","S","S"].forEach(function(d) {
+    const lbl = document.createElement("div");
+    lbl.style.cssText = "text-align:center;font-size:10px;opacity:0.5;padding-bottom:2px;font-family:'Josefin Sans',sans-serif;";
+    lbl.textContent = d;
+    grid.appendChild(lbl);
+  });
+
+  /* Empty offset cells */
+  for (let i = 0; i < startOffset; i++) {
+    grid.appendChild(document.createElement("div"));
+  }
+
+  /* Day circles */
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayStr = String(day).padStart(2, "0");
+    const dateKey = monthKey + "-" + dayStr;
+    const isToday = dateKey === getTodayKey();
+
+    /* Which selected trackers have entries on this day */
+    const activeTrackers = selectedIds.filter(function(id) {
+      const entries = (monthData[id] || []);
+      return entries.some(function(e) { return e.day === dateKey; });
+    });
+
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.style.cssText = "width:100%;aspect-ratio:1;border-radius:50%;border:1.5px solid #CBB7A3;background:transparent;font-family:'Josefin Sans',sans-serif;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:0;" +
+      (isToday ? "box-shadow:0 0 0 2px #b0977a44;" : "");
+
+    if (activeTrackers.length === 0) {
+      /* Empty day */
+      cell.style.color = "#CBB7A3";
+      cell.textContent = String(day);
+    } else if (activeTrackers.length === 1) {
+      /* Single tracker — full fill */
+      const color = COMPARISON_COLORS[activeTrackers[0]] || "#b0977a";
+      cell.style.background = color;
+      cell.style.borderColor = color;
+      cell.style.color = "white";
+      cell.textContent = String(day);
+    } else {
+      /* Multiple trackers — vertical slices */
+      const sliceW = 100 / activeTrackers.length;
+      const slices = activeTrackers.map(function(id, idx) {
+        const color = COMPARISON_COLORS[id] || "#b0977a";
+        const left = idx * sliceW;
+        return "linear-gradient(to bottom, " + color + " 0%, " + color + " 100%) " +
+               left + "% 0 / " + sliceW + "% 100% no-repeat";
+      });
+      cell.style.background = slices.join(", ");
+      cell.style.borderColor = "#CBB7A3";
+      cell.style.color = "white";
+      cell.style.textShadow = "0 1px 2px rgba(0,0,0,0.4)";
+      cell.textContent = String(day);
+    }
+
+    /* Tap to see day details */
+    cell.addEventListener("click", function() {
+      openComparisonDayDetail(dateKey, day, monthData, selectedIds);
+    });
+
+    grid.appendChild(cell);
+  }
+
+  wrap.appendChild(grid);
+}
+
+function openComparisonDayDetail(dateKey, day, monthData, selectedIds) {
+  /* Remove existing detail popup */
+  const existing = document.getElementById("comp-day-detail");
+  if (existing) existing.remove();
+
+  const trackers = loadHealthTrackers();
+  const detail = document.createElement("div");
+  detail.id = "comp-day-detail";
+  detail.style.cssText = "margin-top:12px;padding:12px;background:rgba(255,255,255,0.6);border-radius:12px;font-family:'Josefin Sans',sans-serif;";
+
+  const d = new Date(dateKey);
+  const dateLabel = d.toLocaleDateString("default", { weekday:"long", month:"long", day:"numeric" });
+
+  let html = '<p style="font-size:13px;font-weight:600;color:#3C2F26;margin:0 0 10px;">' + dateLabel + '</p>';
+
+  let hasAny = false;
+  selectedIds.forEach(function(id) {
+    const tracker = trackers.find(function(t) { return t.id === id; });
+    const entries = (monthData[id] || []).filter(function(e) { return e.day === dateKey; });
+    if (!entries.length) return;
+    hasAny = true;
+    const color = COMPARISON_COLORS[id] || "#b0977a";
+    html += '<div style="margin-bottom:8px;">';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">';
+    html += '<span style="width:10px;height:10px;border-radius:50%;background:' + color + ';display:inline-block;flex-shrink:0;"></span>';
+    html += '<span style="font-size:13px;font-weight:600;color:' + color + ';">' + escH(tracker ? tracker.name : id) + '</span>';
+    html += '</div>';
+    entries.forEach(function(e) {
+      const t = new Date(e.date);
+      const timeStr = t.toLocaleTimeString("default", { hour:"2-digit", minute:"2-digit" });
+      html += '<p style="font-size:12px;margin:2px 0 2px 16px;color:#4E4036;">' + timeStr;
+      if (e.severity) html += ' — severity ' + e.severity;
+      if (e.level) html += ' — level ' + e.level;
+      if (e.note) html += ' — ' + escH(e.note);
+      html += '</p>';
+    });
+    html += '</div>';
+  });
+
+  if (!hasAny) html += '<p style="font-size:12px;opacity:0.5;">No entries for selected trackers.</p>';
+
+  html += '<button type="button" onclick="document.getElementById(\'comp-day-detail\').remove()" style="margin-top:8px;background:none;border:none;font-size:12px;color:#b0977a;cursor:pointer;font-family:\'Josefin Sans\',sans-serif;">Close</button>';
+
+  detail.innerHTML = html;
+  document.getElementById("comparison-calendar-wrap").appendChild(detail);
+}
+
+/* Call initComparisonSection after buildHealthPage */
+const _origBuildHealthPage = buildHealthPage;
+function buildHealthPage() {
+  _origBuildHealthPage();
+  initComparisonSection();
 }
