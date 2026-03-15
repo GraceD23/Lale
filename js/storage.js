@@ -66,9 +66,11 @@ function saveHealthTrackers(v) { saveToStorage(STORAGE_KEYS.HEALTH_TRACKERS, v);
    ========================================================= */
 function getDefaultHealthTrackers() {
   return [
-    { id: "headaches",    name: "Headaches",    type: "calendar",  color: "#b0977a", icon: "◉" },
-    { id: "weight",       name: "Weight",       type: "weight",    color: "#8fa98f", icon: "⚖" },
-    { id: "energy",       name: "Energy Level", type: "scale",     color: "#a09fc0", icon: "⚡", min:1, max:5 }
+    { id: "headaches",  name: "Headaches",    type: "calendar", color: "#b0977a", icon: "◉" },
+    { id: "weight",     name: "Weight",       type: "weight",   color: "#8fa98f", icon: "⚖" },
+    { id: "energy",     name: "Energy Level", type: "scale",    color: "#a09fc0", icon: "⚡", min:1, max:5 },
+    { id: "moon",       name: "Moon",         type: "calendar", color: "#7a9cbf", icon: "◉" },
+    { id: "annoyance",  name: "Annoyance",    type: "calendar", color: "#b07a9c", icon: "◉" }
   ];
 }
 
