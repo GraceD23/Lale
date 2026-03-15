@@ -74,12 +74,46 @@ function saveStoredStreaks(streaks) {
    Renders tracker name + weekly stars on the homepage.
    ========================================================= */
 
+function getYesterdayKey() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+function getTodayDateKey() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+function checkAndBreakStreaks() {
+  /* If a streak's last completion was not today or yesterday, reset weeklyCount to 0 */
+  const streaks = getStoredStreaks();
+  const today = getTodayDateKey();
+  let changed = false;
+  streaks.forEach(function(streak) {
+    if (!streak.history || streak.history.length === 0) return;
+    const lastEntry = streak.history[streak.history.length - 1];
+    if (!lastEntry || !lastEntry.date) return;
+    const lastDate = lastEntry.date.slice(0, 10); /* YYYY-MM-DD */
+    const yesterday = getYesterdayKey();
+    /* If last completion was before yesterday, the streak is broken */
+    if (lastDate < yesterday) {
+      streak.weeklyCount = 0;
+      changed = true;
+    }
+  });
+  if (changed) saveStoredStreaks(streaks);
+}
+
 function renderHomepageStreaks() {
   const container = document.getElementById("streaks-dropdown-content"); /* Homepage dropdown container */
 
   if (!container) {
     return; /* Stops safely if not on homepage */
   }
+
+  /* Check for broken streaks before rendering */
+  checkAndBreakStreaks();
 
   const streaks = getStoredStreaks()
     .filter(function (streak) {
@@ -108,7 +142,7 @@ function renderHomepageStreaks() {
 
     const starsSpan = document.createElement("span"); /* Weekly stars */
     starsSpan.className = "streak-stars";
-    starsSpan.innerHTML = buildStarDisplay(streak.weeklyCount || 0); /* Weekly homepage view */
+    starsSpan.innerHTML = buildStarDisplay(streak.weeklyCount || 0); /* Weekly count — resets to 0 if day missed */
 
     row.appendChild(nameSpan);
     row.appendChild(starsSpan);
@@ -220,15 +254,35 @@ function buildHistoryStarDisplay(historyArray, totalCount) {
     return buildTextStarDisplay(totalCount || 0); /* Fallback if no running history exists yet */
   }
 
+  /* Build a date-aware display:
+     - One filled star per completion
+     - One unfilled star per missed day between completions */
   let output = "";
+  const filled = getConfiguredTextStar();
 
-  history.forEach(function (item) {
-    if (item && item.filled === true) {
-      output += getConfiguredTextStar(); /* Filled star */
+  for (let i = 0; i < history.length; i++) {
+    const item = history[i];
+    if (!item) continue;
+
+    /* Insert unfilled stars for missed days between this and previous entry */
+    if (i > 0 && history[i-1] && history[i-1].date && item.date) {
+      const prev = new Date(history[i-1].date);
+      const curr = new Date(item.date);
+      prev.setHours(0,0,0,0);
+      curr.setHours(0,0,0,0);
+      const daysDiff = Math.round((curr - prev) / 86400000);
+      /* If more than 1 day gap, insert unfilled stars for missed days */
+      for (let m = 1; m < daysDiff; m++) {
+        output += "☆";
+      }
+    }
+
+    if (item.filled === true) {
+      output += filled; /* Filled star for completed day */
     } else {
       output += "☆"; /* Unfilled star */
     }
-  });
+  }
 
   return output;
 }
