@@ -11,7 +11,7 @@
    - Changed existing files?      → bump VERSION (no other changes needed)
    ========================================================= */
 
-const VERSION = "lale-v2";
+const VERSION = "lale-v3";
 
 const CACHE_FILES = [
   /* ---- Pages ---- */
