@@ -142,23 +142,29 @@
       align-items: stretch;
     }
 
-    /* CD: fixed square */
-    .media-item img {
+    /* CD: fixed uniform square — all same size, 3 across */
+    .genre-grid .media-item {
+      width: 100%;
+    }
+    .genre-grid .media-item img {
       width: 100%;
       aspect-ratio: 1/1;
-      height: auto;
       object-fit: cover;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.12);
       background: #e8ddd4;
-      flex-shrink: 0;
       display: block;
     }
 
-    /* Movie/TV: fixed 2:3 portrait */
+    /* Movie/TV: 2:3 portrait */
     .movie-grid .media-item img {
+      width: 100%;
       aspect-ratio: 2/3;
-      height: auto;
+      object-fit: cover;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      background: #e8ddd4;
+      display: block;
     }
 
     .media-item-title {
@@ -187,14 +193,7 @@
 
 
 
-    .movie-item img {
-      width: 100%;
-      aspect-ratio: 2/3;
-      object-fit: cover;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-      background: #e8ddd4;
-    }
+
 
     /* ---- Detail Panel (full-screen overlay) ---- */
     .detail-overlay {
@@ -291,19 +290,71 @@
     .star-rating {
       display: flex;
       justify-content: center;
-      gap: 8px;
+      gap: 4px;
       margin: 14px 0;
     }
 
-    .star {
-      font-size: 26px;
+    .star-wrap {
+      position: relative;
+      width: 32px;
+      height: 32px;
       cursor: pointer;
-      color: #ddd;
-      transition: color 0.15s, transform 0.1s;
-      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
-    .star.filled { color: #c9a96e; }
-    .star:active { transform: scale(1.3); }
+
+    .star-wrap .star-bg {
+      font-size: 30px;
+      color: #ddd;
+      line-height: 1;
+      position: absolute;
+    }
+
+    .star-wrap .star-fill {
+      font-size: 30px;
+      color: #c9a96e;
+      line-height: 1;
+      position: absolute;
+      overflow: hidden;
+      width: 0%;
+      left: 0;
+    }
+
+    .star-wrap .star-hit-left,
+    .star-wrap .star-hit-right {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 50%;
+      z-index: 2;
+    }
+    .star-wrap .star-hit-left { left: 0; }
+    .star-wrap .star-hit-right { right: 0; }
+
+    /* ---- Rating notes field ---- */
+    .rating-notes-field {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border-soft);
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text-main);
+      background: white;
+      box-sizing: border-box;
+      resize: none;
+      margin-top: 6px;
+    }
+    .rating-notes-field:focus { outline: none; border-color: var(--button-primary); }
+    .rating-notes-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      opacity: 0.6;
+      margin: 12px 0 4px;
+      display: block;
+    }
 
     /* ---- You May Also Like ---- */
     .also-like-section {
@@ -744,6 +795,26 @@
           </div>
           <div id="tv-formats-container">
             <div class="empty-state">No TV series yet. Tap ＋ to add your first one.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================== RATINGS ===================== -->
+      <div class="media-section-card" id="ratings-section-card">
+        <div class="media-section-header" id="ratings-section-header">
+          <span class="media-section-title">Ratings</span>
+          <div class="media-section-actions">
+            <button class="media-icon-btn" id="ratings-search-btn" title="Search collection" aria-label="Search Ratings">🔍</button>
+            <button class="media-icon-btn" id="ratings-add-btn" title="Add to Ratings" aria-label="Add to Ratings">＋</button>
+            <span class="media-chevron" id="ratings-chevron">▼</span>
+          </div>
+        </div>
+        <div class="media-section-body" id="ratings-section-body">
+          <div class="collection-search-row" id="ratings-search-bar" style="display:none;">
+            <input type="text" class="collection-search-input" id="ratings-collection-search" placeholder="Search your ratings...">
+          </div>
+          <div id="ratings-formats-container">
+            <div class="empty-state">No ratings yet. Tap ＋ to add your first one.</div>
           </div>
         </div>
       </div>
@@ -1244,6 +1315,42 @@ async function doSearch() {
       getCoverArt(r.id).then(url => { if (url) item.querySelector("img").src = url; });
       container.appendChild(item);
     });
+  } else if (currentMode === "ratings") {
+    /* Search both movies and TV for ratings */
+    const [movieResults, tvResults] = await Promise.all([
+      searchTMDB(q, "movie"),
+      searchTMDB(q, "tv")
+    ]);
+    const combined = [
+      ...movieResults.slice(0,5).map(function(r) { return Object.assign({}, r, {_type:"movie"}); }),
+      ...tvResults.slice(0,5).map(function(r) { return Object.assign({}, r, {_type:"tv"}); })
+    ].sort(function(a,b) { return (b.popularity||0)-(a.popularity||0); }).slice(0,8);
+
+    if (!combined.length) { container.innerHTML = "<p style='opacity:0.5;font-size:13px;'>No results found.</p>"; return; }
+    container.innerHTML = "";
+    combined.forEach(function(r) {
+      const title = r.title || r.name || "";
+      const year = (r.release_date || r.first_air_date || "").slice(0,4);
+      const poster = r.poster_path ? TMDB_IMG + r.poster_path : "";
+      const typeLabel = r._type === "tv" ? "TV" : "Movie";
+      const item = document.createElement("div");
+      item.className = "search-result-item";
+      item.innerHTML =
+        '<img class="search-result-thumb" src="' + escH(poster) + '" alt="" onerror="this.style.visibility=&apos;hidden&apos;">' +
+        '<div class="search-result-info">' +
+          '<div class="search-result-name">' + escH(title) + '</div>' +
+          '<div class="search-result-sub">' + escH(year) + " · " + typeLabel + '</div>' +
+        '</div>' +
+        '<button class="search-result-add">Add</button>';
+      item.querySelector(".search-result-add").addEventListener("click", async function() {
+        this.textContent = "...";
+        this.disabled = true;
+        const details = await getTMDBDetails(r.id, r._type);
+        await searchAndAddRating(details, r._type);
+        document.getElementById("search-overlay").classList.remove("open");
+      });
+      container.appendChild(item);
+    });
   } else {
     const tmdbType = currentMode === "tv" ? "tv" : "movie";
     const results = await searchTMDB(q, tmdbType);
@@ -1255,14 +1362,13 @@ async function doSearch() {
       const poster = r.poster_path ? TMDB_IMG + r.poster_path : "";
       const item = document.createElement("div");
       item.className = "search-result-item";
-      item.innerHTML = `
-        <img class="search-result-thumb" src="${poster}" alt="" onerror="this.style.visibility='hidden'">
-        <div class="search-result-info">
-          <div class="search-result-name">${escH(title)}</div>
-          <div class="search-result-sub">${escH(year)}</div>
-        </div>
-        <button class="search-result-add">Add</button>
-      `;
+      item.innerHTML =
+        '<img class="search-result-thumb" src="' + escH(poster) + '" alt="" onerror="this.style.visibility=&apos;hidden&apos;">' +
+        '<div class="search-result-info">' +
+          '<div class="search-result-name">' + escH(title) + '</div>' +
+          '<div class="search-result-sub">' + escH(year) + '</div>' +
+        '</div>' +
+        '<button class="search-result-add">Add</button>';
       item.querySelector(".search-result-add").addEventListener("click", async function() {
         this.textContent = "...";
         this.disabled = true;
@@ -1486,9 +1592,7 @@ function openCDDetail(cd) {
       <div class="detail-meta-row"><span class="detail-meta-label">Release Year</span><span class="detail-meta-value">${escH(cd.year)}</span></div>
       <div class="detail-meta-row"><span class="detail-meta-label">Genre</span><span class="detail-meta-value">${escH(cd.genre)}</span></div>
     </div>
-    <div class="star-rating" id="cd-stars">
-      ${[1,2,3,4,5].map(n => `<span class="star ${n <= myRating ? "filled" : ""}" data-n="${n}">★</span>`).join("")}
-    </div>
+    <div class="star-rating" id="cd-stars"></div>
     <div class="also-like-section">
       <button class="also-like-btn" id="cd-also-like-btn">You may also like... ▾</button>
       <div class="also-like-results" id="cd-also-like-results"></div>
@@ -1496,15 +1600,11 @@ function openCDDetail(cd) {
     <button class="detail-remove-btn" id="cd-remove-btn">Remove from Collection</button>
   `;
 
-  // Wire stars
-  document.querySelectorAll("#cd-stars .star").forEach(function(star) {
-    star.addEventListener("click", function() {
-      const n = parseInt(this.dataset.n);
-      const ratings = loadRatings();
-      ratings[cd.id] = n;
-      saveRatings(ratings);
-      document.querySelectorAll("#cd-stars .star").forEach(s => s.classList.toggle("filled", parseInt(s.dataset.n) <= n));
-    });
+  /* Wire half-star rating */
+  buildHalfStarRating("cd-stars", myRating, function(newRating) {
+    const ratings = loadRatings();
+    ratings[cd.id] = newRating;
+    saveRatings(ratings);
   });
 
   // Wire Also Like
@@ -1547,9 +1647,7 @@ function openMovieDetail(movie) {
       <div class="detail-meta-row"><span class="detail-meta-label">Genre</span><span class="detail-meta-value">${escH(movie.genre)}</span></div>
     </div>
     ${movie.plot ? `<p style="font-size:13px;line-height:1.6;opacity:0.8;margin:12px 0;">${escH(movie.plot)}</p>` : ""}
-    <div class="star-rating" id="movie-stars">
-      ${[1,2,3,4,5].map(n => `<span class="star ${n <= myRating ? "filled" : ""}" data-n="${n}">★</span>`).join("")}
-    </div>
+    <div class="star-rating" id="movie-stars"></div>
     <div class="also-like-section">
       <button class="also-like-btn" id="movie-also-like-btn">You may also like... ▾</button>
       <div class="also-like-results" id="movie-also-like-results"></div>
@@ -1557,16 +1655,16 @@ function openMovieDetail(movie) {
     <button class="detail-remove-btn" id="movie-remove-btn">Remove from Collection</button>
   `;
 
-  // Wire stars
+  /* Wire half-star rating */
   const ratingKey = movie.id + "_" + movie.format;
-  document.querySelectorAll("#movie-stars .star").forEach(function(star) {
-    star.addEventListener("click", function() {
-      const n = parseInt(this.dataset.n);
-      const ratings = loadRatings();
-      ratings[ratingKey] = n;
-      saveRatings(ratings);
-      document.querySelectorAll("#movie-stars .star").forEach(s => s.classList.toggle("filled", parseInt(s.dataset.n) <= n));
-    });
+  buildHalfStarRating("movie-stars", myRating, function(newRating) {
+    const ratings = loadRatings();
+    ratings[ratingKey] = newRating;
+    saveRatings(ratings);
+    /* Sync to ratings list if exists */
+    const list = loadRatingsList();
+    const entry = list.find(function(r) { return r.id === String(movie.id); });
+    if (entry) { entry.rating = newRating; saveRatingsList(list); }
   });
 
   // Wire Also Like
@@ -1717,9 +1815,7 @@ function openTVDetail(show) {
     </button>
     <div id="tv-seasons-edit-area" style="display:none;background:#f7f0e8;border-radius:12px;padding:14px;margin-bottom:10px;"></div>
     ${show.plot ? `<p style="font-size:13px;line-height:1.6;opacity:0.8;margin:12px 0;">${escH(show.plot)}</p>` : ""}
-    <div class="star-rating" id="tv-stars">
-      ${[1,2,3,4,5].map(n => `<span class="star ${n <= myRating ? "filled" : ""}" data-n="${n}">★</span>`).join("")}
-    </div>
+    <div class="star-rating" id="tv-stars"></div>
     <div class="also-like-section">
       <button class="also-like-btn" id="tv-also-like-btn">You may also like... ▾</button>
       <div class="also-like-results" id="tv-also-like-results"></div>
@@ -1727,14 +1823,14 @@ function openTVDetail(show) {
     <button class="detail-remove-btn" id="tv-remove-btn">Remove from Collection</button>
   `;
 
-  document.querySelectorAll("#tv-stars .star").forEach(function(star) {
-    star.addEventListener("click", function() {
-      const n = parseInt(this.dataset.n);
-      const ratings = loadRatings();
-      ratings[ratingKey] = n;
-      saveRatings(ratings);
-      document.querySelectorAll("#tv-stars .star").forEach(s => s.classList.toggle("filled", parseInt(s.dataset.n) <= n));
-    });
+  buildHalfStarRating("tv-stars", myRating, function(newRating) {
+    const ratings = loadRatings();
+    ratings[ratingKey] = newRating;
+    saveRatings(ratings);
+    /* Sync to ratings list if exists */
+    const list = loadRatingsList();
+    const entry = list.find(function(r) { return r.id === String(show.id); });
+    if (entry) { entry.rating = newRating; saveRatingsList(list); }
   });
 
   /* Wire Edit Seasons */
@@ -1828,10 +1924,275 @@ function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
+/* ===================== HALF-STAR RATING SYSTEM ===================== */
+
+function buildHalfStarRating(containerId, currentRating, onRate) {
+  /* currentRating = 0..5 in 0.5 increments */
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+
+  for (let i = 1; i <= 5; i++) {
+    const wrap = document.createElement("div");
+    wrap.className = "star-wrap";
+
+    const bg = document.createElement("span");
+    bg.className = "star-bg";
+    bg.textContent = "★";
+
+    const fill = document.createElement("span");
+    fill.className = "star-fill";
+    fill.textContent = "★";
+
+    /* Set fill width based on current rating */
+    if (currentRating >= i) fill.style.width = "100%";
+    else if (currentRating >= i - 0.5) fill.style.width = "50%";
+    else fill.style.width = "0%";
+
+    const hitLeft = document.createElement("div");
+    hitLeft.className = "star-hit-left";
+    const hitRight = document.createElement("div");
+    hitRight.className = "star-hit-right";
+
+    hitLeft.addEventListener("click", function() {
+      const newRating = i - 0.5;
+      onRate(newRating);
+      refreshHalfStars(container, newRating);
+    });
+    hitRight.addEventListener("click", function() {
+      const newRating = i;
+      onRate(newRating);
+      refreshHalfStars(container, newRating);
+    });
+
+    wrap.appendChild(bg);
+    wrap.appendChild(fill);
+    wrap.appendChild(hitLeft);
+    wrap.appendChild(hitRight);
+    container.appendChild(wrap);
+  }
+}
+
+function refreshHalfStars(container, rating) {
+  const fills = container.querySelectorAll(".star-fill");
+  fills.forEach(function(fill, idx) {
+    const i = idx + 1;
+    if (rating >= i) fill.style.width = "100%";
+    else if (rating >= i - 0.5) fill.style.width = "50%";
+    else fill.style.width = "0%";
+  });
+}
+
+/* ===================== RATINGS STORAGE ===================== */
+const STORAGE_KEY_RATINGS_LIST = "lale_ratings_list";
+
+function loadRatingsList() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY_RATINGS_LIST) || "[]"); } catch(e) { return []; }
+}
+function saveRatingsList(data) { localStorage.setItem(STORAGE_KEY_RATINGS_LIST, JSON.stringify(data)); }
+
+function getRatingEntry(tmdbId) {
+  /* Returns { rating, notes } or null */
+  const ratings = loadRatingsList();
+  return ratings.find(function(r) { return r.id === String(tmdbId); }) || null;
+}
+
+function setRatingEntry(tmdbId, rating, notes) {
+  const ratings = loadRatingsList();
+  const existing = ratings.find(function(r) { return r.id === String(tmdbId); });
+  if (existing) {
+    existing.rating = rating;
+    existing.notes = notes;
+  } else {
+    ratings.push({ id: String(tmdbId), rating: rating, notes: notes || "" });
+  }
+  saveRatingsList(ratings);
+
+  /* Sync to Movies/TV lale_media_ratings for star display */
+  const stored = loadRatings();
+  stored[String(tmdbId)] = rating;
+  saveRatings(stored);
+}
+
+/* ===================== RATINGS SECTION LISTENERS ===================== */
+document.getElementById("ratings-section-header").addEventListener("click", function(e) {
+  if (e.target.closest(".media-icon-btn")) return;
+  const body = document.getElementById("ratings-section-body");
+  const chev = document.getElementById("ratings-chevron");
+  const isOpen = body.classList.contains("open");
+  body.classList.toggle("open", !isOpen);
+  chev.classList.toggle("open", !isOpen);
+});
+
+document.getElementById("ratings-search-btn").addEventListener("click", function(e) {
+  e.stopPropagation();
+  const bar = document.getElementById("ratings-search-bar");
+  const body = document.getElementById("ratings-section-body");
+  body.classList.add("open");
+  document.getElementById("ratings-chevron").classList.add("open");
+  bar.style.display = bar.style.display === "none" ? "flex" : "none";
+  if (bar.style.display === "flex") document.getElementById("ratings-collection-search").focus();
+});
+
+document.getElementById("ratings-collection-search").addEventListener("input", function() {
+  renderRatingsList(this.value.toLowerCase());
+});
+
+document.getElementById("ratings-add-btn").addEventListener("click", function(e) {
+  e.stopPropagation();
+  currentMode = "ratings";
+  document.getElementById("search-panel-title").textContent = "Search to Rate";
+  document.getElementById("search-input").value = "";
+  document.getElementById("search-results").innerHTML = "";
+  document.getElementById("search-overlay").classList.add("open");
+  setTimeout(function() { document.getElementById("search-input").focus(); }, 200);
+});
+
+/* ===================== RENDER RATINGS ===================== */
+function renderRatingsList(filter) {
+  const container = document.getElementById("ratings-formats-container");
+  let items = loadRatingsList();
+  if (filter) items = items.filter(function(r) { return (r.title||"").toLowerCase().includes(filter); });
+
+  if (!items.length) {
+    container.innerHTML = filter ? "<div class='empty-state'>No matches found.</div>" : "<div class='empty-state'>No ratings yet. Tap ＋ to add your first one.</div>";
+    return;
+  }
+
+  container.innerHTML = "";
+
+  /* Group by type */
+  const groups = { "Movies": [], "TV Series": [], "Other": [] };
+  items.forEach(function(r) {
+    if (r.mediaType === "tv") groups["TV Series"].push(r);
+    else if (r.mediaType === "movie") groups["Movies"].push(r);
+    else groups["Other"].push(r);
+  });
+
+  Object.keys(groups).forEach(function(groupName) {
+    const group = groups[groupName];
+    if (!group.length) return;
+
+    const block = document.createElement("div");
+    block.className = "genre-block";
+
+    const header = document.createElement("div");
+    header.className = "genre-header";
+    header.innerHTML = '<span class="genre-title">' + escH(groupName) + '</span><span class="genre-chevron">▼</span>';
+
+    const grid = document.createElement("div");
+    grid.className = filter ? "movie-grid open" : "movie-grid";
+
+    group.forEach(function(r) {
+      const item = document.createElement("div");
+      item.className = "media-item";
+      item.innerHTML = '<img src="' + escH(r.poster||"") + '" alt="' + escH(r.title||"") + '" onerror="this.src=\'\';this.style.background=\'#e8ddd4\';"><div class="media-item-title">' + escH(r.title||"") + '</div>';
+      item.addEventListener("click", function() { openRatingsDetail(r); });
+      grid.appendChild(item);
+    });
+
+    header.addEventListener("click", function() {
+      const open = grid.classList.contains("open");
+      container.querySelectorAll(".movie-grid,.genre-grid").forEach(function(g) { g.classList.remove("open"); });
+      container.querySelectorAll(".genre-chevron").forEach(function(c) { c.classList.remove("open"); });
+      if (!open) {
+        grid.classList.add("open");
+        header.querySelector(".genre-chevron").classList.add("open");
+      }
+    });
+
+    block.appendChild(header);
+    block.appendChild(grid);
+    container.appendChild(block);
+  });
+}
+
+/* ===================== RATINGS DETAIL PANEL ===================== */
+function openRatingsDetail(r) {
+  const entry = getRatingEntry(r.id) || { rating: 0, notes: "" };
+
+  document.getElementById("detail-content").innerHTML =
+    '<img class="detail-art poster" src="' + escH(r.poster||"") + '" alt="' + escH(r.title||"") + '" onerror="this.src=\'\';this.style.background=\'#e8ddd4\';">' +
+    '<h2 class="detail-title">' + escH(r.title||"") + '</h2>' +
+    '<p class="detail-subtitle">' + escH(r.year||"") + (r.mediaType === "tv" ? ' <span class="format-badge">TV</span>' : ' <span class="format-badge">Movie</span>') + '</p>' +
+    '<div class="detail-meta">' +
+      (r.director ? '<div class="detail-meta-row"><span class="detail-meta-label">' + (r.mediaType==="tv"?"Creator":"Director") + '</span><span class="detail-meta-value">' + escH(r.director) + '</span></div>' : "") +
+      (r.cast ? '<div class="detail-meta-row"><span class="detail-meta-label">Cast</span><span class="detail-meta-value">' + escH(r.cast) + '</span></div>' : "") +
+      (r.genre ? '<div class="detail-meta-row"><span class="detail-meta-label">Genre</span><span class="detail-meta-value">' + escH(r.genre) + '</span></div>' : "") +
+    '</div>' +
+    (r.plot ? '<p style="font-size:13px;line-height:1.6;opacity:0.8;margin:12px 0;">' + escH(r.plot) + '</p>' : "") +
+    '<div class="star-rating" id="ratings-stars"></div>' +
+    '<span class="rating-notes-label">NOTES</span>' +
+    '<textarea class="rating-notes-field" id="ratings-notes-field" rows="3" placeholder="Write your thoughts...">' + escH(entry.notes||"") + '</textarea>' +
+    '<button style="width:100%;margin-top:10px;padding:10px;border-radius:10px;border:none;background:var(--button-primary);color:white;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;" id="ratings-save-btn">Save Rating</button>' +
+    '<button class="detail-remove-btn" id="ratings-remove-btn">Remove from Ratings</button>';
+
+  /* Build half-star rating */
+  buildHalfStarRating("ratings-stars", entry.rating, function(newRating) {
+    /* Live update stored rating so sync happens immediately */
+    const notes = document.getElementById("ratings-notes-field") ? document.getElementById("ratings-notes-field").value : "";
+    setRatingEntry(r.id, newRating, notes);
+  });
+
+  document.getElementById("ratings-save-btn").addEventListener("click", function() {
+    const notes = document.getElementById("ratings-notes-field").value;
+    const fills = document.querySelectorAll("#ratings-stars .star-fill");
+    let rating = 0;
+    fills.forEach(function(fill, idx) {
+      const w = parseFloat(fill.style.width) || 0;
+      if (w >= 100) rating = idx + 1;
+      else if (w >= 50) rating = idx + 0.5;
+    });
+    setRatingEntry(r.id, rating, notes);
+    /* Update the stored item's notes */
+    const list = loadRatingsList();
+    const item = list.find(function(x) { return x.id === String(r.id); });
+    if (item) { item.notes = notes; item.rating = rating; saveRatingsList(list); }
+    closeDetail();
+    renderRatingsList();
+  });
+
+  document.getElementById("ratings-remove-btn").addEventListener("click", function() {
+    if (!confirm('Remove "' + r.title + '" from Ratings?')) return;
+    const list = loadRatingsList().filter(function(x) { return x.id !== String(r.id); });
+    saveRatingsList(list);
+    renderRatingsList();
+    closeDetail();
+  });
+
+  document.getElementById("detail-overlay").classList.add("open");
+}
+
+/* ===================== RATINGS TMDB SEARCH ===================== */
+async function searchAndAddRating(tmdbData, mediaType) {
+  const title = mediaType === "tv" ? tmdbData.name : tmdbData.title;
+  const year = mediaType === "tv" ? (tmdbData.first_air_date||"").slice(0,4) : (tmdbData.release_date||"").slice(0,4);
+  const director = mediaType === "tv"
+    ? ((tmdbData.created_by||[]).map(function(c){return c.name;}).join(", ")||"Unknown")
+    : ((tmdbData.credits&&tmdbData.credits.crew?tmdbData.credits.crew.filter(function(c){return c.job==="Director";}).map(function(c){return c.name;}).join(", "):"")||"Unknown");
+  const cast = tmdbData.credits&&tmdbData.credits.cast ? tmdbData.credits.cast.slice(0,4).map(function(c){return c.name;}).join(", ") : "";
+  const genre = tmdbData.genres&&tmdbData.genres[0] ? tmdbData.genres[0].name : "Other";
+  const poster = tmdbData.poster_path ? TMDB_IMG + tmdbData.poster_path : "";
+  const plot = tmdbData.overview || "";
+  const id = String(tmdbData.id);
+
+  const list = loadRatingsList();
+  if (list.find(function(r) { return r.id === id; })) {
+    alert('"' + title + '" is already in your Ratings.');
+    return;
+  }
+
+  list.push({ id, title, year, director, cast, genre, poster, plot, mediaType, addedAt: Date.now(), rating: 0, notes: "" });
+  saveRatingsList(list);
+  renderRatingsList();
+  alert('"' + title + '" added to Ratings!');
+}
+
 /* ===================== INIT ===================== */
 renderCDGenres();
 renderMovieFormats();
 renderTVFormats();
+renderRatingsList();
 </script>
 <link rel="stylesheet" href="css/components-additions.css">
   <script>
