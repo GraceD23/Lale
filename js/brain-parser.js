@@ -36,7 +36,7 @@ Your job: split the input into individual items, categorize each one, and return
 CATEGORIES:
 - "task" = anything actionable (to-do, errand, chore, appointment)
 - "streak" = a habit or recurring activity (vitamins, exercise, meditation, reading, no-phone, etc.)
-- "health" = anything related to the body or wellness (weight measurements, headache, migraine, pain, energy, mood, sleep, medication, symptoms, feeling sick, burnout). Weight can be written in any format: 120lbs, 120.3 lbs, 68kg, "weighed 130", etc.
+- "health" = anything related to the body or wellness (weight measurements, headache, migraine, pain, energy, mood, sleep, medication, symptoms, feeling sick, burnout, moon cycle, annoyance). Weight can be written in any format: 120lbs, 120.3 lbs, 68kg, "weighed 130", etc. Moon entries (e.g. "moon today", "moon 3/5") → category "moon". Annoyance entries (e.g. "annoyed today", "annoyance 4/5") → category "annoyance".
 - "etsy" = anything related to Etsy shop inventory: selling necklaces (e.g. "sold 20-01 glow"), painting beads (e.g. "painted 5 tridents"), making necklaces (e.g. "made 10-02 classic"), adding inventory (e.g. "add 20-02g"), or buying supplies (e.g. "bought 50 strings"). These start with sold/painted/made/add/bought followed by a product name or code.
 - "note" = anything else — a thought, reminder, idea, or piece of information
 
@@ -193,6 +193,12 @@ function parseWithRules(text) {
     }
     if (lower.includes("\bpain\b") || lower.includes("\bache\b") || lower.includes("\bsore\b") || lower.includes("\bhurt\b")) {
       return { type: "health", name: chunk, destination: null, data: { category: "pain", severity: extractSeverity(lower), note: null } };
+    }
+    if (/\bmoon\b/.test(lower)) {
+      return { type: "health", name: chunk, destination: null, data: { category: "moon", severity: extractSeverity(lower), note: null } };
+    }
+    if (/\bannoy(ed|ance|ing)?\b/.test(lower)) {
+      return { type: "health", name: chunk, destination: null, data: { category: "annoyance", severity: extractSeverity(lower), note: null } };
     }
     if (lower.includes("sick") || lower.includes("fever") || lower.includes("\bcold\b") || lower.includes("\bflu\b") || lower.includes("cough") || lower.includes("sore throat")) {
       return { type: "health", name: chunk, destination: null, data: { category: "illness", severity: null, note: null } };
