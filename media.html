@@ -95,6 +95,7 @@
     .media-section-body {
       display: none;
       padding: 0 14px 16px;
+      overflow: hidden;
     }
     .media-section-body.open { display: block; }
 
@@ -130,6 +131,7 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
       padding: 12px 0 4px;
+      align-items: start;
     }
     .genre-grid.open { display: grid; }
 
@@ -141,48 +143,52 @@
       align-items: stretch;
     }
 
-    /* CD: fixed uniform square — 3 across, all identical size */
-    .genre-grid {
-      align-items: start;
-    }
+    /* CD: fixed uniform square — 3 across */
     .genre-grid .media-item {
       width: 100%;
     }
     .genre-grid .media-item .img-wrap {
       width: 100%;
-      aspect-ratio: 1 / 1;
-      min-height: 80px;
-      border-radius: 8px;
+      position: relative;
       overflow: hidden;
+      border-radius: 8px;
       background: #e8ddd4;
       box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    .genre-grid .media-item .img-wrap::before {
+      content: "";
       display: block;
+      padding-top: 100%; /* 1:1 square */
     }
     .genre-grid .media-item .img-wrap img {
+      position: absolute;
+      top: 0; left: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
     }
 
-    /* Movie/TV: 2:3 portrait — 2 across, all identical size */
-    .movie-grid {
-      align-items: start;
-    }
+    /* Movie/TV: 2:3 portrait — 2 across */
     .movie-grid .media-item {
       width: 100%;
     }
     .movie-grid .media-item .img-wrap {
       width: 100%;
-      aspect-ratio: 2 / 3;
-      min-height: 150px;
-      border-radius: 10px;
+      position: relative;
       overflow: hidden;
+      border-radius: 10px;
       background: #e8ddd4;
       box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    .movie-grid .media-item .img-wrap::before {
+      content: "";
       display: block;
+      padding-top: 150%; /* 2:3 portrait */
     }
     .movie-grid .media-item .img-wrap img {
+      position: absolute;
+      top: 0; left: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
@@ -209,6 +215,7 @@
       grid-template-columns: repeat(2, 1fr);
       gap: 10px;
       padding: 12px 0 4px;
+      align-items: start;
     }
     .movie-grid.open { display: grid; }
 
@@ -1165,50 +1172,45 @@ async function handleBarcode(code) {
 }
 
 /* ===================== LOOKUP: CD via MusicBrainz ===================== */
+/* ── iTunes Search API for CDs (much larger catalog than MusicBrainz) ── */
 async function lookupCDBarcode(barcode) {
-  try {
-    const res = await fetch(`https://musicbrainz.org/ws/2/release?query=barcode:${barcode}&fmt=json`, {
-      headers: { "User-Agent": "LaleDashboard/1.0 (personal)" }
-    });
-    const data = await res.json();
-    if (!data.releases || data.releases.length === 0) { alert("CD not found for barcode: " + barcode); return; }
-    const release = data.releases[0];
-    await addCDFromRelease(release);
-  } catch(e) { alert("Lookup failed: " + e.message); }
+  /* Barcode lookup not supported by iTunes — open search instead */
+  openSearchPanel("cd");
+  setTimeout(function() {
+    document.getElementById("search-input").placeholder = "Barcode " + barcode + " — search by album title";
+  }, 400);
 }
 
 async function lookupCDByTitle(title) {
-  const res = await fetch(`https://musicbrainz.org/ws/2/release?query=${encodeURIComponent(title)}&limit=8&fmt=json`, {
-    headers: { "User-Agent": "LaleDashboard/1.0 (personal)" }
-  });
-  const data = await res.json();
-  return data.releases || [];
-}
-
-async function getCoverArt(mbid) {
   try {
-    const res = await fetch(`https://coverartarchive.org/release/${mbid}/front-250`, { redirect: "follow" });
-    if (res.ok) return res.url;
-  } catch(e) {}
-  return "";
+    const res = await fetch(
+      "https://itunes.apple.com/search?term=" + encodeURIComponent(title) +
+      "&media=music&entity=album&limit=12&attribute=albumTerm"
+    );
+    const data = await res.json();
+    return (data.results || []).map(function(r) {
+      return {
+        id: String(r.collectionId),
+        title: r.collectionName || "",
+        artist: r.artistName || "Unknown Artist",
+        year: (r.releaseDate || "").slice(0, 4) || "Unknown",
+        genre: r.primaryGenreName || "Other",
+        cover: (r.artworkUrl100 || "").replace("100x100bb", "300x300bb")
+      };
+    });
+  } catch(e) { return []; }
 }
 
-async function addCDFromRelease(release) {
-  const id = release.id;
-  const title = release.title;
-  const artist = (release["artist-credit"] || []).map(a => a.name || (a.artist && a.artist.name) || "").join(", ") || "Unknown Artist";
-  const year = (release.date || "").slice(0, 4) || "Unknown";
-  const genre = (release.tags && release.tags[0] && release.tags[0].name) ? capitalize(release.tags[0].name) : "Other";
-  const cover = await getCoverArt(id);
-
-  const cd = { id, title, artist, year, genre, cover, addedAt: Date.now() };
+async function addCDFromiTunes(cd) {
   const cds = loadCDs();
-  if (cds.find(c => c.id === id)) { alert('"' + title + '" is already in your collection.'); return; }
-  cds.push(cd);
+  if (cds.find(function(c) { return c.id === cd.id; })) {
+    alert('"' + cd.title + '" is already in your collection.');
+    return;
+  }
+  cds.push(Object.assign({}, cd, { addedAt: Date.now() }));
   saveCDs(cds);
   renderCDGenres();
-  /* section stays as-is after adding */
-  alert('"' + title + '" added to your collection!');
+  alert('"' + cd.title + '" added to your collection!');
 }
 
 /* ===================== LOOKUP: Movie/TV Barcode ===================== */
@@ -1313,27 +1315,22 @@ async function doSearch() {
     const results = await lookupCDByTitle(q);
     if (!results.length) { container.innerHTML = "<p style='opacity:0.5;font-size:13px;'>No results found.</p>"; return; }
     container.innerHTML = "";
-    results.slice(0, 8).forEach(function(r) {
-      const artist = (r["artist-credit"] || []).map(a => a.name || (a.artist && a.artist.name) || "").join(", ") || "Unknown";
-      const year = (r.date || "").slice(0,4) || "";
+    results.slice(0, 10).forEach(function(r) {
       const item = document.createElement("div");
       item.className = "search-result-item";
-      item.innerHTML = `
-        <img class="search-result-thumb" src="" alt="" onerror="this.style.visibility='hidden'">
-        <div class="search-result-info">
-          <div class="search-result-name">${escH(r.title)}</div>
-          <div class="search-result-sub">${escH(artist)}${year ? " · " + year : ""}</div>
-        </div>
-        <button class="search-result-add">Add</button>
-      `;
+      item.innerHTML =
+        '<img class="search-result-thumb" src="' + escH(r.cover||"") + '" alt="">' +
+        '<div class="search-result-info">' +
+          '<div class="search-result-name">' + escH(r.title) + '</div>' +
+          '<div class="search-result-sub">' + escH(r.artist) + (r.year ? " · " + r.year : "") + '</div>' +
+        '</div>' +
+        '<button class="search-result-add">Add</button>';
       item.querySelector(".search-result-add").addEventListener("click", async function() {
         this.textContent = "...";
         this.disabled = true;
-        await addCDFromRelease(r);
+        await addCDFromiTunes(r);
         document.getElementById("search-overlay").classList.remove("open");
       });
-      // lazy load cover
-      getCoverArt(r.id).then(url => { if (url) item.querySelector("img").src = url; });
       container.appendChild(item);
     });
   } else if (currentMode === "ratings") {
