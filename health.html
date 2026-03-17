@@ -1,1024 +1,619 @@
-/* =========================================================
-   HEALTH-SYSTEM.JS
-   ---------------------------------------------------------
-   Fully dynamic Health Page controller.
-
-   Features:
-   - Renders all trackers from storage (default + custom)
-   - Headache / Burnout: calendar-style circle grid
-   - Weight: line chart + written log (no Mon-Sun row)
-   - Energy Level: 1-5 daily scale
-   - Month selector per tracker
-   - Tap circle to add/view entry
-   ========================================================= */
-
-document.addEventListener("DOMContentLoaded", function () {
-  initializeHealthSystem();
-});
-
-function initializeHealthSystem() {
-  buildHealthPage();
-  initComparisonSection();
-  addEditTrackersButton();
-}
-
-function addEditTrackersButton() {
-  const existing = document.getElementById("health-edit-trackers-btn");
-  if (existing) existing.remove();
-  const main = document.querySelector(".home-page-main-content");
-  if (!main) return;
-  const editBtn = document.createElement("button");
-  editBtn.id = "health-edit-trackers-btn";
-  editBtn.type = "button";
-  editBtn.className = "secondary-action-button";
-  editBtn.textContent = "Edit Trackers";
-  editBtn.style.cssText = "width:100%;margin-top:8px;margin-bottom:24px;";
-  editBtn.addEventListener("click", openTrackerEditPanel);
-  main.appendChild(editBtn);
-}
-
-/* =========================================================
-   BUILD HEALTH PAGE DYNAMICALLY
-   ========================================================= */
-
-function buildHealthPage() {
-  const main = document.querySelector(".home-page-main-content");
-  if (!main) return;
-
-  /* Remove old tracker sections, comparison, and edit button */
-  main.querySelectorAll(".health-category-card, .health-comparison-card").forEach(function(s) { s.remove(); });
-  const oldEditBtn = document.getElementById("health-edit-trackers-btn");
-  if (oldEditBtn) oldEditBtn.remove();
-
-  const trackers = loadHealthTrackers();
-
-  trackers.forEach(function(tracker) {
-    const section = buildTrackerSection(tracker);
-    if (section) main.appendChild(section);
-  });
-
-  /* Comparison dropdown — fixed at bottom */
-  buildComparisonSection(main);
-
-  /* Edit Trackers button */
-  const editBtn = document.createElement("button");
-  editBtn.id = "health-edit-trackers-btn";
-  editBtn.type = "button";
-  editBtn.className = "secondary-action-button";
-  editBtn.textContent = "Edit Trackers";
-  editBtn.style.cssText = "width:100%;margin-top:8px;margin-bottom:24px;";
-  editBtn.addEventListener("click", openTrackerEditPanel);
-  main.appendChild(editBtn);
-}
-
-function buildComparisonSection(main) {
-  const card = document.createElement("section");
-  card.className = "dashboard-card health-comparison-card";
-  card.style.cssText = "margin-bottom:12px;";
-
-  /* Dropdown toggle header */
-  const header = document.createElement("button");
-  header.type = "button";
-  header.className = "dropdown-toggle-button";
-  header.setAttribute("aria-expanded", "false");
-  header.innerHTML =
-    '<span class="dropdown-title" style="font-size:16px;font-weight:600;color:#3C2F26;">Comparison</span>' +
-    '<span class="dropdown-arrow" aria-hidden="true">⌄</span>';
-  card.appendChild(header);
-
-  /* Dropdown body — hidden by default */
-  const body = document.createElement("div");
-  body.style.display = "none";
-  body.style.paddingTop = "12px";
-
-  /* Checklist */
-  const checklist = document.createElement("div");
-  checklist.id = "comparison-checklist";
-  checklist.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;";
-  body.appendChild(checklist);
-
-  /* Month nav */
-  const navRow = document.createElement("div");
-  navRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;";
-  navRow.innerHTML =
-    '<button type="button" id="comp-prev-btn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;">‹</button>' +
-    '<span id="comp-month-label" style="font-size:13px;flex:1;text-align:center;font-family:Josefin Sans,sans-serif;color:#3C2F26;font-weight:600;"></span>' +
-    '<button type="button" id="comp-next-btn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;">›</button>';
-  body.appendChild(navRow);
-
-  /* Calendar wrap */
-  const calWrap = document.createElement("div");
-  calWrap.id = "comparison-calendar-wrap";
-  body.appendChild(calWrap);
-
-  card.appendChild(body);
-  main.appendChild(card);
-
-  /* Toggle open/close */
-  header.addEventListener("click", function() {
-    const isOpen = body.style.display !== "none";
-    body.style.display = isOpen ? "none" : "block";
-    header.setAttribute("aria-expanded", String(!isOpen));
-    if (!isOpen) {
-      /* Init on first open */
-      if (!card.dataset.initialized) {
-        card.dataset.initialized = "1";
-        card.dataset.currentMonth = getCurrentMonthKey();
-        buildComparisonChecklist(card);
-        renderComparisonCalendar(card);
-        document.getElementById("comp-prev-btn").addEventListener("click", function() {
-          card.dataset.currentMonth = shiftMonth(card.dataset.currentMonth, -1);
-          document.getElementById("comp-month-label").textContent = formatMonthLabel(card.dataset.currentMonth);
-          renderComparisonCalendar(card);
-        });
-        document.getElementById("comp-next-btn").addEventListener("click", function() {
-          card.dataset.currentMonth = shiftMonth(card.dataset.currentMonth, 1);
-          document.getElementById("comp-month-label").textContent = formatMonthLabel(card.dataset.currentMonth);
-          renderComparisonCalendar(card);
-        });
-      }
-    }
-  });
-}
-
-/* =========================================================
-   BUILD ONE TRACKER SECTION
-   ========================================================= */
-
-function buildTrackerSection(tracker) {
-  if (tracker.type === "weight")   return buildWeightSection(tracker);
-  if (tracker.type === "calendar") return buildCalendarSection(tracker);
-  if (tracker.type === "scale")    return buildScaleSection(tracker);
-  if (tracker.type === "yesno")    return buildYesNoSection(tracker);
-  return buildCalendarSection(tracker); /* Default */
-}
-
-/* =========================================================
-   CALENDAR SECTION (Headaches, Burnout, etc.)
-   Shows a monthly grid of circles — filled = entry logged
-   ========================================================= */
-
-function buildCalendarSection(tracker) {
-  const section = document.createElement("section");
-  section.className = "dashboard-card health-category-card";
-  section.id = "tracker-" + tracker.id;
-  section.setAttribute("aria-labelledby", tracker.id + "-title");
-
-  const monthKey = getCurrentMonthKey();
-
-  section.innerHTML = `
-    <h2 id="${tracker.id}-title" class="card-title" style="color:${tracker.color || '#b0977a'}">${escH(tracker.name)}</h2>
-    <div class="health-month-nav" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="-1">‹</button>
-      <span class="health-month-label" data-tracker="${tracker.id}" style="font-size:13px;flex:1;text-align:center;">${formatMonthLabel(monthKey)}</span>
-      <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="1">›</button>
-    </div>
-    <div class="health-calendar-grid" id="calendar-${tracker.id}" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
-    <div class="health-entry-form" id="entry-form-${tracker.id}" style="display:none;margin-top:10px;padding:10px;background:rgba(255,255,255,0.5);border-radius:10px;">
-      <p id="entry-form-title-${tracker.id}" style="margin:0 0 6px 0;font-size:13px;font-weight:600;"></p>
-      <label style="font-size:12px;">Severity (1-5):
-        <input type="number" min="1" max="5" id="entry-severity-${tracker.id}" style="width:50px;margin-left:6px;padding:2px 4px;border-radius:4px;border:1px solid #b0977a;">
-      </label>
-      <br><br>
-      <label style="font-size:12px;">Note:
-        <input type="text" id="entry-note-${tracker.id}" placeholder="Optional note..." style="width:100%;margin-top:4px;padding:4px 6px;border-radius:4px;border:1px solid #b0977a;box-sizing:border-box;">
-      </label>
-      <div style="display:flex;gap:6px;margin-top:8px;">
-        <button type="button" class="primary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="save-entry">Save</button>
-        <button type="button" class="secondary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="cancel-entry">Cancel</button>
-      </div>
-    </div>
-  `;
-
-  /* Store current month per tracker */
-  section.dataset.currentMonth = monthKey;
-
-  /* Attach month nav */
-  section.querySelectorAll("[data-dir]").forEach(btn => {
-    btn.addEventListener("click", function () {
-      const dir = parseInt(btn.dataset.dir);
-      const current = section.dataset.currentMonth;
-      const newMonth = shiftMonth(current, dir);
-      section.dataset.currentMonth = newMonth;
-      section.querySelector("[data-tracker='" + tracker.id + "'].health-month-label").textContent = formatMonthLabel(newMonth);
-      renderCalendarGrid(tracker, newMonth, section);
-    });
-  });
-
-  /* Save entry button */
-  section.querySelector("[data-action='save-entry']").addEventListener("click", function () {
-    saveCalendarEntry(tracker, section);
-  });
-
-  /* Cancel entry button */
-  section.querySelector("[data-action='cancel-entry']").addEventListener("click", function () {
-    section.querySelector("#entry-form-" + tracker.id).style.display = "none";
-    section.dataset.selectedDay = "";
-  });
-
-  renderCalendarGrid(tracker, monthKey, section);
-  return section;
-}
-
-function renderCalendarGrid(tracker, monthKey, section) {
-  const grid = section
-    ? section.querySelector("#calendar-" + tracker.id)
-    : document.getElementById("calendar-" + tracker.id);
-  if (!grid) return;
-
-  const health = loadHealth();
-  const monthData = (health[monthKey] && health[monthKey][tracker.id]) || [];
-  const filledDays = new Set(monthData.map(e => e.day));
-
-  const [year, month] = monthKey.split("-").map(Number);
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const firstDay = new Date(year, month - 1, 1).getDay(); /* 0=Sun */
-  const startOffset = (firstDay + 6) % 7; /* Mon=0 offset */
-
-  grid.innerHTML = "";
-
-  /* Day labels */
-  ["M","T","W","T","F","S","S"].forEach(d => {
-    const label = document.createElement("div");
-    label.style.cssText = "text-align:center;font-size:10px;opacity:0.5;padding-bottom:2px;";
-    label.textContent = d;
-    grid.appendChild(label);
-  });
-
-  /* Empty cells for offset */
-  for (let i = 0; i < startOffset; i++) {
-    grid.appendChild(document.createElement("div"));
-  }
-
-  /* Day circles */
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dayStr = String(day).padStart(2, "0");
-    const dateKey = monthKey + "-" + dayStr;
-    const dayEntries = monthData.filter(e => e.day === dateKey);
-    const isFilled = dayEntries.length > 0;
-    const isToday = dateKey === getTodayKey();
-
-    const circle = document.createElement("button");
-    circle.type = "button";
-    circle.style.cssText = `
-      width:100%;aspect-ratio:1;border-radius:50%;border:1.5px solid ${tracker.color || '#b0977a'};
-      background:${isFilled ? (tracker.color || '#b0977a') : 'transparent'};
-      color:${isFilled ? 'white' : (tracker.color || '#b0977a')};
-      font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;
-      ${isToday ? 'box-shadow:0 0 0 2px ' + (tracker.color || '#b0977a') + '44;' : ''}
-    `;
-    /* Always show checkmark when filled, day number when empty */
-    circle.textContent = isFilled ? "✓" : String(day);
-    circle.title = "Day " + day + (dayEntries.length > 1 ? " (" + dayEntries.length + " entries)" : "");
-
-    circle.addEventListener("click", function () {
-      openDayEntryForm(tracker, dateKey, day, section, isFilled, dayEntries);
-    });
-
-    grid.appendChild(circle);
-  }
-}
-
-function openDayEntryForm(tracker, dateKey, day, section, isFilled, existingEntries) {
-  const form = section.querySelector("#entry-form-" + tracker.id);
-  const titleEl = section.querySelector("#entry-form-title-" + tracker.id);
-  if (!form || !titleEl) return;
-
-  section.dataset.selectedDay = dateKey;
-
-  /* Show existing entries with timestamps if any */
-  let existingHtml = "";
-  if (existingEntries.length > 0) {
-    existingHtml = existingEntries.map(e => {
-      const t = new Date(e.date);
-      const timeStr = t.toLocaleTimeString("default", { hour:"2-digit", minute:"2-digit" });
-      return `<p style="font-size:12px;margin:2px 0;opacity:0.7;">${timeStr}${e.severity ? " — severity " + e.severity : ""}${e.note ? " — " + e.note : ""}</p>`;
-    }).join("");
-  }
-
-  titleEl.innerHTML = existingEntries.length > 0
-    ? "Day " + day + " (" + existingEntries.length + " entr" + (existingEntries.length > 1 ? "ies" : "y") + ")<br><small style='font-weight:normal;font-size:12px;'>" + existingHtml + "</small><br>Add another:"
-    : "Add entry for Day " + day;
-
-  const sevInput = section.querySelector("#entry-severity-" + tracker.id);
-  const noteInput = section.querySelector("#entry-note-" + tracker.id);
-  if (sevInput) sevInput.value = "";
-  if (noteInput) noteInput.value = "";
-
-  /* Show/hide delete button — only show if single entry (for multi-entry, delete via edit page) */
-  let deleteBtn = section.querySelector("[data-action='delete-entry']");
-  if (existingEntries.length === 1) {
-    if (!deleteBtn) {
-      deleteBtn = document.createElement("button");
-      deleteBtn.type = "button";
-      deleteBtn.className = "secondary-action-button";
-      deleteBtn.style.cssText = "font-size:12px;color:#a94442;border-color:#a94442;";
-      deleteBtn.setAttribute("data-action", "delete-entry");
-      deleteBtn.textContent = "Delete";
-      const btnRow = form.querySelector("div[style*='flex']");
-      if (btnRow) btnRow.appendChild(deleteBtn);
-      deleteBtn.addEventListener("click", function () {
-        deleteCalendarEntry(tracker, dateKey, section);
-      });
-    }
-    deleteBtn.style.display = "";
-  } else if (deleteBtn) {
-    deleteBtn.style.display = "none";
-  }
-
-  form.style.display = "block";
-}
-
-function saveCalendarEntry(tracker, section) {
-  const dateKey = section.dataset.selectedDay;
-  if (!dateKey) return;
-
-  const sevInput = section.querySelector("#entry-severity-" + tracker.id);
-  const noteInput = section.querySelector("#entry-note-" + tracker.id);
-
-  const health = loadHealth();
-  const monthKey = section.dataset.currentMonth;
-
-  if (!health[monthKey]) health[monthKey] = {};
-  if (!health[monthKey][tracker.id]) health[monthKey][tracker.id] = [];
-
-  /* Replace existing entry for this day if present, otherwise add */
-  const existing = health[monthKey][tracker.id].findIndex(e => e.day === dateKey);
-  const newEntry = {
-    day: dateKey,
-    date: new Date().toISOString(),
-    severity: sevInput ? sevInput.value : null,
-    note: noteInput ? noteInput.value : ""
-  };
-
-  if (existing >= 0) {
-    health[monthKey][tracker.id][existing] = newEntry;
-  } else {
-    health[monthKey][tracker.id].push(newEntry);
-  }
-
-  saveHealth(health);
-
-  section.querySelector("#entry-form-" + tracker.id).style.display = "none";
-  renderCalendarGrid(tracker, monthKey, section);
-}
-
-function deleteCalendarEntry(tracker, dateKey, section) {
-  const health = loadHealth();
-  const monthKey = section.dataset.currentMonth;
-
-  if (health[monthKey] && health[monthKey][tracker.id]) {
-    health[monthKey][tracker.id] = health[monthKey][tracker.id].filter(e => e.day !== dateKey);
-    saveHealth(health);
-  }
-
-  section.querySelector("#entry-form-" + tracker.id).style.display = "none";
-  renderCalendarGrid(tracker, monthKey, section);
-}
-
-/* =========================================================
-   WEIGHT SECTION
-   Line chart + written log, no Mon-Sun row
-   ========================================================= */
-
-function buildWeightSection(tracker) {
-  const section = document.createElement("section");
-  section.className = "dashboard-card health-category-card";
-  section.id = "tracker-" + tracker.id;
-
-  const monthKey = getCurrentMonthKey();
-  section.dataset.currentMonth = monthKey;
-
-  section.innerHTML = `
-    <h2 class="card-title" style="color:#3a2e28;">${escH(tracker.name)}</h2>
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="-1">‹</button>
-      <span class="health-month-label" data-tracker="${tracker.id}" style="font-size:13px;flex:1;text-align:center;">${formatMonthLabel(monthKey)}</span>
-      <button type="button" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;line-height:1;" data-tracker="${tracker.id}" data-dir="1">›</button>
-    </div>
-    <canvas id="weight-chart-${tracker.id}" height="120" style="display:none;width:100%;margin-bottom:10px;"></canvas>
-    <div id="weight-entry-area-${tracker.id}" style="display:none;gap:6px;margin-bottom:10px;align-items:center;flex-wrap:wrap;">
-      <input type="text" id="weight-input-${tracker.id}" placeholder="e.g. 120lb 3oz" style="flex:1;min-width:120px;padding:6px 8px;border-radius:8px;border:1px solid #b0977a;font-size:13px;">
-      <div style="display:flex;gap:6px;">
-        <button type="button" class="primary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="log-weight">Save</button>
-        <button type="button" class="secondary-action-button" style="font-size:12px;" data-tracker="${tracker.id}" data-action="cancel-weight">Cancel</button>
-      </div>
-    </div>
-    <button type="button" class="secondary-action-button" id="weight-add-btn-${tracker.id}" style="font-size:12px;margin-bottom:8px;" data-tracker="${tracker.id}" data-action="show-weight-entry">+ Add Entry</button>
-    <div id="weight-log-${tracker.id}" style="font-size:13px;"></div>
-  `;
-
-  /* Month nav */
-  section.querySelectorAll("[data-dir]").forEach(btn => {
-    btn.addEventListener("click", function () {
-      const dir = parseInt(btn.dataset.dir);
-      const newMonth = shiftMonth(section.dataset.currentMonth, dir);
-      section.dataset.currentMonth = newMonth;
-      section.querySelector(".health-month-label[data-tracker='" + tracker.id + "']").textContent = formatMonthLabel(newMonth);
-      renderWeightSection(tracker, newMonth, section);
-    });
-  });
-
-  /* Show entry area on + Add Entry click */
-  const addBtn = section.querySelector("[data-action='show-weight-entry']");
-  if (addBtn) {
-    addBtn.addEventListener("click", function () {
-      const area = document.getElementById("weight-entry-area-" + tracker.id);
-      if (area) { area.style.display = "flex"; addBtn.style.display = "none"; }
-    });
-  }
-
-  /* Cancel entry */
-  const cancelBtn = section.querySelector("[data-action='cancel-weight']");
-  if (cancelBtn) {
-    cancelBtn.addEventListener("click", function () {
-      const area = document.getElementById("weight-entry-area-" + tracker.id);
-      const addB = document.getElementById("weight-add-btn-" + tracker.id);
-      if (area) area.style.display = "none";
-      if (addB) addB.style.display = "";
-    });
-  }
-
-  /* Log weight */
-  section.querySelector("[data-action='log-weight']").addEventListener("click", function () {
-    const input = document.getElementById("weight-input-" + tracker.id);
-    const val = input ? input.value.trim() : "";
-    if (!val) return;
-    logWeightEntry(tracker, val);
-    if (input) input.value = "";
-    const area = document.getElementById("weight-entry-area-" + tracker.id);
-    const addB = document.getElementById("weight-add-btn-" + tracker.id);
-    if (area) area.style.display = "none";
-    if (addB) addB.style.display = "";
-    renderWeightSection(tracker, section.dataset.currentMonth, section);
-  });
-
-  renderWeightSection(tracker, monthKey, section);
-  return section;
-}
-
-function logWeightEntry(tracker, value) {
-  const health = loadHealth();
-  const monthKey = getCurrentMonthKey();
-  if (!health[monthKey]) health[monthKey] = {};
-  if (!health[monthKey][tracker.id]) health[monthKey][tracker.id] = [];
-  health[monthKey][tracker.id].push({ date: new Date().toISOString(), value: value });
-  saveHealth(health);
-}
-
-function renderWeightSection(tracker, monthKey, section) {
-  const health = loadHealth();
-  const entries = (health[monthKey] && health[monthKey][tracker.id]) || [];
-  const log = section
-    ? section.querySelector("#weight-log-" + tracker.id)
-    : document.getElementById("weight-log-" + tracker.id);
-
-  if (log) {
-    log.innerHTML = entries.length === 0
-      ? ""
-      : entries.slice().reverse().map(e => {
-          const t = new Date(e.date);
-          const timeStr = t.toLocaleTimeString("default", { hour:"2-digit", minute:"2-digit" });
-          const dateStr = t.toLocaleDateString("default", { month:"short", day:"numeric" });
-          return `<p style="margin:0 0 4px 0;font-family:'Josefin Sans',sans-serif;font-size:13px;">
-            ${dateStr} ${timeStr} — ${escH(e.value || e.note || "")}
-            <button type="button" onclick="deleteWeightEntry('${tracker.id}','${e.date}')" style="background:none;border:none;color:#a94442;font-size:11px;cursor:pointer;padding:0 4px;">✕</button>
-          </p>`;
-        }).join("");
-  }
-
-  drawWeightChart(tracker, entries, section);
-}
-
-function drawWeightChart(tracker, entries, section) {
-  const canvas = section
-    ? section.querySelector("#weight-chart-" + tracker.id)
-    : document.getElementById("weight-chart-" + tracker.id);
-  if (!canvas) return;
-
-  const ctx = canvas.getContext("2d");
-  const w = canvas.offsetWidth || 300;
-  const h = 120;
-  canvas.width = w;
-  canvas.height = h;
-
-  ctx.clearRect(0, 0, w, h);
-
-  /* Parse weight values to numbers */
-  const points = entries.map(e => {
-    const lbMatch = String(e.value).match(/(\d+)\s*lb/i);
-    const ozMatch = String(e.value).match(/(\d+)\s*oz/i);
-    const lb = lbMatch ? parseFloat(lbMatch[1]) : 0;
-    const oz = ozMatch ? parseFloat(ozMatch[1]) : 0;
-    return lb + oz / 16;
-  }).filter(v => v > 0);
-
-  if (points.length < 2) {
-    canvas.style.display = "none";
-    return;
-  }
-
-  canvas.style.display = "block";
-
-  const min = Math.min(...points) - 1;
-  const max = Math.max(...points) + 1;
-  const range = max - min || 1;
-  const padX = 10;
-  const padY = 10;
-  const chartW = w - padX * 2;
-  const chartH = h - padY * 2;
-
-  /* Draw line */
-  ctx.beginPath();
-  ctx.strokeStyle = tracker.color || "#8fa98f";
-  ctx.lineWidth = 2;
-  ctx.lineJoin = "round";
-
-  points.forEach((val, i) => {
-    const x = padX + (i / (points.length - 1)) * chartW;
-    const y = padY + (1 - (val - min) / range) * chartH;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-
-  ctx.stroke();
-
-  /* Draw dots */
-  points.forEach((val, i) => {
-    const x = padX + (i / (points.length - 1)) * chartW;
-    const y = padY + (1 - (val - min) / range) * chartH;
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
-    ctx.fillStyle = tracker.color || "#8fa98f";
-    ctx.fill();
-  });
-}
-
-/* =========================================================
-   SCALE SECTION (Energy Level 1-5)
-   ========================================================= */
-
-function buildScaleSection(tracker) {
-  const section = document.createElement("section");
-  section.className = "dashboard-card health-category-card";
-  section.id = "tracker-" + tracker.id;
-
-  const monthKey = getCurrentMonthKey();
-  section.dataset.currentMonth = monthKey;
-
-  section.innerHTML = `
-    <h2 class="card-title" style="color:${tracker.color || '#a09fc0'}">${escH(tracker.name)}</h2>
-    <div style="margin-bottom:10px;">
-      <p style="font-size:13px;margin:0 0 6px 0;">Today's level:</p>
-      <div style="display:flex;gap:8px;" id="scale-buttons-${tracker.id}">
-        ${[1,2,3,4,5].map(n => `<button type="button" data-level="${n}" data-tracker="${tracker.id}" style="width:36px;height:36px;border-radius:50%;border:1.5px solid ${tracker.color || '#a09fc0'};background:transparent;color:${tracker.color || '#a09fc0'};font-size:14px;cursor:pointer;">${n}</button>`).join("")}
-      </div>
-    </div>
-    <div id="scale-log-${tracker.id}" style="font-size:13px;"></div>
-  `;
-
-  section.querySelectorAll("[data-level]").forEach(btn => {
-    btn.addEventListener("click", function () {
-      const level = btn.dataset.level;
-      logScaleEntry(tracker, level);
-      /* Highlight selected */
-      section.querySelectorAll("[data-level]").forEach(b => {
-        b.style.background = b.dataset.level === level ? (tracker.color || "#a09fc0") : "transparent";
-        b.style.color = b.dataset.level === level ? "white" : (tracker.color || "#a09fc0");
-      });
-      renderScaleLog(tracker, section);
-    });
-  });
-
-  renderScaleLog(tracker, section);
-  return section;
-}
-
-function logScaleEntry(tracker, level) {
-  const health = loadHealth();
-  const monthKey = getCurrentMonthKey();
-  if (!health[monthKey]) health[monthKey] = {};
-  if (!health[monthKey][tracker.id]) health[monthKey][tracker.id] = [];
-  health[monthKey][tracker.id].push({ date: new Date().toISOString(), level: level, day: getTodayKey() });
-  saveHealth(health);
-}
-
-function renderScaleLog(tracker, section) {
-  const health = loadHealth();
-  const monthKey = getCurrentMonthKey();
-  const entries = (health[monthKey] && health[monthKey][tracker.id]) || [];
-  const log = document.getElementById("scale-log-" + tracker.id);
-  if (!log) return;
-  log.innerHTML = entries.slice(-7).reverse().map(e =>
-    `<p style="margin:0 0 3px 0;font-size:12px;">${formatShortDate(e.date)}: Level ${e.level}</p>`
-  ).join("") || "<p style='opacity:0.5;font-size:12px;'>No entries yet.</p>";
-}
-
-/* =========================================================
-   YES/NO SECTION
-   ========================================================= */
-
-function buildYesNoSection(tracker) {
-  const section = document.createElement("section");
-  section.className = "dashboard-card health-category-card";
-  section.id = "tracker-" + tracker.id;
-
-  section.innerHTML = `
-    <h2 class="card-title" style="color:${tracker.color || '#b0977a'}">${escH(tracker.name)}</h2>
-    <div style="display:flex;gap:10px;margin-bottom:10px;">
-      <button type="button" class="primary-action-button" data-tracker="${tracker.id}" data-val="yes">✓ Yes</button>
-      <button type="button" class="secondary-action-button" data-tracker="${tracker.id}" data-val="no">✗ No</button>
-    </div>
-    <div id="yesno-log-${tracker.id}" style="font-size:13px;"></div>
-  `;
-
-  section.querySelectorAll("[data-val]").forEach(btn => {
-    btn.addEventListener("click", function () {
-      const val = btn.dataset.val;
-      const health = loadHealth();
-      const mk = getCurrentMonthKey();
-      if (!health[mk]) health[mk] = {};
-      if (!health[mk][tracker.id]) health[mk][tracker.id] = [];
-      health[mk][tracker.id].push({ date: new Date().toISOString(), value: val });
-      saveHealth(health);
-      const log = document.getElementById("yesno-log-" + tracker.id);
-      if (log) {
-        const entries = health[mk][tracker.id].slice(-7).reverse();
-        log.innerHTML = entries.map(e => `<p style="margin:0 0 3px 0;font-size:12px;">${formatShortDate(e.date)}: ${e.value === "yes" ? "✓" : "✗"}</p>`).join("");
-      }
-    });
-  });
-
-  return section;
-}
-
-/* =========================================================
-   HELPERS
-   ========================================================= */
-
-function renderWeeklyHealth() { buildHealthPage(); initComparisonSection(); addEditTrackersButton(); } /* Exposed for brain-confirm.js */
-
-function getCurrentMonthKey() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-}
-
-function getTodayKey() {
-  const d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
-}
-
-function shiftMonth(monthKey, dir) {
-  const [y, m] = monthKey.split("-").map(Number);
-  const d = new Date(y, m - 1 + dir, 1);
-  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0");
-}
-
-function formatMonthLabel(monthKey) {
-  const [y, m] = monthKey.split("-").map(Number);
-  return new Date(y, m-1, 1).toLocaleString("default", { month:"long", year:"numeric" });
-}
-
-function formatShortDate(dateStr) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("default", { month:"short", day:"numeric" });
-}
-
-function escH(text) {
-  const d = document.createElement("div");
-  d.textContent = String(text||"");
-  return d.innerHTML;
-}
-
-/* Delete a weight entry by tracker id and date key */
-function deleteWeightEntry(trackerId, isoDate) {
-  const health = loadHealth();
-  const section = document.getElementById("tracker-" + trackerId);
-  const trackers = loadHealthTrackers();
-  const tracker = trackers.find(t => t.id === trackerId);
-  if (!tracker || !section) return;
-  const monthKey = section.dataset.currentMonth || getCurrentMonthKey();
-  if (!health[monthKey] || !health[monthKey][trackerId]) return;
-  health[monthKey][trackerId] = health[monthKey][trackerId].filter(e => e.date !== isoDate);
-  saveHealth(health);
-  renderWeightSection(tracker, monthKey, section);
-}
-
-/* =========================================================
-   TRACKER EDIT PANEL
-   Edit name, delete trackers from Health Page
-   ========================================================= */
-
-function openTrackerEditPanel() {
-  /* Remove existing panel if any */
-  const existing = document.getElementById("tracker-edit-panel");
-  if (existing) { existing.remove(); return; }
-
-  const trackers = loadHealthTrackers();
-  const panel = document.createElement("div");
-  panel.id = "tracker-edit-panel";
-  panel.style.cssText = `
-    position:fixed;bottom:0;left:0;width:100%;max-height:70vh;overflow-y:auto;
-    background:#F3EADF;border-radius:20px 20px 0 0;
-    box-shadow:0 -4px 20px rgba(0,0,0,0.15);z-index:1000;padding:20px;box-sizing:border-box;
-  `;
-
-  panel.innerHTML = `
-    <h3 style="font-family:'Josefin Sans',sans-serif;font-size:16px;font-weight:600;color:#3a2e28;margin:0 0 16px 0;">Edit Trackers</h3>
-    <div id="tracker-edit-list"></div>
-    <button type="button" onclick="document.getElementById('tracker-edit-panel').remove()" 
-      style="width:100%;margin-top:12px;padding:10px;border-radius:10px;border:1px solid #c9b49a;background:white;font-family:'Josefin Sans',sans-serif;font-size:14px;color:#3a2e28;cursor:pointer;">
-      Done
-    </button>
-  `;
-
-  const list = panel.querySelector("#tracker-edit-list");
-
-  trackers.forEach(function(tracker) {
-    const row = document.createElement("div");
-    row.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:10px;";
-    row.innerHTML = `
-      <input type="text" value="${escH(tracker.name)}" data-tracker-id="${tracker.id}"
-        style="flex:1;padding:8px;border-radius:8px;border:1px solid #c9b49a;font-size:14px;font-family:'Josefin Sans',sans-serif;">
-      <button type="button" data-save-tracker="${tracker.id}"
-        style="padding:6px 12px;border-radius:8px;border:1px solid #b0977a;background:#b0977a;color:white;font-size:13px;cursor:pointer;font-family:'Josefin Sans',sans-serif;">
-        Save
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Health</title>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/components-additions.css" />
+  <style>
+    :root { --font:'Josefin Sans',sans-serif; --title-color:#3C2F26; --text-main:#4E4036; --border-soft:#CBB7A3; --button-primary:#B88C6A; --card-radius:18px; }
+    .tracker-card { background:#FFFAF5; border-radius:var(--card-radius); border:1px solid var(--border-soft); box-shadow:0 4px 10px rgba(0,0,0,0.07); margin-bottom:14px; overflow:hidden; }
+    .tracker-header { display:flex; align-items:center; justify-content:space-between; padding:16px 18px 14px; cursor:pointer; }
+    .tracker-title { font-family:var(--font); font-size:17px; font-weight:600; margin:0; }
+    .tracker-chevron { font-size:13px; color:var(--border-soft); transition:transform 0.25s; background:none; border:none; padding:4px 8px; cursor:pointer; }
+    .tracker-chevron.open { transform:rotate(180deg); }
+    .tracker-body { display:none; padding:0 16px 16px; }
+    .tracker-body.open { display:block; }
+    .health-cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:6px; }
+    .cal-label { text-align:center; font-family:var(--font); font-size:10px; opacity:0.5; padding-bottom:2px; }
+    .cal-day { aspect-ratio:1; border-radius:50%; border:1.5px solid var(--border-soft); background:transparent; font-family:var(--font); font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; width:100%; color:var(--text-main); }
+    .cal-day.filled { color:white; }
+    .cal-day.today-ring { box-shadow:0 0 0 2px rgba(184,140,106,0.4); }
+    .month-nav { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
+    .month-nav button { background:none; border:none; font-size:20px; cursor:pointer; color:var(--button-primary); padding:2px 8px; line-height:1; }
+    .month-nav span { flex:1; text-align:center; font-family:var(--font); font-size:13px; font-weight:600; color:var(--title-color); }
+    .entry-form { display:none; margin-top:10px; padding:12px; background:rgba(255,255,255,0.6); border-radius:10px; border:1px solid var(--border-soft); }
+    .entry-form.open { display:block; }
+    .entry-form p { margin:0 0 8px; font-family:var(--font); font-size:13px; font-weight:600; color:var(--title-color); }
+    .entry-input { width:100%; padding:7px 10px; border-radius:8px; border:1px solid var(--border-soft); font-family:var(--font); font-size:13px; color:var(--text-main); background:white; box-sizing:border-box; margin-bottom:8px; }
+    .entry-input:focus { outline:none; border-color:var(--button-primary); }
+    .entry-btns { display:flex; gap:8px; }
+    .btn-save { padding:7px 18px; border-radius:10px; border:none; background:var(--button-primary); color:white; font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; }
+    .btn-cancel { padding:7px 14px; border-radius:10px; border:1.5px solid var(--border-soft); background:white; color:var(--text-main); font-family:var(--font); font-size:13px; cursor:pointer; }
+    .btn-delete { padding:7px 14px; border-radius:10px; border:1.5px solid #c0392b; background:white; color:#c0392b; font-family:var(--font); font-size:13px; cursor:pointer; margin-left:auto; }
+    .scale-btns { display:flex; gap:8px; margin-bottom:10px; }
+    .scale-btn { width:40px; height:40px; border-radius:50%; border:1.5px solid; background:transparent; font-family:var(--font); font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .weight-add-btn { padding:7px 14px; border-radius:10px; border:1.5px solid var(--border-soft); background:white; font-family:var(--font); font-size:13px; color:var(--text-main); cursor:pointer; margin-bottom:10px; }
+    .weight-log-entry { font-family:var(--font); font-size:13px; color:var(--text-main); padding:4px 0; border-bottom:1px solid #f0e6da; display:flex; align-items:center; justify-content:space-between; }
+    .weight-log-entry:last-child { border-bottom:none; }
+    .comparison-checklist { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 14px; }
+    .comp-check-label { display:flex; align-items:center; gap:6px; cursor:pointer; font-family:var(--font); font-size:13px; padding:5px 12px; border-radius:20px; border:1.5px solid; background:white; user-select:none; transition:background 0.15s; }
+    .comp-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; display:inline-block; }
+    .comp-day-detail { margin-top:12px; padding:12px; background:rgba(255,255,255,0.6); border-radius:12px; border:1px solid var(--border-soft); font-family:var(--font); }
+    .edit-trackers-btn { width:100%; padding:12px; border-radius:var(--card-radius); border:1.5px solid var(--border-soft); background:white; font-family:var(--font); font-size:14px; color:var(--text-main); cursor:pointer; margin-bottom:24px; }
+    .edit-panel-overlay { position:fixed; inset:0; background:rgba(60,47,38,0.4); z-index:3000; display:none; align-items:flex-end; justify-content:center; }
+    .edit-panel-overlay.open { display:flex; }
+    .edit-panel-box { background:#F7F1E8; border-radius:20px 20px 0 0; width:100%; max-width:480px; max-height:70vh; overflow-y:auto; padding:24px 20px 40px; box-sizing:border-box; }
+    .edit-panel-title { font-family:var(--font); font-size:16px; font-weight:600; color:var(--title-color); margin:0 0 16px; }
+    .edit-tracker-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+    .edit-tracker-input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border-soft); font-family:var(--font); font-size:14px; color:var(--text-main); }
+    .edit-save-btn { padding:7px 12px; border-radius:8px; border:none; background:var(--button-primary); color:white; font-family:var(--font); font-size:13px; cursor:pointer; }
+    .edit-delete-btn { padding:7px 10px; border-radius:8px; border:1.5px solid #c0392b; background:white; color:#c0392b; font-size:13px; cursor:pointer; }
+    .edit-done-btn { width:100%; margin-top:14px; padding:11px; border-radius:12px; border:1.5px solid var(--border-soft); background:none; font-family:var(--font); font-size:14px; color:var(--text-main); cursor:pointer; }
+    .add-tracker-row { display:flex; gap:8px; margin-bottom:14px; }
+    .add-tracker-input { flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border-soft); font-family:var(--font); font-size:14px; }
+    .add-tracker-btn { padding:8px 14px; border-radius:8px; border:none; background:var(--button-primary); color:white; font-family:var(--font); font-size:13px; cursor:pointer; }
+  </style>
+</head>
+<body>
+<div id="global-overlay" class="global-overlay" hidden></div>
+<div id="app-shell" class="app-shell">
+  <header class="top-bar">
+    <div class="top-bar-left"></div>
+    <div class="top-bar-right">
+      <button id="hamburger-menu-button" class="hamburger-menu-button" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="mobile-navigation-drawer">
+        <span class="hamburger-line" style="display:block;width:100%;height:3px;background-color:#3a2e28;border-radius:2px;"></span>
+        <span class="hamburger-line" style="display:block;width:100%;height:3px;background-color:#3a2e28;border-radius:2px;"></span>
+        <span class="hamburger-line" style="display:block;width:100%;height:3px;background-color:#3a2e28;border-radius:2px;"></span>
       </button>
-      <button type="button" data-delete-tracker="${tracker.id}"
-        style="padding:6px 10px;border-radius:8px;border:1px solid #a94442;background:white;color:#a94442;font-size:13px;cursor:pointer;">
-        ✕
-      </button>
-    `;
-    list.appendChild(row);
-  });
+    </div>
+  </header>
+  <nav id="mobile-navigation-drawer" class="mobile-navigation-drawer" aria-label="Main navigation" hidden>
+    <div class="mobile-navigation-header"><h2 class="mobile-navigation-title">Menu</h2></div>
+    <ul class="mobile-navigation-list"></ul>
+  </nav>
+  <main class="home-page-main-content" id="health-main">
+    <section class="dashboard-card" style="margin-bottom:14px;"><h1 class="card-title">Health</h1></section>
+    <div id="trackers-container"></div>
+    <button class="edit-trackers-btn" id="edit-trackers-btn" type="button">Edit Trackers</button>
+    <!-- Comparison always at bottom -->
+    <div class="tracker-card" id="comparison-card" style="margin-bottom:24px;">
+      <div class="tracker-header" id="comparison-header">
+        <h2 class="tracker-title" style="color:#3C2F26;">Comparison</h2>
+        <button class="tracker-chevron" id="comparison-chevron" type="button">▼</button>
+      </div>
+      <div class="tracker-body" id="comparison-body">
+        <div class="comparison-checklist" id="comp-checklist"></div>
+        <div class="month-nav">
+          <button type="button" id="comp-prev">‹</button>
+          <span id="comp-month-label"></span>
+          <button type="button" id="comp-next">›</button>
+        </div>
+        <div class="health-cal-grid" id="comp-grid"></div>
+        <div id="comp-detail-wrap"></div>
+      </div>
+    </div>
+  </main>
+</div>
 
-  /* Wire save buttons */
-  panel.querySelectorAll("[data-save-tracker]").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      const id = btn.getAttribute("data-save-tracker");
-      const input = panel.querySelector("[data-tracker-id='" + id + "']");
-      const newName = input ? input.value.trim() : "";
-      if (!newName) return;
-      const trackers = loadHealthTrackers();
-      const t = trackers.find(x => x.id === id);
-      if (t) { t.name = newName; saveHealthTrackers(trackers); buildHealthPage(); }
-    });
-  });
+<!-- Edit Panel -->
+<div class="edit-panel-overlay" id="edit-panel-overlay">
+  <div class="edit-panel-box">
+    <p class="edit-panel-title">Edit Trackers</p>
+    <div class="add-tracker-row">
+      <input type="text" class="add-tracker-input" id="new-tracker-name" placeholder="New tracker name...">
+      <button class="add-tracker-btn" type="button" id="add-tracker-btn">Add</button>
+    </div>
+    <div id="edit-tracker-list"></div>
+    <button class="edit-done-btn" type="button" id="edit-done-btn">Done</button>
+  </div>
+</div>
 
-  /* Wire delete buttons */
-  panel.querySelectorAll("[data-delete-tracker]").forEach(function(btn) {
-    btn.addEventListener("click", function() {
-      const id = btn.getAttribute("data-delete-tracker");
-      if (!confirm("Delete this tracker and all its data?")) return;
-      const trackers = loadHealthTrackers().filter(x => x.id !== id);
-      saveHealthTrackers(trackers);
-      buildHealthPage();
-      panel.remove();
-    });
-  });
+<script src="js/auth.js"></script>
+<script src="js/labels.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/menu.js"></script>
+<script src="js/storage.js"></script>
+<script>
+/* ── Health Page — fully self-contained ── */
 
-  document.body.appendChild(panel);
+const TRACKER_COLORS = { headaches:"#b0977a", weight:"#8fa98f", energy:"#a09fc0", moon:"#7a9cbf", annoyance:"#b07a9c" };
+function getColor(t) { return TRACKER_COLORS[t.id] || t.color || "#b0977a"; }
+
+function getDefaultTrackers() {
+  return [
+    { id:"headaches", name:"Headaches",   type:"calendar", color:"#b0977a" },
+    { id:"weight",    name:"Weight",       type:"weight",   color:"#8fa98f" },
+    { id:"energy",    name:"Energy Level", type:"scale",    color:"#a09fc0" },
+    { id:"moon",      name:"Moon",         type:"calendar", color:"#7a9cbf" },
+    { id:"annoyance", name:"Annoyance",    type:"calendar", color:"#b07a9c" }
+  ];
 }
 
-/* =========================================================
-   COMPARISON CALENDAR
-   Shows a monthly calendar where each day circle is split
-   into color slices — one per selected tracker.
-   ========================================================= */
-
-/* Tracker colors for comparison — matches storage.js colors */
-const COMPARISON_COLORS = {
-  headaches: "#b0977a",
-  energy:    "#a09fc0",
-  moon:      "#7a9cbf",
-  annoyance: "#b07a9c",
-  weight:    "#8fa98f"
-};
-
-function initComparisonSection() {
-  const section = document.getElementById("comparison-section");
-  if (!section) return;
-
-  /* Build checklist */
-  buildComparisonChecklist();
-
-  /* Default month */
-  section.dataset.currentMonth = getCurrentMonthKey();
-
-  renderComparisonCalendar();
+function getTrackers() {
+  try {
+    if (typeof loadHealthTrackers==="function") { const t=loadHealthTrackers(); if(t&&t.length) return t; }
+    const raw=localStorage.getItem("lale_health_trackers");
+    if(raw){ const p=JSON.parse(raw); if(p&&p.length) return p; }
+  } catch(e){}
+  return getDefaultTrackers();
+}
+function saveTrackers(t) {
+  if(typeof saveHealthTrackers==="function") saveHealthTrackers(t);
+  else localStorage.setItem("lale_health_trackers",JSON.stringify(t));
+}
+function getHealth() {
+  if(typeof loadHealth==="function") return loadHealth()||{};
+  try { return JSON.parse(localStorage.getItem("lale_health")||"{}"); } catch(e){ return {}; }
+}
+function putHealth(d) {
+  if(typeof saveHealth==="function") saveHealth(d);
+  else localStorage.setItem("lale_health",JSON.stringify(d));
 }
 
-function buildComparisonChecklist() {
-  const container = document.getElementById("comparison-checklist");
-  if (!container) return;
+function pad(n){ return String(n).padStart(2,"0"); }
+function todayKey(){ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function curMonth(){ const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1); }
+function shiftMonth(mk,dir){ const[y,m]=mk.split("-").map(Number); const d=new Date(y,m-1+dir,1); return d.getFullYear()+"-"+pad(d.getMonth()+1); }
+function monthLabel(mk){ const[y,m]=mk.split("-").map(Number); return new Date(y,m-1,1).toLocaleString("default",{month:"long",year:"numeric"}); }
+function escH(s){ const d=document.createElement("div"); d.textContent=String(s||""); return d.innerHTML; }
 
-  const trackers = loadHealthTrackers().filter(function(t) {
-    return t.type === "calendar" || t.type === "scale";
+function buildPage() {
+  const container=document.getElementById("trackers-container");
+  container.innerHTML="";
+  getTrackers().forEach(function(t){ const c=buildCard(t); if(c) container.appendChild(c); });
+  buildCompChecklist();
+  renderCompCalendar();
+}
+
+function toggleCard(id) {
+  const b=document.getElementById("body-"+id);
+  const c=document.querySelector("#hdr-"+id+" .tracker-chevron");
+  if(b){ b.classList.toggle("open"); }
+  if(c){ c.classList.toggle("open"); }
+}
+
+/* ── Calendar Card ── */
+function buildCard(tracker) {
+  if(tracker.type==="weight") return buildWeightCard(tracker);
+  if(tracker.type==="scale")  return buildScaleCard(tracker);
+  return buildCalCard(tracker);
+}
+
+function buildCalCard(tracker) {
+  const color=getColor(tracker);
+  const mk=curMonth();
+  const card=document.createElement("div");
+  card.className="tracker-card"; card.id="card-"+tracker.id; card.dataset.month=mk;
+  card.innerHTML=
+    '<div class="tracker-header" id="hdr-'+tracker.id+'">'+
+      '<h2 class="tracker-title" style="color:'+color+';">'+escH(tracker.name)+'</h2>'+
+      '<button class="tracker-chevron" type="button" aria-label="Toggle">▼</button>'+
+    '</div>'+
+    '<div class="tracker-body" id="body-'+tracker.id+'">'+
+      '<div class="month-nav">'+
+        '<button type="button" data-dir="-1" data-t="'+tracker.id+'">‹</button>'+
+        '<span id="mlbl-'+tracker.id+'">'+monthLabel(mk)+'</span>'+
+        '<button type="button" data-dir="1" data-t="'+tracker.id+'">›</button>'+
+      '</div>'+
+      '<div class="health-cal-grid" id="cal-'+tracker.id+'"></div>'+
+      '<div class="entry-form" id="form-'+tracker.id+'">'+
+        '<p id="ftitle-'+tracker.id+'"></p>'+
+        '<input type="number" min="1" max="5" class="entry-input" id="sev-'+tracker.id+'" placeholder="Severity 1-5 (optional)">'+
+        '<input type="text" class="entry-input" id="note-'+tracker.id+'" placeholder="Note (optional)">'+
+        '<div class="entry-btns">'+
+          '<button class="btn-save" type="button" data-t="'+tracker.id+'" data-a="save">Save</button>'+
+          '<button class="btn-cancel" type="button" data-t="'+tracker.id+'" data-a="cancel">Cancel</button>'+
+          '<button class="btn-delete" type="button" data-t="'+tracker.id+'" data-a="delete" style="display:none;">Delete</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
+  card.querySelector("#hdr-"+tracker.id).addEventListener("click",function(e){
+    if(e.target.tagName==="BUTTON"&&e.target.getAttribute("aria-label")==="Toggle"){ toggleCard(tracker.id); return; }
+    if(e.target.tagName==="BUTTON"&&e.target.dataset.dir) return;
+    toggleCard(tracker.id);
   });
-
-  container.innerHTML = "";
-
-  trackers.forEach(function(tracker) {
-    const color = COMPARISON_COLORS[tracker.id] || tracker.color || "#b0977a";
-    const label = document.createElement("label");
-    label.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;font-family:'Josefin Sans',sans-serif;font-size:13px;color:#3C2F26;padding:4px 10px;border-radius:20px;border:1.5px solid " + color + ";background:white;user-select:none;";
-
-    const dot = document.createElement("span");
-    dot.style.cssText = "width:10px;height:10px;border-radius:50%;background:" + color + ";flex-shrink:0;display:inline-block;";
-
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.dataset.trackerId = tracker.id;
-    cb.style.display = "none";
-    cb.checked = true; /* All selected by default */
-
-    label.appendChild(dot);
-    label.appendChild(cb);
-    label.appendChild(document.createTextNode(tracker.name));
-
-    /* Style selected state */
-    function updateStyle() {
-      label.style.background = cb.checked ? color + "22" : "white";
-      label.style.fontWeight = cb.checked ? "600" : "400";
-    }
-    updateStyle();
-
-    label.addEventListener("click", function() {
-      cb.checked = !cb.checked;
-      updateStyle();
-      renderComparisonCalendar();
+  card.querySelector(".tracker-chevron").addEventListener("click",function(e){ e.stopPropagation(); toggleCard(tracker.id); });
+  card.querySelectorAll("[data-dir]").forEach(function(btn){
+    btn.addEventListener("click",function(e){ e.stopPropagation();
+      card.dataset.month=shiftMonth(card.dataset.month,parseInt(btn.dataset.dir));
+      document.getElementById("mlbl-"+tracker.id).textContent=monthLabel(card.dataset.month);
+      renderCal(tracker,card.dataset.month,color);
     });
+  });
+  card.querySelector("[data-a='save']").addEventListener("click",function(){ saveEntry(tracker,card); });
+  card.querySelector("[data-a='cancel']").addEventListener("click",function(){ closeForm(tracker.id,card); });
+  card.querySelector("[data-a='delete']").addEventListener("click",function(){ deleteEntry(tracker,card); });
+  renderCal(tracker,mk,color);
+  return card;
+}
 
+function renderCal(tracker,mk,color) {
+  const grid=document.getElementById("cal-"+tracker.id);
+  if(!grid) return;
+  const health=getHealth();
+  const entries=(health[mk]&&health[mk][tracker.id])||[];
+  const filled=new Set(entries.map(function(e){return e.day;}));
+  const[year,month]=mk.split("-").map(Number);
+  const days=new Date(year,month,0).getDate();
+  const offset=(new Date(year,month-1,1).getDay()+6)%7;
+  grid.innerHTML="";
+  ["M","T","W","T","F","S","S"].forEach(function(d){ const l=document.createElement("div"); l.className="cal-label"; l.textContent=d; grid.appendChild(l); });
+  for(let i=0;i<offset;i++) grid.appendChild(document.createElement("div"));
+  for(let day=1;day<=days;day++){
+    const dk=mk+"-"+pad(day);
+    const dayEntries=entries.filter(function(e){return e.day===dk;});
+    const isFilled=dayEntries.length>0;
+    const isToday=dk===todayKey();
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="cal-day"+(isFilled?" filled":"")+(isToday?" today-ring":"");
+    btn.style.borderColor=color;
+    if(isFilled) btn.style.background=color;
+    btn.textContent=isFilled?"✓":String(day);
+    btn.addEventListener("click",function(){ openForm(tracker,dk,day,dayEntries,color); });
+    grid.appendChild(btn);
+  }
+}
+
+function openForm(tracker,dateKey,day,existing,color){
+  const card=document.getElementById("card-"+tracker.id);
+  const form=document.getElementById("form-"+tracker.id);
+  const titleEl=document.getElementById("ftitle-"+tracker.id);
+  const delBtn=form.querySelector("[data-a='delete']");
+  if(!form) return;
+  card.dataset.selectedDay=dateKey;
+  let exHtml="";
+  existing.forEach(function(e){
+    const t=new Date(e.date);
+    const ts=t.toLocaleTimeString("default",{hour:"2-digit",minute:"2-digit"});
+    exHtml+="<br><small style='font-weight:normal;opacity:0.7;'>"+ts+(e.severity?" · sev "+e.severity:"")+(e.note?" · "+escH(e.note):"")+"</small>";
+  });
+  titleEl.innerHTML=existing.length?"Day "+day+" ("+existing.length+" entr"+(existing.length>1?"ies":"y")+")"+exHtml+"<br>Add another:":"Add entry for Day "+day;
+  document.getElementById("sev-"+tracker.id).value="";
+  document.getElementById("note-"+tracker.id).value="";
+  if(delBtn) delBtn.style.display=existing.length===1?"":"none";
+  form.classList.add("open");
+}
+
+function closeForm(id,card){
+  const f=document.getElementById("form-"+id);
+  if(f) f.classList.remove("open");
+  if(card) card.dataset.selectedDay="";
+}
+
+function saveEntry(tracker,card){
+  const dk=card.dataset.selectedDay; if(!dk) return;
+  const mk=card.dataset.month;
+  const health=getHealth();
+  if(!health[mk]) health[mk]={};
+  if(!health[mk][tracker.id]) health[mk][tracker.id]=[];
+  health[mk][tracker.id].push({day:dk,date:new Date().toISOString(),severity:document.getElementById("sev-"+tracker.id).value,note:document.getElementById("note-"+tracker.id).value.trim()});
+  putHealth(health);
+  closeForm(tracker.id,card);
+  renderCal(tracker,mk,getColor(tracker));
+  renderCompCalendar();
+}
+
+function deleteEntry(tracker,card){
+  const dk=card.dataset.selectedDay; if(!dk) return;
+  const mk=card.dataset.month;
+  const health=getHealth();
+  if(health[mk]&&health[mk][tracker.id]) health[mk][tracker.id]=health[mk][tracker.id].filter(function(e){return e.day!==dk;});
+  putHealth(health);
+  closeForm(tracker.id,card);
+  renderCal(tracker,mk,getColor(tracker));
+  renderCompCalendar();
+}
+
+/* ── Weight Card ── */
+function buildWeightCard(tracker){
+  const color=getColor(tracker);
+  const mk=curMonth();
+  const card=document.createElement("div");
+  card.className="tracker-card"; card.id="card-"+tracker.id; card.dataset.month=mk;
+  card.innerHTML=
+    '<div class="tracker-header" id="hdr-'+tracker.id+'">'+
+      '<h2 class="tracker-title" style="color:'+color+';">'+escH(tracker.name)+'</h2>'+
+      '<button class="tracker-chevron" type="button" aria-label="Toggle">▼</button>'+
+    '</div>'+
+    '<div class="tracker-body" id="body-'+tracker.id+'">'+
+      '<div class="month-nav">'+
+        '<button type="button" data-dir="-1">‹</button>'+
+        '<span id="mlbl-'+tracker.id+'">'+monthLabel(mk)+'</span>'+
+        '<button type="button" data-dir="1">›</button>'+
+      '</div>'+
+      '<button class="weight-add-btn" type="button" id="wadd-'+tracker.id+'">＋ Add Entry</button>'+
+      '<div class="entry-form" id="wform-'+tracker.id+'">'+
+        '<p>Log weight:</p>'+
+        '<input type="text" class="entry-input" id="winput-'+tracker.id+'" placeholder="e.g. 120lb 3oz or 54.4kg">'+
+        '<div class="entry-btns">'+
+          '<button class="btn-save" type="button" id="wsave-'+tracker.id+'">Save</button>'+
+          '<button class="btn-cancel" type="button" id="wcancel-'+tracker.id+'">Cancel</button>'+
+        '</div>'+
+      '</div>'+
+      '<div id="wlog-'+tracker.id+'"></div>'+
+    '</div>';
+
+  card.querySelector("#hdr-"+tracker.id).addEventListener("click",function(e){ if(e.target.tagName==="BUTTON") return; toggleCard(tracker.id); });
+  card.querySelector(".tracker-chevron").addEventListener("click",function(e){ e.stopPropagation(); toggleCard(tracker.id); });
+  card.querySelectorAll("[data-dir]").forEach(function(btn){
+    btn.addEventListener("click",function(e){ e.stopPropagation();
+      card.dataset.month=shiftMonth(card.dataset.month,parseInt(btn.dataset.dir));
+      document.getElementById("mlbl-"+tracker.id).textContent=monthLabel(card.dataset.month);
+      renderWLog(tracker,card.dataset.month);
+    });
+  });
+  card.querySelector("#wadd-"+tracker.id).addEventListener("click",function(){
+    document.getElementById("wform-"+tracker.id).classList.add("open");
+    this.style.display="none";
+  });
+  card.querySelector("#wcancel-"+tracker.id).addEventListener("click",function(){
+    document.getElementById("wform-"+tracker.id).classList.remove("open");
+    document.getElementById("wadd-"+tracker.id).style.display="";
+  });
+  card.querySelector("#wsave-"+tracker.id).addEventListener("click",function(){
+    const val=document.getElementById("winput-"+tracker.id).value.trim(); if(!val) return;
+    const health=getHealth(); const cmk=card.dataset.month;
+    if(!health[cmk]) health[cmk]={};
+    if(!health[cmk][tracker.id]) health[cmk][tracker.id]=[];
+    health[cmk][tracker.id].push({date:new Date().toISOString(),value:val,day:todayKey()});
+    putHealth(health);
+    document.getElementById("winput-"+tracker.id).value="";
+    document.getElementById("wform-"+tracker.id).classList.remove("open");
+    document.getElementById("wadd-"+tracker.id).style.display="";
+    renderWLog(tracker,card.dataset.month);
+  });
+  renderWLog(tracker,mk);
+  return card;
+}
+
+function renderWLog(tracker,mk){
+  const log=document.getElementById("wlog-"+tracker.id); if(!log) return;
+  const health=getHealth();
+  const entries=(health[mk]&&health[mk][tracker.id])||[];
+  if(!entries.length){ log.innerHTML=""; return; }
+  log.innerHTML=entries.slice().reverse().map(function(e){
+    const d=new Date(e.date);
+    const ds=d.toLocaleDateString("default",{month:"short",day:"numeric"});
+    const ts=d.toLocaleTimeString("default",{hour:"2-digit",minute:"2-digit"});
+    return '<div class="weight-log-entry"><span>'+ds+" "+ts+" — "+escH(e.value||e.note||"")+'</span>'+
+      '<button type="button" onclick="deleteWeight(\''+tracker.id+'\',\''+e.date+'\',\''+mk+'\')" style="background:none;border:none;color:#c0392b;font-size:12px;cursor:pointer;">✕</button></div>';
+  }).join("");
+}
+
+function deleteWeight(id,isoDate,mk){
+  const health=getHealth();
+  if(health[mk]&&health[mk][id]) health[mk][id]=health[mk][id].filter(function(e){return e.date!==isoDate;});
+  putHealth(health);
+  const t=getTrackers().find(function(x){return x.id===id;});
+  if(t) renderWLog(t,mk);
+}
+
+/* ── Scale Card (Energy) ── */
+function buildScaleCard(tracker){
+  const color=getColor(tracker);
+  const card=document.createElement("div");
+  card.className="tracker-card"; card.id="card-"+tracker.id;
+  card.innerHTML=
+    '<div class="tracker-header" id="hdr-'+tracker.id+'">'+
+      '<h2 class="tracker-title" style="color:'+color+';">'+escH(tracker.name)+'</h2>'+
+      '<button class="tracker-chevron" type="button" aria-label="Toggle">▼</button>'+
+    '</div>'+
+    '<div class="tracker-body" id="body-'+tracker.id+'">'+
+      '<p style="font-family:var(--font);font-size:13px;margin:0 0 8px;">Today\'s level:</p>'+
+      '<div class="scale-btns">'+
+        [1,2,3,4,5].map(function(n){return '<button class="scale-btn" type="button" data-level="'+n+'" style="border-color:'+color+';color:'+color+';">'+n+'</button>';}).join("")+
+      '</div>'+
+      '<div id="slog-'+tracker.id+'" style="font-family:var(--font);font-size:12px;"></div>'+
+    '</div>';
+
+  card.querySelector("#hdr-"+tracker.id).addEventListener("click",function(e){ if(e.target.tagName==="BUTTON") return; toggleCard(tracker.id); });
+  card.querySelector(".tracker-chevron").addEventListener("click",function(e){ e.stopPropagation(); toggleCard(tracker.id); });
+  card.querySelectorAll(".scale-btn").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      const level=btn.dataset.level;
+      const health=getHealth(); const mk=curMonth();
+      if(!health[mk]) health[mk]={};
+      if(!health[mk][tracker.id]) health[mk][tracker.id]=[];
+      health[mk][tracker.id].push({date:new Date().toISOString(),level:level,day:todayKey()});
+      putHealth(health);
+      card.querySelectorAll(".scale-btn").forEach(function(b){
+        const sel=b.dataset.level===level;
+        b.style.background=sel?color:"transparent";
+        b.style.color=sel?"white":color;
+      });
+      renderSLog(tracker);
+    });
+  });
+  renderSLog(tracker);
+  return card;
+}
+
+function renderSLog(tracker){
+  const log=document.getElementById("slog-"+tracker.id); if(!log) return;
+  const health=getHealth(); const mk=curMonth();
+  const entries=(health[mk]&&health[mk][tracker.id])||[];
+  log.innerHTML=entries.slice(-5).reverse().map(function(e){
+    const d=new Date(e.date);
+    return '<p style="margin:2px 0;">'+d.toLocaleDateString("default",{month:"short",day:"numeric"})+': Level '+e.level+'</p>';
+  }).join("")||'<p style="opacity:0.5;margin:4px 0;">No entries yet.</p>';
+}
+
+/* ── Comparison ── */
+var compMonth=curMonth();
+
+function buildCompChecklist(){
+  const container=document.getElementById("comp-checklist"); if(!container) return;
+  container.innerHTML="";
+  const trackers=getTrackers().filter(function(t){return t.type==="calendar"||t.type==="scale";});
+  trackers.forEach(function(tracker){
+    const color=TRACKER_COLORS[tracker.id]||getColor(tracker);
+    const label=document.createElement("label"); label.className="comp-check-label"; label.style.borderColor=color;
+    const dot=document.createElement("span"); dot.className="comp-dot"; dot.style.background=color;
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.dataset.trackerId=tracker.id; cb.checked=true; cb.style.display="none";
+    label.appendChild(dot); label.appendChild(cb); label.appendChild(document.createTextNode(" "+tracker.name));
+    function upd(){ label.style.background=cb.checked?color+"22":"white"; label.style.fontWeight=cb.checked?"600":"400"; }
+    upd();
+    label.addEventListener("click",function(e){ e.preventDefault(); cb.checked=!cb.checked; upd(); renderCompCalendar(); });
     container.appendChild(label);
   });
-
-  /* Month navigation */
-  const navRow = document.createElement("div");
-  navRow.style.cssText = "display:flex;align-items:center;gap:8px;width:100%;margin-top:6px;";
-  navRow.innerHTML =
-    '<button type="button" id="comp-prev-btn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;">‹</button>' +
-    '<span id="comp-month-label" style="font-size:13px;flex:1;text-align:center;font-family:\'Josefin Sans\',sans-serif;color:#3C2F26;font-weight:600;"></span>' +
-    '<button type="button" id="comp-next-btn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#b0977a;padding:4px 8px;">›</button>';
-
-  const section = document.getElementById("comparison-section");
-  if (section) section.insertBefore(navRow, document.getElementById("comparison-calendar-wrap"));
-
-  document.getElementById("comp-prev-btn").addEventListener("click", function() {
-    const s = document.getElementById("comparison-section");
-    s.dataset.currentMonth = shiftMonth(s.dataset.currentMonth, -1);
-    document.getElementById("comp-month-label").textContent = formatMonthLabel(s.dataset.currentMonth);
-    renderComparisonCalendar();
-  });
-  document.getElementById("comp-next-btn").addEventListener("click", function() {
-    const s = document.getElementById("comparison-section");
-    s.dataset.currentMonth = shiftMonth(s.dataset.currentMonth, 1);
-    document.getElementById("comp-month-label").textContent = formatMonthLabel(s.dataset.currentMonth);
-    renderComparisonCalendar();
-  });
+  document.getElementById("comp-month-label").textContent=monthLabel(compMonth);
+  document.getElementById("comp-prev").addEventListener("click",function(){ compMonth=shiftMonth(compMonth,-1); document.getElementById("comp-month-label").textContent=monthLabel(compMonth); renderCompCalendar(); });
+  document.getElementById("comp-next").addEventListener("click",function(){ compMonth=shiftMonth(compMonth,1); document.getElementById("comp-month-label").textContent=monthLabel(compMonth); renderCompCalendar(); });
+  document.getElementById("comparison-header").addEventListener("click",function(e){ if(e.target.id==="comparison-chevron") return; toggleComp(); });
+  document.getElementById("comparison-chevron").addEventListener("click",function(e){ e.stopPropagation(); toggleComp(); });
 }
 
-function getSelectedTrackers() {
-  const checks = document.querySelectorAll("#comparison-checklist input[type=checkbox]");
-  const selected = [];
-  checks.forEach(function(cb) {
-    if (cb.checked) selected.push(cb.dataset.trackerId);
-  });
-  return selected;
+function toggleComp(){
+  document.getElementById("comparison-body").classList.toggle("open");
+  document.getElementById("comparison-chevron").classList.toggle("open");
 }
 
-function renderComparisonCalendar(card) {
-  const wrap = document.getElementById("comparison-calendar-wrap");
-  if (!wrap || !card) return;
+function getSelectedIds(){
+  const ids=[];
+  document.querySelectorAll("#comp-checklist input[type=checkbox]").forEach(function(cb){ if(cb.checked) ids.push(cb.dataset.trackerId); });
+  return ids;
+}
 
-  const monthKey = card.dataset.currentMonth || getCurrentMonthKey();
-  const label = document.getElementById("comp-month-label");
-  if (label) label.textContent = formatMonthLabel(monthKey);
-
-  const selectedIds = getSelectedTrackers();
-  const health = loadHealth();
-  const monthData = health[monthKey] || {};
-
-  const [year, month] = monthKey.split("-").map(Number);
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const firstDay = new Date(year, month - 1, 1).getDay();
-  const startOffset = (firstDay + 6) % 7;
-
-  wrap.innerHTML = "";
-
-  const grid = document.createElement("div");
-  grid.style.cssText = "display:grid;grid-template-columns:repeat(7,1fr);gap:4px;";
-
-  /* Day labels */
-  ["M","T","W","T","F","S","S"].forEach(function(d) {
-    const lbl = document.createElement("div");
-    lbl.style.cssText = "text-align:center;font-size:10px;opacity:0.5;padding-bottom:2px;font-family:'Josefin Sans',sans-serif;";
-    lbl.textContent = d;
-    grid.appendChild(lbl);
-  });
-
-  /* Empty offset cells */
-  for (let i = 0; i < startOffset; i++) {
-    grid.appendChild(document.createElement("div"));
-  }
-
-  /* Day circles */
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dayStr = String(day).padStart(2, "0");
-    const dateKey = monthKey + "-" + dayStr;
-    const isToday = dateKey === getTodayKey();
-
-    /* Which selected trackers have entries on this day */
-    const activeTrackers = selectedIds.filter(function(id) {
-      const entries = (monthData[id] || []);
-      return entries.some(function(e) { return e.day === dateKey; });
-    });
-
-    const cell = document.createElement("button");
-    cell.type = "button";
-    cell.style.cssText = "width:100%;aspect-ratio:1;border-radius:50%;border:1.5px solid #CBB7A3;background:transparent;font-family:'Josefin Sans',sans-serif;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:0;" +
-      (isToday ? "box-shadow:0 0 0 2px #b0977a44;" : "");
-
-    if (activeTrackers.length === 0) {
-      /* Empty day */
-      cell.style.color = "#CBB7A3";
-      cell.textContent = String(day);
-    } else if (activeTrackers.length === 1) {
-      /* Single tracker — full fill */
-      const color = COMPARISON_COLORS[activeTrackers[0]] || "#b0977a";
-      cell.style.background = color;
-      cell.style.borderColor = color;
-      cell.style.color = "white";
-      cell.textContent = String(day);
+function renderCompCalendar(){
+  const grid=document.getElementById("comp-grid"); if(!grid) return;
+  const selected=getSelectedIds();
+  const health=getHealth();
+  const md=health[compMonth]||{};
+  const[year,month]=compMonth.split("-").map(Number);
+  const days=new Date(year,month,0).getDate();
+  const offset=(new Date(year,month-1,1).getDay()+6)%7;
+  grid.innerHTML="";
+  ["M","T","W","T","F","S","S"].forEach(function(d){ const l=document.createElement("div"); l.className="cal-label"; l.textContent=d; grid.appendChild(l); });
+  for(let i=0;i<offset;i++) grid.appendChild(document.createElement("div"));
+  for(let day=1;day<=days;day++){
+    const dk=compMonth+"-"+pad(day);
+    const isToday=dk===todayKey();
+    const active=selected.filter(function(id){ return (md[id]||[]).some(function(e){return e.day===dk;}); });
+    const btn=document.createElement("button");
+    btn.type="button";
+    btn.className="cal-day"+(isToday?" today-ring":"");
+    btn.style.borderColor="#CBB7A3";
+    btn.style.overflow="hidden";
+    btn.style.position="relative";
+    if(active.length===0){
+      btn.style.color="#CBB7A3";
+      btn.textContent=String(day);
+    } else if(active.length===1){
+      const color=TRACKER_COLORS[active[0]]||"#b0977a";
+      btn.style.background=color; btn.style.borderColor=color; btn.style.color="white";
+      btn.textContent=String(day);
     } else {
-      /* Multiple trackers — vertical slices */
-      const sliceW = 100 / activeTrackers.length;
-      const slices = activeTrackers.map(function(id, idx) {
-        const color = COMPARISON_COLORS[id] || "#b0977a";
-        const left = idx * sliceW;
-        return "linear-gradient(to bottom, " + color + " 0%, " + color + " 100%) " +
-               left + "% 0 / " + sliceW + "% 100% no-repeat";
-      });
-      cell.style.background = slices.join(", ");
-      cell.style.borderColor = "#CBB7A3";
-      cell.style.color = "white";
-      cell.style.textShadow = "0 1px 2px rgba(0,0,0,0.4)";
-      cell.textContent = String(day);
+      const sw=100/active.length;
+      const stops=active.map(function(id,i){ const c=TRACKER_COLORS[id]||"#b0977a"; const l=i*sw; return c+" "+l+"% "+(l+sw)+"%"; });
+      btn.style.background="linear-gradient(to right,"+stops.join(",")+")";
+      btn.style.borderColor="transparent"; btn.style.color="white"; btn.style.textShadow="0 1px 2px rgba(0,0,0,0.35)";
+      btn.textContent=String(day);
     }
-
-    /* Tap to see day details */
-    cell.addEventListener("click", function() {
-      openComparisonDayDetail(dateKey, day, monthData, selectedIds, card);
-    });
-
-    grid.appendChild(cell);
+    btn.addEventListener("click",function(){ showCompDetail(dk,day,md,selected); });
+    grid.appendChild(btn);
   }
-
-  wrap.appendChild(grid);
 }
 
-function openComparisonDayDetail(dateKey, day, monthData, selectedIds, card) {
-  /* Remove existing detail popup */
-  const existing = document.getElementById("comp-day-detail");
-  if (existing) existing.remove();
-
-  const trackers = loadHealthTrackers();
-  const detail = document.createElement("div");
-  detail.id = "comp-day-detail";
-  detail.style.cssText = "margin-top:12px;padding:12px;background:rgba(255,255,255,0.6);border-radius:12px;font-family:'Josefin Sans',sans-serif;";
-
-  const d = new Date(dateKey);
-  const dateLabel = d.toLocaleDateString("default", { weekday:"long", month:"long", day:"numeric" });
-
-  let html = '<p style="font-size:13px;font-weight:600;color:#3C2F26;margin:0 0 10px;">' + dateLabel + '</p>';
-
-  let hasAny = false;
-  selectedIds.forEach(function(id) {
-    const tracker = trackers.find(function(t) { return t.id === id; });
-    const entries = (monthData[id] || []).filter(function(e) { return e.day === dateKey; });
-    if (!entries.length) return;
-    hasAny = true;
-    const color = COMPARISON_COLORS[id] || "#b0977a";
-    html += '<div style="margin-bottom:8px;">';
-    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">';
-    html += '<span style="width:10px;height:10px;border-radius:50%;background:' + color + ';display:inline-block;flex-shrink:0;"></span>';
-    html += '<span style="font-size:13px;font-weight:600;color:' + color + ';">' + escH(tracker ? tracker.name : id) + '</span>';
-    html += '</div>';
-    entries.forEach(function(e) {
-      const t = new Date(e.date);
-      const timeStr = t.toLocaleTimeString("default", { hour:"2-digit", minute:"2-digit" });
-      html += '<p style="font-size:12px;margin:2px 0 2px 16px;color:#4E4036;">' + timeStr;
-      if (e.severity) html += ' — severity ' + e.severity;
-      if (e.level) html += ' — level ' + e.level;
-      if (e.note) html += ' — ' + escH(e.note);
-      html += '</p>';
+function showCompDetail(dateKey,day,md,selected){
+  const wrap=document.getElementById("comp-detail-wrap");
+  const existing=wrap.querySelector(".comp-day-detail");
+  if(existing){ existing.remove(); return; }
+  const trackers=getTrackers();
+  const d=new Date(dateKey);
+  const dateLabel=d.toLocaleDateString("default",{weekday:"long",month:"long",day:"numeric"});
+  const box=document.createElement("div"); box.className="comp-day-detail";
+  let html='<p style="font-weight:600;font-size:13px;color:var(--title-color);margin:0 0 10px;">'+dateLabel+'</p>';
+  let hasAny=false;
+  selected.forEach(function(id){
+    const tracker=trackers.find(function(t){return t.id===id;});
+    const entries=(md[id]||[]).filter(function(e){return e.day===dateKey;});
+    if(!entries.length) return;
+    hasAny=true;
+    const color=TRACKER_COLORS[id]||"#b0977a";
+    html+='<div style="margin-bottom:8px;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;"><span style="width:10px;height:10px;border-radius:50%;background:'+color+';display:inline-block;"></span><span style="font-size:13px;font-weight:600;color:'+color+';">'+escH(tracker?tracker.name:id)+'</span></div>';
+    entries.forEach(function(e){
+      const t=new Date(e.date);
+      const ts=t.toLocaleTimeString("default",{hour:"2-digit",minute:"2-digit"});
+      html+='<p style="font-size:12px;margin:2px 0 2px 16px;color:var(--text-main);">'+ts+(e.severity?" · sev "+e.severity:"")+(e.level?" · level "+e.level:"")+(e.note?" · "+escH(e.note):"")+'</p>';
     });
-    html += '</div>';
+    html+='</div>';
   });
-
-  if (!hasAny) html += '<p style="font-size:12px;opacity:0.5;">No entries for selected trackers.</p>';
-
-  html += '<button type="button" onclick="document.getElementById(\'comp-day-detail\').remove()" style="margin-top:8px;background:none;border:none;font-size:12px;color:#b0977a;cursor:pointer;font-family:\'Josefin Sans\',sans-serif;">Close</button>';
-
-  detail.innerHTML = html;
-  document.getElementById("comparison-calendar-wrap").appendChild(detail);
+  if(!hasAny) html+='<p style="font-size:12px;opacity:0.5;">No entries for selected trackers.</p>';
+  /* Color legend */
+  html+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">';
+  selected.forEach(function(id){
+    const tracker=trackers.find(function(t){return t.id===id;});
+    const color=TRACKER_COLORS[id]||"#b0977a";
+    html+='<span style="display:flex;align-items:center;gap:4px;font-size:11px;font-family:var(--font);color:var(--text-main);"><span style="width:8px;height:8px;border-radius:50%;background:'+color+';display:inline-block;"></span>'+escH(tracker?tracker.name:id)+'</span>';
+  });
+  html+='</div>';
+  html+='<button type="button" onclick="this.closest(\'.comp-day-detail\').remove()" style="margin-top:10px;background:none;border:none;font-size:12px;color:var(--button-primary);cursor:pointer;font-family:var(--font);">Close ✕</button>';
+  box.innerHTML=html;
+  wrap.appendChild(box);
 }
+
+/* ── Edit Trackers ── */
+document.getElementById("edit-trackers-btn").addEventListener("click",function(){ document.getElementById("edit-panel-overlay").classList.add("open"); renderEditList(); });
+document.getElementById("edit-done-btn").addEventListener("click",function(){ document.getElementById("edit-panel-overlay").classList.remove("open"); });
+document.getElementById("add-tracker-btn").addEventListener("click",function(){
+  const input=document.getElementById("new-tracker-name");
+  const name=input.value.trim(); if(!name) return;
+  const trackers=getTrackers();
+  trackers.push({id:name.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+Date.now(),name:name,type:"calendar",color:"#b0977a"});
+  saveTrackers(trackers); input.value=""; buildPage(); renderEditList();
+});
+
+function renderEditList(){
+  const list=document.getElementById("edit-tracker-list"); list.innerHTML="";
+  const trackers=getTrackers();
+  trackers.forEach(function(tracker){
+    const row=document.createElement("div"); row.className="edit-tracker-row";
+    row.innerHTML='<input type="text" class="edit-tracker-input" value="'+escH(tracker.name)+'" data-id="'+tracker.id+'">'+
+      '<button class="edit-save-btn" type="button" data-save="'+tracker.id+'">Save</button>'+
+      '<button class="edit-delete-btn" type="button" data-del="'+tracker.id+'">✕</button>';
+    list.appendChild(row);
+  });
+  list.querySelectorAll("[data-save]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      const id=btn.dataset.save;
+      const input=list.querySelector("[data-id='"+id+"']");
+      const newName=input?input.value.trim():""; if(!newName) return;
+      const trackers=getTrackers();
+      const t=trackers.find(function(x){return x.id===id;});
+      if(t){ t.name=newName; saveTrackers(trackers); buildPage(); }
+    });
+  });
+  list.querySelectorAll("[data-del]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      const id=btn.dataset.del;
+      if(!confirm("Delete this tracker and all its data?")) return;
+      saveTrackers(getTrackers().filter(function(x){return x.id!==id;}));
+      buildPage(); renderEditList();
+    });
+  });
+}
+
+/* ── Init ── */
+document.addEventListener("DOMContentLoaded",function(){ buildPage(); });
+window.renderWeeklyHealth=function(){ buildPage(); };
+</script>
+<script src="js/auth.js"></script>
+<script src="js/menu.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./service-worker.js")
+        .then(function() { console.log("[SW] Registered"); })
+        .catch(function(err) { console.warn("[SW] Registration failed:", err); });
+    }
+  </script>
+</body>
+</html>
