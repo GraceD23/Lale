@@ -9,8 +9,8 @@
    Supabase project URL and anon key.
    ========================================================= */
 
-const SUPABASE_URL  = "YOUR_SUPABASE_URL";   // e.g. https://xyzxyz.supabase.co
-const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL  = "https://awqyunetuwjllmvllnjc.supabase.co";   // e.g. https://xyzxyz.supabase.co
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3cXl1bmV0dXdqbGxtdmxsbmpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MjU0NzYsImV4cCI6MjA5NjIwMTQ3Nn0.YVcUOSfjL8fc2D3eQOQU0ltMIMQwmcdWd1_TcgdtHsY";
 
 /* =========================================================
    LOW-LEVEL HELPERS
